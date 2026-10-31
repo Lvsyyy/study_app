@@ -1,5 +1,4 @@
 import sqlite3
-<<<<<<< HEAD
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -54,7 +53,6 @@ class Database:
                 "INSERT OR IGNORE INTO subjects(name) VALUES (?)",
                 [(name,) for name in DEFAULT_SUBJECTS],
             )
-=======
 from pathlib import Path
 from PySide6.QtCore import QStandardPaths
 
@@ -104,7 +102,6 @@ class Database:
             "INSERT OR IGNORE INTO subjects(name) VALUES (?)",
             [(name,) for name in subjects],
         )
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
     def execute(self, sql, params=()):
         return self.connection.execute(sql, params)

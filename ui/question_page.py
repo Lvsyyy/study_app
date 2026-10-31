@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import time
 from pathlib import Path
 
@@ -15,7 +14,6 @@ class QuestionPage(QWidget):
     back_requested = Signal()
     answered = Signal(bool)  # emitted once per question, on the first answer (or reveal)
 
-=======
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFrame
 )
@@ -26,12 +24,10 @@ from ui.widgets import card, muted_label, action_button
 
 
 class QuestionPage(QWidget):
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
     def __init__(self, question_repository, attempt_repository):
         super().__init__()
         self.questions = question_repository
         self.attempts = attempt_repository
-<<<<<<< HEAD
         self.heading = "Practice"
         self.queue = []
         self.index = 0
@@ -43,17 +39,14 @@ class QuestionPage(QWidget):
         self._rebuild = None  # callable returning a fresh queue for "Practice again"
         self._round_correct = 0
         self._round_answered = 0
-=======
         self.subject = "Math"
         self.offset = 0
         self.current = None
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(34, 30, 34, 30)
         self.root.setSpacing(18)
         self._build()
 
-<<<<<<< HEAD
     # -- layout ----------------------------------------------------------
     def _build(self):
         header = QHBoxLayout()
@@ -275,7 +268,6 @@ class QuestionPage(QWidget):
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.primary_button.setText("Next  →")
-=======
     def _build(self):
         header = QHBoxLayout()
         back = action_button("←  Back")
@@ -368,13 +360,11 @@ class QuestionPage(QWidget):
         else:
             self.image_label.clear()
             self.image_label.hide()
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
     def show_hint(self):
         if self.current and self.current["hint"]:
             self.hint_text.setText(f"Hint: {self.current['hint']}")
 
-<<<<<<< HEAD
     def toggle_saved(self):
         if self.current is None:
             return
@@ -388,7 +378,6 @@ class QuestionPage(QWidget):
     def next_question(self):
         self.index += 1
         self._load_current()
-=======
     def check_answer(self):
         if not self.current:
             return
@@ -405,4 +394,3 @@ class QuestionPage(QWidget):
     def next_question(self):
         self.offset += 1
         self._load_question()
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f

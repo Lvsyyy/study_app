@@ -1,30 +1,23 @@
-<<<<<<< HEAD
 # Study App
 
 A PySide6 study app with a local SQLite database: practice questions by subject,
 track accuracy and study time, save questions for later, and see your streak.
-=======
 # Study App GUI
 
 A modular PySide6 study-app starter with a local SQLite database.
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
 ## Run
 
 ```bash
 python -m venv .venv
-<<<<<<< HEAD
 source .venv/bin/activate          # Linux / macOS
 # .venv\Scripts\activate           # Windows
-=======
 source .venv/bin/activate          # Linux
 # .venv\\Scripts\\activate         # Windows
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 pip install -r requirements.txt
 python main.py
 ```
 
-<<<<<<< HEAD
 ## Develop
 
 ```bash
@@ -100,7 +93,6 @@ Tables: `subjects`, `topics`, `questions`, `attempts`, `study_sessions`, `saved_
 - `database/` – connection + migrations, schema and repositories
 - `ui/` – pages, dialogs and widgets
 - `tests/` – pytest suite (database logic and an offscreen UI smoke test)
-=======
 ## Data storage
 
 The app creates `study_app.sqlite3` in the operating system's application-data directory.
@@ -137,4 +129,3 @@ question_id = question_repository.add_question(
 - `core/` — theme and settings
 - `database/` — SQLite connection, schema and repositories
 - `ui/` — reusable PySide6 screens and widgets
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f

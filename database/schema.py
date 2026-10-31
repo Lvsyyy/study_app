@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 SCHEMA_VERSION = 2
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
@@ -12,9 +11,8 @@ MIGRATIONS = {
     CREATE INDEX IF NOT EXISTS idx_attempts_created_q ON attempts(question_id, created_at);
     """,
 }
-=======
+
 SCHEMA_VERSION = 1
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subjects (

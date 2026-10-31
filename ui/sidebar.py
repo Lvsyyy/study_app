@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 
@@ -14,7 +13,6 @@ class Sidebar(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         self.setFixedWidth(218)
         self.icon_pack = icon_pack
-=======
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QSpacerItem, QSizePolicy
 from PySide6.QtCore import Qt
 
@@ -24,12 +22,10 @@ class Sidebar(QWidget):
         super().__init__()
         self.setObjectName("Sidebar")
         self.setFixedWidth(218)
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 22, 14, 16)
         layout.setSpacing(7)
 
-<<<<<<< HEAD
         self.brand = QLabel()
         self.brand.setProperty("role", "brand")
         layout.addWidget(self.brand)
@@ -75,15 +71,14 @@ class Sidebar(QWidget):
 
     def set_active(self, name):
         for key, button in self.buttons.items():
-=======
-        brand = QLabel("◈  STUDY")
-        brand.setStyleSheet("font-size: 18px; font-weight: 800; padding: 0 8px 20px 8px;")
-        layout.addWidget(brand)
+            brand = QLabel("◈  STUDY")
+            brand.setStyleSheet("font-size: 18px; font-weight: 800; padding: 0 8px 20px 8px;")
+            layout.addWidget(brand)
 
-        self.nav_buttons = {}
-        entries = [
-            ("Home", "⌂"), ("Subjects", "▦"), ("Statistics", "▤"), ("Saved", "◇")
-        ]
+            self.nav_buttons = {}
+            entries = [
+                ("Home", "⌂"), ("Subjects", "▦"), ("Statistics", "▤"), ("Saved", "◇")
+            ]
         for name, glyph in entries:
             button = QPushButton(f"{glyph}   {name}")
             button.setProperty("nav", True)
@@ -113,5 +108,4 @@ class Sidebar(QWidget):
 
     def set_active(self, name):
         for key, button in self.nav_buttons.items():
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
             button.setChecked(key == name)

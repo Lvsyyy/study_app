@@ -8,17 +8,13 @@ class AttemptRepository:
                 """INSERT INTO attempts
                    (question_id, user_answer, is_correct, time_taken)
                    VALUES (?, ?, ?, ?)""",
-<<<<<<< HEAD
                 (question_id, user_answer, int(is_correct),
                  None if time_taken is None else round(float(time_taken), 2)),
-=======
                 (question_id, user_answer, int(is_correct), time_taken),
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
             )
         return cursor.lastrowid
 
     def totals(self):
-<<<<<<< HEAD
         """Overall counts plus accuracy (None when there are no attempts)."""
         row = self.db.fetch_one(
             """SELECT COUNT(*) AS total,
@@ -34,7 +30,6 @@ class AttemptRepository:
             "accuracy": 100.0 * correct / total if total else None,
             "avg_time": row["avg_time"],
         }
-=======
         return self.db.fetch_one(
             """SELECT COUNT(*) AS total,
                       COALESCE(SUM(is_correct), 0) AS correct,
@@ -53,17 +48,13 @@ class AttemptRepository:
                GROUP BY date(created_at)""",
             (f"{year:04d}", f"{month:02d}"),
         )
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
     def weak_points(self, limit=5):
         return self.db.fetch_all(
             """SELECT t.name AS topic_name, s.name AS subject_name,
                       COUNT(a.id) AS attempts,
-<<<<<<< HEAD
                       CAST(ROUND(100.0 * SUM(a.is_correct) / COUNT(a.id)) AS INTEGER) AS accuracy
-=======
                       ROUND(100.0 * SUM(a.is_correct) / COUNT(a.id)) AS accuracy
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
                FROM attempts a
                JOIN questions q ON q.id=a.question_id
                JOIN topics t ON t.id=q.topic_id
@@ -74,7 +65,6 @@ class AttemptRepository:
                LIMIT ?""",
             (limit,),
         )
-<<<<<<< HEAD
 
     def topic_accuracy(self, topic_id):
         row = self.db.fetch_one(
@@ -85,5 +75,3 @@ class AttemptRepository:
             (topic_id,),
         )
         return row if row and row["attempts"] else None
-=======
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -44,7 +43,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1050, 680)
         if settings.window_geometry:
             self.restoreGeometry(settings.window_geometry)
-=======
+
 from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QLabel, QVBoxLayout
 from core.theme_manager import ThemeManager
 from core.settings_store import SettingsStore
@@ -73,7 +72,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Study App")
         self.resize(1380, 860)
         self.setMinimumSize(1050, 680)
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
         central = QWidget()
         layout = QHBoxLayout(central)
@@ -81,7 +79,6 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
         self.setCentralWidget(central)
 
-<<<<<<< HEAD
         self.subject_names = [row["name"] for row in self.question_repository.list_subjects()]
         self.sidebar = Sidebar(self.subject_names, settings.icon_pack,
                                self.show_page, self.open_settings)
@@ -129,7 +126,6 @@ class MainWindow(QMainWindow):
         self.sidebar.set_active("")
 
     # -- actions ---------------------------------------------------------
-=======
         self.stack = QStackedWidget()
         self.pages = {}
         self.sidebar = Sidebar(self.show_page, self.open_settings)
@@ -177,24 +173,20 @@ class MainWindow(QMainWindow):
         else:
             self.stack.setCurrentWidget(self.pages["Home"])
 
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
     def open_settings(self):
         dialog = SettingsDialog(self.settings, self)
         if dialog.exec():
             dialog.save_values()
             ThemeManager.apply(self.app, self.settings.theme)
-<<<<<<< HEAD
             self.sidebar.set_icon_pack(self.settings.icon_pack)
             self.theme_changed.emit(self.settings.theme)
 
     def closeEvent(self, event):
         self.session.stop()
         self.settings.set_window_geometry(self.saveGeometry())
-=======
-            self.dashboard.theme_name = self.settings.theme
-            self.dashboard.refresh()
+        self.dashboard.theme_name = self.settings.theme
+        self.dashboard.refresh()
 
     def closeEvent(self, event):
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
         self.db.close()
         super().closeEvent(event)

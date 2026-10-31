@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QVBoxLayout
 
 
@@ -6,10 +5,8 @@ def repolish(widget):
     """Re-apply the stylesheet after a dynamic property changed."""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
-=======
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
 
 def card(parent=None, padding=16):
@@ -21,7 +18,6 @@ def card(parent=None, padding=16):
     return frame, layout
 
 
-<<<<<<< HEAD
 def _role_label(text, role):
     label = QLabel(text)
     label.setProperty("role", role)
@@ -35,11 +31,7 @@ def title_label(text):
 def section_title(text):
     return _role_label(text, "section")
 
-
-def muted_label(text=""):
-=======
 def muted_label(text):
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
     label = QLabel(text)
     label.setProperty("muted", True)
     return label
@@ -52,7 +44,6 @@ def action_button(text, primary=False):
     return button
 
 
-<<<<<<< HEAD
 def stat_card(name, detail=""):
     """A small card with a big number. Returns (frame, number_label, detail_label)."""
     frame, box = card()
@@ -89,9 +80,7 @@ def clear_layout(layout):
         elif item.layout() is not None:
             clear_layout(item.layout())
             item.layout().deleteLater()
-=======
 def section_title(text):
     label = QLabel(text)
     label.setStyleSheet("font-size: 16px; font-weight: 700;")
     return label
->>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
