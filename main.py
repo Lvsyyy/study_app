@@ -1,7 +1,7 @@
 import sys
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtWidgets import QApplication
+
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
 from ui.main_window import MainWindow
@@ -17,8 +17,8 @@ def main():
 
     window = MainWindow(app, settings)
     window.show()
-    sys.exit(app.exec())
+    return app.exec()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
