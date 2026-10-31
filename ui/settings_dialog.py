@@ -1,10 +1,13 @@
-from PySide6.QtWidgets import QComboBox, QDialog, QHBoxLayout, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from core.settings_store import SettingsStore
 from ui.widgets import muted_label, section_title
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QHBoxLayout, QPushButton
-from core.settings_store import SettingsStore
-from ui.widgets import muted_label
 
 
 class SettingsDialog(QDialog):
@@ -13,12 +16,12 @@ class SettingsDialog(QDialog):
         self.settings = settings
         self.setWindowTitle("Settings")
         self.setMinimumWidth(340)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 22, 22, 22)
         layout.setSpacing(12)
-
         layout.addWidget(section_title("Appearance"))
-        layout.addWidget(QLabel("Appearance"))
+
         layout.addWidget(muted_label("Color theme"))
         self.theme = QComboBox()
         self.theme.addItems(SettingsStore.THEMES)
