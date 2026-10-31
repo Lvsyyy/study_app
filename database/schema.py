@@ -2,17 +2,14 @@ SCHEMA_VERSION = 2
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
-# Version 1 is SCHEMA below. Each later version is applied once, in order.
-# Timestamps are always stored in UTC ("YYYY-MM-DD HH:MM:SS"); queries convert
-# with the 'localtime' modifier when grouping by day.
+# Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
     2: """
-    ALTER TABLE questions ADD COLUMN alt_answers TEXT;  -- JSON list of accepted answers
-    CREATE INDEX IF NOT EXISTS idx_attempts_created_q ON attempts(question_id, created_at);
+    ALTER TABLE questions ADD COLUMN alt_answers TEXT;
+    CREATE INDEX IF NOT EXISTS idx_attempts_created_q
+        ON attempts(question_id, created_at);
     """,
 }
-
-SCHEMA_VERSION = 1
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subjects (
