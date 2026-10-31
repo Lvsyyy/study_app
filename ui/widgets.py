@@ -1,12 +1,15 @@
-from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QFrame,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+)
 
 
 def repolish(widget):
-    """Re-apply the stylesheet after a dynamic property changed."""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt
 
 
 def card(parent=None, padding=16):
@@ -31,7 +34,8 @@ def title_label(text):
 def section_title(text):
     return _role_label(text, "section")
 
-def muted_label(text):
+
+def muted_label(text=""):
     label = QLabel(text)
     label.setProperty("muted", True)
     return label
@@ -45,42 +49,36 @@ def action_button(text, primary=False):
 
 
 def stat_card(name, detail=""):
-    """A small card with a big number. Returns (frame, number_label, detail_label)."""
-    frame, box = card()
-    box.addWidget(muted_label(name))
+    frame, layout = card()
+    layout.addWidget(muted_label(name))
     number = _role_label("0", "stat")
-    box.addWidget(number)
+    layout.addWidget(number)
     detail_label = muted_label(detail)
-    box.addWidget(detail_label)
+    layout.addWidget(detail_label)
     return frame, number, detail_label
 
 
 def progress_bar(value):
     bar = QProgressBar()
     bar.setRange(0, 100)
-    bar.setValue(int(value))
+    bar.setValue(max(0, min(100, int(value or 0))))
     bar.setTextVisible(False)
     return bar
 
 
 def set_state(label, state):
-    """Colour a label 'good', 'bad' or neutral (None)."""
     label.setProperty("state", state)
     repolish(label)
 
 
 def clear_layout(layout):
-    """Remove and delete everything in a layout, including nested layouts."""
     while layout.count():
         item = layout.takeAt(0)
         widget = item.widget()
+        child_layout = item.layout()
         if widget is not None:
             widget.setParent(None)
             widget.deleteLater()
-        elif item.layout() is not None:
-            clear_layout(item.layout())
-            item.layout().deleteLater()
-def section_title(text):
-    label = QLabel(text)
-    label.setStyleSheet("font-size: 16px; font-weight: 700;")
-    return label
+        elif child_layout is not None:
+            clear_layout(child_layout)
+            child_layout.deleteLater()
