@@ -35,10 +35,13 @@ class Sidebar(QWidget):
         caption = QLabel("SUBJECTS")
         caption.setProperty("role", "caption")
         layout.addWidget(caption)
+        self.subject_buttons = {}
         for subject in subjects:
             button = self._nav_button(lambda _=False, target=subject: on_navigate(target))
+            button.setText(subject)
             layout.addWidget(button)
             self.buttons[subject] = button
+            self.subject_buttons[subject] = button
 
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         settings = self._nav_button(on_settings, checkable=False)
@@ -61,6 +64,8 @@ class Sidebar(QWidget):
         self.brand.setText(f"{icon('brand', pack)}  STUDY")
         for key, (button, label) in self._icon_buttons.items():
             button.setText(f"{icon(key, pack)}   {label}")
+        for subject, button in self.subject_buttons.items():
+            button.setText(subject)
 
     def set_active(self, name):
         for key, button in self.buttons.items():
