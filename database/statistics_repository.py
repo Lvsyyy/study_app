@@ -1,10 +1,12 @@
 from datetime import date, timedelta
 
-# Days on which the user studied: any answered question, or a session of 1+ minute.
+
 _STUDY_DAYS_SQL = """
     SELECT date(created_at, 'localtime') AS day FROM attempts
     UNION
-    SELECT date(started_at, 'localtime') FROM study_sessions WHERE duration >= 60
+    SELECT date(started_at, 'localtime') AS day
+    FROM study_sessions
+    WHERE duration >= 60 OR questions_completed > 0
 """
 
 
@@ -14,44 +16,24 @@ class StatisticsRepository:
 
     def study_totals(self):
         row = self.db.fetch_one(
-            "SELECT COUNT(*) AS sessions, COALESCE(SUM(duration), 0) AS seconds "
-            "FROM study_sessions WHERE duration > 0"
+            """SELECT COUNT(*) AS sessions,
+                      COALESCE(SUM(duration), 0) AS seconds
+               FROM study_sessions
+               WHERE duration > 0"""
         )
         return {"sessions": row["sessions"], "seconds": row["seconds"]}
 
     def _study_days(self):
-        return {date.fromisoformat(r["day"]) for r in self.db.fetch_all(_STUDY_DAYS_SQL)}
-
-    def current_streak(self):
-        days = self._study_days()
-
-    def dashboard_totals(self):
-        attempts = self.db.fetch_one(
-            """SELECT COUNT(*) AS total,
-                      COALESCE(SUM(is_correct), 0) AS correct,
-                      COUNT(*) - COALESCE(SUM(is_correct), 0) AS wrong
-               FROM attempts"""
-        )
-        sessions = self.db.fetch_one(
-            "SELECT COUNT(*) AS count FROM study_sessions WHERE duration > 0"
-        )
         return {
-            "total": attempts["total"],
-            "correct": attempts["correct"],
-            "wrong": attempts["wrong"],
-            "sessions": sessions["count"],
+            date.fromisoformat(row["day"])
+            for row in self.db.fetch_all(_STUDY_DAYS_SQL)
+            if row["day"]
         }
 
     def current_streak(self):
-        rows = self.db.fetch_all(
-            """SELECT DISTINCT date(started_at) AS day
-               FROM study_sessions WHERE duration > 0
-               ORDER BY day DESC"""
-        )
-        if not rows:
+        days = self._study_days()
+        if not days:
             return 0
-        from datetime import date, timedelta
-        days = {date.fromisoformat(row["day"]) for row in rows}
         today = date.today()
         cursor = today if today in days else today - timedelta(days=1)
         streak = 0
@@ -70,45 +52,34 @@ class StatisticsRepository:
         return best
 
     def monthly_activity(self, year, month):
-        """Per local day: study seconds (sessions) and answered questions (attempts)."""
         key = f"{year:04d}-{month:02d}"
         return self.db.fetch_all(
-            """SELECT day, SUM(duration) AS duration, SUM(questions) AS questions FROM (
-                   SELECT date(started_at, 'localtime') AS day, duration, 0 AS questions
+            """SELECT day, SUM(duration) AS duration, SUM(questions) AS questions
+               FROM (
+                   SELECT date(started_at, 'localtime') AS day,
+                          duration, questions_completed AS questions
                    FROM study_sessions
                    WHERE strftime('%Y-%m', started_at, 'localtime') = ?
                    UNION ALL
-                   SELECT date(created_at, 'localtime'), 0, 1
+                   SELECT date(created_at, 'localtime') AS day, 0 AS duration, 1 AS questions
                    FROM attempts
                    WHERE strftime('%Y-%m', created_at, 'localtime') = ?
-               ) GROUP BY day""",
+               )
+               GROUP BY day
+               ORDER BY day""",
             (key, key),
         )
 
     def subject_stats(self):
         return self.db.fetch_all(
             """SELECT s.name AS name,
-                    COUNT(DISTINCT q.id) AS questions,
-                    COUNT(a.id) AS attempts,
-                    COALESCE(SUM(a.is_correct), 0) AS correct
-            FROM subjects s
-            LEFT JOIN topics t ON t.subject_id = s.id
-            LEFT JOIN questions q ON q.topic_id = t.id
-            LEFT JOIN attempts a ON a.question_id = q.id
-            GROUP BY s.id
-            ORDER BY s.name ASC"""
-        )
-
-
-    def monthly_activity(self, year, month):
-        return self.db.fetch_all(
-            """SELECT date(started_at) AS day,
-                    SUM(duration) AS duration,
-                    SUM(questions_completed) AS questions
-            FROM study_sessions
-            WHERE strftime('%Y', started_at) = ?
-                AND strftime('%m', started_at) = ?
-            GROUP BY date(started_at)
-            ORDER BY day ASC""",
-            (f"{year:04d}", f"{month:02d}"),
+                      COUNT(DISTINCT q.id) AS questions,
+                      COUNT(a.id) AS attempts,
+                      COALESCE(SUM(a.is_correct), 0) AS correct
+               FROM subjects s
+               LEFT JOIN topics t ON t.subject_id = s.id
+               LEFT JOIN questions q ON q.topic_id = t.id
+               LEFT JOIN attempts a ON a.question_id = q.id
+               GROUP BY s.id
+               ORDER BY s.name"""
         )
