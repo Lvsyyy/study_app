@@ -1,18 +1,30 @@
+<<<<<<< HEAD
 # Study App
 
 A PySide6 study app with a local SQLite database: practice questions by subject,
 track accuracy and study time, save questions for later, and see your streak.
+=======
+# Study App GUI
+
+A modular PySide6 study-app starter with a local SQLite database.
+>>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 
 ## Run
 
 ```bash
 python -m venv .venv
+<<<<<<< HEAD
 source .venv/bin/activate          # Linux / macOS
 # .venv\Scripts\activate           # Windows
+=======
+source .venv/bin/activate          # Linux
+# .venv\\Scripts\\activate         # Windows
+>>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 pip install -r requirements.txt
 python main.py
 ```
 
+<<<<<<< HEAD
 ## Develop
 
 ```bash
@@ -88,3 +100,41 @@ Tables: `subjects`, `topics`, `questions`, `attempts`, `study_sessions`, `saved_
 - `database/` – connection + migrations, schema and repositories
 - `ui/` – pages, dialogs and widgets
 - `tests/` – pytest suite (database logic and an offscreen UI smoke test)
+=======
+## Data storage
+
+The app creates `study_app.sqlite3` in the operating system's application-data directory.
+It uses SQLite WAL mode, foreign keys, indexes, transactions and a schema version.
+
+Database tables:
+- `subjects`
+- `topics`
+- `questions` (includes nullable `question_image` path)
+- `attempts`
+- `study_sessions`
+- `saved_questions`
+
+The nine configured subject names are inserted automatically. No sample questions or fake statistics are inserted. The dashboard displays zeros/empty states until real activity is recorded.
+
+`question_image` stores a path to an image file. Keep image assets in an application-managed assets directory and store the path in the database; avoid storing large image blobs directly in SQLite.
+
+## Add a question from Python
+
+```python
+question_id = question_repository.add_question(
+    subject_name="Math",
+    topic_name="Binary",
+    question_text="Convert 101101 to decimal.",
+    answer="45",
+    hint="Use binary place values.",
+    question_image="/path/to/question.png",  # optional
+    difficulty=1,
+)
+```
+
+## Structure
+
+- `core/` — theme and settings
+- `database/` — SQLite connection, schema and repositories
+- `ui/` — reusable PySide6 screens and widgets
+>>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f

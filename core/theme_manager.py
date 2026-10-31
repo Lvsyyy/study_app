@@ -1,5 +1,9 @@
 from PySide6.QtWidgets import QApplication
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
 PALETTES = {
     "Rose Pine": {
         "bg": "#191724", "panel": "#1f1d2e", "card": "#26233a",
@@ -39,6 +43,7 @@ class ThemeManager:
             QWidget#Sidebar {{ background: {p['panel']}; }}
             QWidget#Page {{ background: {p['bg']}; }}
             QFrame[role="card"] {{ background: {p['card']}; border: 1px solid {p['border']}; border-radius: 12px; }}
+<<<<<<< HEAD
             QLabel {{ background: transparent; }}
             QLabel[muted="true"] {{ color: {p['muted']}; }}
             QLabel[role="title"] {{ font-size: 27px; font-weight: 800; }}
@@ -66,5 +71,17 @@ class ThemeManager:
             QProgressBar::chunk {{ background: {p['accent']}; border-radius: 4px; }}
             QScrollArea {{ border: none; background: transparent; }}
             QScrollArea > QWidget > QWidget {{ background: transparent; }}
+=======
+            QLabel[muted="true"] {{ color: {p['muted']}; }}
+            QPushButton {{ background: {p['raised']}; border: 1px solid {p['border']}; border-radius: 8px; padding: 9px 13px; }}
+            QPushButton:hover {{ border-color: {p['accent']}; }}
+            QPushButton[primary="true"] {{ background: {p['accent']}; color: {p['bg']}; border: none; font-weight: 700; }}
+            QPushButton[primary="true"]:hover {{ background: {p['accent_hover']}; }}
+            QPushButton[nav="true"] {{ text-align: left; background: transparent; border: none; padding: 10px 12px; color: {p['muted']}; }}
+            QPushButton[nav="true"]:checked {{ background: {p['raised']}; color: {p['text']}; border-left: 3px solid {p['accent']}; }}
+            QLineEdit, QComboBox {{ background: {p['panel']}; border: 1px solid {p['border']}; border-radius: 8px; padding: 10px; }}
+            QComboBox QAbstractItemView {{ background: {p['panel']}; selection-background-color: {p['raised']}; }}
+            QScrollArea {{ border: none; background: transparent; }}
+>>>>>>> 4bb8daa84d7e37533766a7591af47a7d1b8d368f
             QToolTip {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['border']}; padding: 5px; }}
         """)
