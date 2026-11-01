@@ -226,7 +226,7 @@ class QuestionPage(QWidget):
         self.image_label.hide()
 
     def _input_text(self):
-        return self.calculation_answer.toPlainText() if self.calculation_answer.isVisible() else self.answer.text()
+        return self.calculation_answer.toPlainText() if not self.calculation_answer.isHidden() else self.answer.text()
 
     def _primary_action(self):
         if self.current is None:
