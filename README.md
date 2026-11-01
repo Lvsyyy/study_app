@@ -53,5 +53,4 @@ Im Projektordner:
 
 ## Aktualisieren
 
-- **Linux:** Im Projektordner `git pull` ausführen.
-- **Windows und macOS:** In der App **Settings → Check for updates** auswählen. Die App lädt die aktuelle Version herunter, installiert sie und startet neu. Datenbank und Einstellungen bleiben erhalten. Während des Updates muss die App Schreibrechte auf ihren Projektordner haben.
+- **Alle Betriebssysteme:** In der App **Settings → Check for updates** auswählen. Die App lädt die aktuelle Version herunter, installiert sie und startet neu. Datenbank und Einstellungen bleiben erhalten. Während des Updates muss die App Schreibrechte auf ihren Projektordner haben.
