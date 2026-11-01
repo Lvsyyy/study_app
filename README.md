@@ -16,23 +16,16 @@ python main.py
 
 ## Windows
 
-**1.** [Python](https://www.python.org/downloads/) und [Git](https://git-scm.com/downloads) installieren. Bei Python die Option **Add Python to PATH** aktivieren.
+**1.** [Python herunterladen](https://www.python.org/downloads/) und installieren. Dabei **Add Python to PATH** aktivieren.
 
-**2.** PowerShell öffnen und die Befehle nacheinander ausführen:
+**2.** [Projekt als ZIP herunterladen](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) und entpacken.
+
+**3.** Im entpackten Ordner PowerShell oder das Terminal öffnen und diese Befehle nacheinander ausführen:
 
 ```powershell
-git clone https://github.com/Lvsyyy/study_app.git
-cd study_app
 py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -m pip install -r requirements.txt
-py main.py
-```
-
-Falls PowerShell die Aktivierung blockiert, einmal diesen Befehl ausführen und danach die Aktivierung erneut versuchen:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe main.py
 ```
 
 ## Später starten
@@ -40,12 +33,9 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 Im Projektordner:
 
 - **Linux:** `source .venv/bin/activate` und danach `python main.py`
-- **Windows:** `.\.venv\Scripts\Activate.ps1` und danach `py main.py`
+- **Windows:** ` .\.venv\Scripts\python.exe main.py`
 
 ## Aktualisieren
 
-Im Projektordner:
-
-```bash
-git pull
-```
+- **Linux:** Im Projektordner `git pull` ausführen.
+- **Windows:** Die aktuelle [ZIP-Datei](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) herunterladen und entpacken. Danach im Projektordner die App wie oben starten.
