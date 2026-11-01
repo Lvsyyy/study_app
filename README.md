@@ -29,6 +29,22 @@ py -m venv .venv
 .\.venv\Scripts\python.exe main.py
 ```
 
+## macOS
+
+**1.** [Python herunterladen](https://www.python.org/downloads/macos/) und installieren. Falls Python bereits installiert ist, diesen Schritt überspringen.
+
+**2.** [Projekt als ZIP herunterladen](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) und entpacken.
+
+**3.** Im entpackten Ordner Terminal öffnen und diese Befehle nacheinander ausführen:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python main.py
+```
+
+PySide6 unterstützt macOS. Die App sollte daher auch dort laufen.
+
 ## Später starten
 
 Im Projektordner:
@@ -39,4 +55,4 @@ Im Projektordner:
 ## Aktualisieren
 
 - **Linux:** Im Projektordner `git pull` ausführen.
-- **Windows:** Die aktuelle [ZIP-Datei](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) herunterladen und entpacken. Danach im Projektordner die App wie oben starten.
+- **Windows und macOS:** Die aktuelle [ZIP-Datei](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) herunterladen, entpacken und die App mit den oben genannten Startbefehlen ausführen.
