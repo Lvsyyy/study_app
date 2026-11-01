@@ -17,13 +17,22 @@ def base_string(number, base):
     return result
 
 
-def decimal_to_base(number, base):
-    lines, value = [], number
+def decimal_division_rows(number, base):
+    rows, value, accumulated = [], number, ""
     while value:
         quotient, remainder = divmod(value, base)
-        lines.append(f"{value} / {base} = {quotient} R {DIGITS[remainder]}")
+        digit = DIGITS[remainder]
+        accumulated = digit + accumulated
+        rows.append((value, quotient, digit, accumulated))
         value = quotient
-    lines.append(f"Read remainders bottom to top: {base_string(number, base)}")
+    return rows
+
+
+def decimal_to_base(number, base):
+    rows = decimal_division_rows(number, base)
+    lines = ["Rechnung | R | GQ"]
+    lines.extend(f"{value} / {base} = {quotient} | {remainder} | {gq}"
+                 for value, quotient, remainder, gq in rows)
     return "\n".join(lines)
 
 
@@ -71,11 +80,10 @@ def conversion_work(number, source, target):
 def conversion_template(number, source, target):
     source_value = base_string(number, source)
     if source == 10:
-        lines, value = [], number
-        while value:
-            lines.append(f"{value} / {target} = ____ R ____")
-            value //= target
-        lines.append("Read remainders bottom to top: ______")
+        rows = decimal_division_rows(number, target)
+        lines = ["Rechnung | R | GQ"]
+        lines.extend(f"{value} / {target} = ____ | ____ | ____"
+                     for value, quotient, remainder, gq in rows)
         return "\n".join(lines)
     if target == 10:
         terms = [f"{int(d, source)}*{source}^{len(source_value)-i-1}" for i, d in enumerate(source_value)]
