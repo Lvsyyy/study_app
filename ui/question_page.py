@@ -94,7 +94,8 @@ class QuestionPage(QWidget):
         self.calculation_tables_layout.setContentsMargins(0, 0, 0, 0)
         self.calculation_tables_layout.setSpacing(14)
         self.calculation_tables = []
-        self.calculation_table = QTableWidget()
+        self.calculation_table_titles = []
+        self.calculation_table = None
         self.calculation_table_container.hide()
         self.root.addWidget(self.calculation_table_container)
 
@@ -288,7 +289,8 @@ class QuestionPage(QWidget):
             if widget is not None:
                 widget.deleteLater()
         self.calculation_tables = []
-        self.calculation_table = QTableWidget()
+        self.calculation_table_titles = []
+        self.calculation_table = None
 
     def _populate_calculation_table(self, table, data, show_answer=False):
         headers, rows = data["headers"], data["rows"]
@@ -344,6 +346,7 @@ class QuestionPage(QWidget):
         multi_table = isinstance(tables, list)
         entries = tables if multi_table else [data]
         for entry in entries:
+            self.calculation_table_titles.append(entry.get("title", ""))
             if entry.get("title"):
                 heading = QLabel(entry["title"])
                 heading.setWordWrap(True)
@@ -380,10 +383,7 @@ class QuestionPage(QWidget):
         if not self.calculation_table_container.isHidden():
             tables = [self._table_input_data(table) for table in self.calculation_tables]
             if len(tables) > 1:
-                titles = [
-                    self.calculation_tables_layout.itemAt(i * 2).widget().text()
-                    for i in range(len(tables))
-                ]
+                titles = self.calculation_table_titles
                 return json.dumps({
                     "tables": [
                         {"title": title, **table}
@@ -459,7 +459,7 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text().strip(), False)
         self._solved = True
-        if not self.calculation_table.isHidden():
+        if not self.calculation_table_container.isHidden():
             try:
                 answer_data = json.loads(self.current["answer"])
                 if isinstance(answer_data, dict) and (
