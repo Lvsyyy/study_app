@@ -27,6 +27,7 @@ class QuestionPage(QWidget):
         self._solved = False
         self._finished = False
         self._rebuild = None
+        self._generator = None
         self._round_correct = 0
         self._round_answered = 0
 
@@ -113,7 +114,19 @@ class QuestionPage(QWidget):
             rebuild=lambda: self.questions.get_study_queue(subject),
         )
 
+    def set_generator(self, heading, generator):
+        self.heading = heading
+        self._rebuild = None
+        self._generator = generator
+        self.subject_label.setText(heading)
+        self.queue = []
+        self.index = 0
+        self._round_correct = 0
+        self._round_answered = 0
+        self._load_current()
+
     def set_queue(self, heading, ids, rebuild=None):
+        self._generator = None
         self.heading = heading
         self._rebuild = rebuild
         self.subject_label.setText(heading)
@@ -161,6 +174,8 @@ class QuestionPage(QWidget):
         self._finished = True
 
     def _load_current(self):
+        if self._generator is not None and self.index >= len(self.queue):
+            self.queue.append(self._generator())
         question = None
         while self.index < len(self.queue) and question is None:
             question = self.questions.get_question(self.queue[self.index])
@@ -199,7 +214,10 @@ class QuestionPage(QWidget):
             f"difficulty {'●' * difficulty}{'○' * (5 - difficulty)}"
         )
         self.question_text.setText(question["question_text"])
-        self.number_label.setText(f"Question {self.index + 1} of {len(self.queue)}")
+        self.number_label.setText(
+            f"Question {self.index + 1}" if self._generator is not None
+            else f"Question {self.index + 1} of {len(self.queue)}"
+        )
         self._set_saved_button(self.questions.is_saved(question["id"]))
         stats = self.attempts.topic_accuracy(question["topic_id"])
         self.accuracy_label.setText(
@@ -231,8 +249,15 @@ class QuestionPage(QWidget):
     def _primary_action(self):
         if self.current is None:
             if self._finished:
-                ids = self._rebuild() if self._rebuild else self.queue
-                self.set_queue(self.heading, ids, self._rebuild)
+                if self._generator is not None:
+                    self.queue = []
+                    self.index = 0
+                    self._round_correct = 0
+                    self._round_answered = 0
+                    self._load_current()
+                else:
+                    ids = self._rebuild() if self._rebuild else self.queue
+                    self.set_queue(self.heading, ids, self._rebuild)
             return
         if self._solved:
             self.next_question()
