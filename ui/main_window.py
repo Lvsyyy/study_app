@@ -12,6 +12,7 @@ from database.session_repository import SessionRepository
 from database.statistics_repository import StatisticsRepository
 from ui.dashboard import Dashboard
 from ui.question_page import QuestionPage
+from ui.math_menu_page import MathMenuPage
 from ui.saved_page import SavedPage
 from ui.settings_dialog import SettingsDialog
 from ui.sidebar import NAV_ITEMS, Sidebar
@@ -67,17 +68,21 @@ class MainWindow(QMainWindow):
         self.question_page = QuestionPage(
             self.question_repository, self.attempt_repository
         )
+        self.math_menu_page = MathMenuPage()
         self.pages = {
             "Home": self.dashboard,
             "Subjects": self.subjects_page,
             "Statistics": self.statistics_page,
             "Saved": self.saved_page,
             "Question": self.question_page,
+            "MathMenu": self.math_menu_page,
         }
         for page in self.pages.values():
             self.stack.addWidget(page)
 
         self.subjects_page.subject_requested.connect(self.show_page)
+        self.math_menu_page.back_requested.connect(lambda: self.show_page("Subjects"))
+        self.math_menu_page.question_type_requested.connect(self.start_math_practice)
         self.saved_page.practice_requested.connect(self.practice_saved)
         self.question_page.back_requested.connect(lambda: self.show_page(self._return_page))
         self.question_page.answered.connect(lambda _correct: self.session.record_question())
@@ -87,7 +92,13 @@ class MainWindow(QMainWindow):
         self.show_page("Home")
 
     def show_page(self, name):
-        if name in NAV_ITEMS:
+        if name == "Math":
+            self.show_math_menu()
+        elif name == "MathMenu":
+            self._return_page = "Subjects"
+            self.stack.setCurrentWidget(self.math_menu_page)
+            self.sidebar.set_active("Math")
+        elif name in NAV_ITEMS:
             self._return_page = name
             self.stack.setCurrentWidget(self.pages[name])
             self.sidebar.set_active(name)
@@ -99,14 +110,25 @@ class MainWindow(QMainWindow):
                 self.subjects_page.refresh()
         elif name in self.subject_names:
             self._return_page = "Subjects"
-            if name == "Math":
-                self.question_page.set_generator(name, self.math_question_generator.generate_question_id)
-            else:
-                self.question_page.set_subject(name)
+            self.question_page.set_subject(name)
             self.stack.setCurrentWidget(self.question_page)
             self.sidebar.set_active(name)
         else:
             self.show_page("Home")
+
+    def show_math_menu(self):
+        self._return_page = "Subjects"
+        self.stack.setCurrentWidget(self.math_menu_page)
+        self.sidebar.set_active("Math")
+
+    def start_math_practice(self, question_type):
+        self._return_page = "MathMenu"
+        self.question_page.set_generator(
+            "Math",
+            lambda: self.math_question_generator.generate_question_id(question_type),
+        )
+        self.stack.setCurrentWidget(self.question_page)
+        self.sidebar.set_active("Math")
 
     def practice_saved(self, ids):
         self._return_page = "Saved"
