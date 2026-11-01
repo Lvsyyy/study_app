@@ -34,7 +34,7 @@ def decimal_division_table(number, base):
         digit = DIGITS[remainder]
         accumulated = digit + accumulated
         answer_rows.append([f"{value} / {base} = {quotient}", digit, accumulated])
-        template_rows.append([f"{value} / {base} = ____", "", ""])
+        template_rows.append(["", "", ""])
         value = quotient
     return table_data(["Rechnung", "R", "GQ"], answer_rows, template_rows)
 
