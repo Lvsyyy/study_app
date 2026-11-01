@@ -168,7 +168,7 @@ def add_binary(a, b):
     if carry:
         result.append("1")
     result = "".join(reversed(result))
-    carry_row = "".join(reversed(carries))
+    carry_row = "".join(carries)
     decimal_total = int(aa, 2) + int(bb, 2)
     return (
         f"  {aa}\n+ {bb}\n{'-' * (width + 2)}\n  {result}\n"
@@ -192,7 +192,7 @@ def subtract_binary(a, b):
         borrow = next_borrow
         borrows.append(str(borrow))
     result = "".join(reversed(result))
-    borrow_row = "".join(reversed(borrows))
+    borrow_row = "".join(borrows)
     return (
         f"  {aa}\n- {bb}\n{'-' * (width + 2)}\n  {result}\n"
         f"Borrow values (right to left): {borrow_row}\n"
@@ -204,7 +204,11 @@ def arithmetic_template(a, b, operator):
     width = max(len(a), len(b))
     aa, bb = a.zfill(width), b.zfill(width)
     sign = "+" if operator == "+" else "-"
-    return f"  {aa}\n{sign} {bb}\n{'-' * (width + 2)}\n  ______\n\nShow carries/borrows here: ____________________"
+    detail = "Carry values (right to left)" if operator == "+" else "Borrow values (right to left)"
+    return (
+        f"  {aa}\n{sign} {bb}\n{'-' * (width + 2)}\n  ______\n"
+        f"{detail}: ____\nCheck: ____________________"
+    )
 
 
 def build_questions():
