@@ -1,3 +1,5 @@
+import sys
+
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -7,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.settings_store import SettingsStore
+from core.updater import start_update
 from ui.widgets import muted_label, section_title
 
 
@@ -33,6 +36,11 @@ class SettingsDialog(QDialog):
         self.icons.addItems(SettingsStore.ICON_PACKS)
         self.icons.setCurrentText(settings.icon_pack)
         layout.addWidget(self.icons)
+
+        if sys.platform in {"win32", "darwin"}:
+            self.update_button = QPushButton("Check for updates")
+            self.update_button.clicked.connect(lambda: start_update(self))
+            layout.addWidget(self.update_button)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
