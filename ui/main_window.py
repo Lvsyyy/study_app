@@ -2,6 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from core.session_tracker import SessionTracker
+from core.math_question_generator import MathQuestionGenerator
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
 from database.attempt_repository import AttemptRepository
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
         self._owns_db = db is None
 
         self.question_repository = QuestionRepository(self.db)
+        self.math_question_generator = MathQuestionGenerator(self.question_repository)
         self.attempt_repository = AttemptRepository(self.db)
         self.statistics_repository = StatisticsRepository(self.db)
         self.session = SessionTracker(SessionRepository(self.db), self)
@@ -97,7 +99,10 @@ class MainWindow(QMainWindow):
                 self.subjects_page.refresh()
         elif name in self.subject_names:
             self._return_page = "Subjects"
-            self.question_page.set_subject(name)
+            if name == "Math":
+                self.question_page.set_generator(name, self.math_question_generator.generate_question_id)
+            else:
+                self.question_page.set_subject(name)
             self.stack.setCurrentWidget(self.question_page)
             self.sidebar.set_active(name)
         else:
