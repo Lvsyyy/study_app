@@ -1,5 +1,3 @@
-import sys
-
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -37,10 +35,9 @@ class SettingsDialog(QDialog):
         self.icons.setCurrentText(settings.icon_pack)
         layout.addWidget(self.icons)
 
-        if sys.platform in {"win32", "darwin"}:
-            self.update_button = QPushButton("Check for updates")
-            self.update_button.clicked.connect(lambda: start_update(self))
-            layout.addWidget(self.update_button)
+        self.update_button = QPushButton("Check for updates")
+        self.update_button.clicked.connect(lambda: start_update(self))
+        layout.addWidget(self.update_button)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
