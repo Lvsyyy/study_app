@@ -1,60 +1,51 @@
 # Installation
 
-## 1. Voraussetzungen installieren
+## Linux (Arch)
 
-Unter Arch Linux:
+Alle Befehle im Terminal ausführen:
 
 ```bash
 sudo pacman -S --needed git python python-pip
-```
-
-## 2. Projekt herunterladen
-
-```bash
 git clone https://github.com/Lvsyyy/study_app.git
 cd study_app
-```
-
-## 3. Virtuelle Python-Umgebung erstellen
-
-```bash
 python -m venv .venv
-```
-
-## 4. Virtuelle Umgebung aktivieren
-
-```bash
 source .venv/bin/activate
-```
-
-## 5. Benötigte Pakete installieren
-
-```bash
-python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-## 6. Programm starten
-
-```bash
 python main.py
 ```
 
-## Programm später erneut starten
+## Windows
+
+**1.** [Python](https://www.python.org/downloads/) und [Git](https://git-scm.com/downloads) installieren. Bei Python die Option **Add Python to PATH** aktivieren.
+
+**2.** PowerShell öffnen und die Befehle nacheinander ausführen:
+
+```powershell
+git clone https://github.com/Lvsyyy/study_app.git
+cd study_app
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+py -m pip install -r requirements.txt
+py main.py
+```
+
+Falls PowerShell die Aktivierung blockiert, einmal diesen Befehl ausführen und danach die Aktivierung erneut versuchen:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+## Später starten
 
 Im Projektordner:
 
-```bash
-source .venv/bin/activate
-python main.py
-```
+- **Linux:** `source .venv/bin/activate` und danach `python main.py`
+- **Windows:** `.\.venv\Scripts\Activate.ps1` und danach `py main.py`
 
-## Programm aktualisieren
+## Aktualisieren
 
 Im Projektordner:
 
 ```bash
 git pull
-source .venv/bin/activate
-python -m pip install -r requirements.txt
 ```
