@@ -1,4 +1,4 @@
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
@@ -8,6 +8,9 @@ MIGRATIONS = {
     ALTER TABLE questions ADD COLUMN alt_answers TEXT;
     CREATE INDEX IF NOT EXISTS idx_attempts_created_q
         ON attempts(question_id, created_at);
+    """,
+    3: """
+    ALTER TABLE questions ADD COLUMN answer_template TEXT;
     """,
 }
 
