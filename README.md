@@ -20,9 +20,10 @@ python main.py
 
 **2.** [Projekt als ZIP herunterladen](https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip) und entpacken.
 
-**3.** Im entpackten Ordner PowerShell oder das Terminal öffnen und diese Befehle nacheinander ausführen:
+**3.** Im entpackten Ordner PowerShell,Terminal öffnen oder den Pfad kopieren und diese Befehle nacheinander ausführen:
 
 ```powershell
+cd Pfad\zum\Ordner
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe main.py
