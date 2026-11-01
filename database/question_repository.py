@@ -87,14 +87,15 @@ class QuestionRepository:
         difficulty=1,
         question_type="text",
         alt_answers=None,
+        answer_template=None,
     ):
         topic_id = self._ensure_topic(subject_name, topic_name)
 
         cursor = self.db.execute(
             """INSERT INTO questions
                (topic_id, question_text, answer, hint, question_image,
-                difficulty, question_type, alt_answers)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                difficulty, question_type, alt_answers, answer_template)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 question_text,
@@ -104,6 +105,7 @@ class QuestionRepository:
                 difficulty,
                 question_type,
                 json.dumps(list(alt_answers)) if alt_answers else None,
+                answer_template,
             ),
         )
 
@@ -120,6 +122,7 @@ class QuestionRepository:
         difficulty=1,
         question_type="text",
         alt_answers=None,
+        answer_template=None,
     ):
         with self.db.connection:
             return self._insert_question(
@@ -132,6 +135,7 @@ class QuestionRepository:
                 difficulty,
                 question_type,
                 alt_answers,
+                answer_template,
             )
 
     def add_questions(self, questions):
