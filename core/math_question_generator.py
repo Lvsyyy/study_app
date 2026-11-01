@@ -1,5 +1,7 @@
-"""Generate fresh worked math questions on demand."""
+"""Generate fresh, table-based math questions on demand."""
+import json
 import random
+
 from database.question_repository import QuestionRepository
 
 DIGITS = "0123456789ABCDEF"
@@ -17,139 +19,102 @@ def base_string(number, base):
     return result
 
 
-def decimal_division_rows(number, base):
-    rows, value, accumulated = [], number, ""
+def table_data(headers, answer_rows, template_rows=None):
+    """Store a table schema in the existing text fields without a DB migration."""
+    answer = {"headers": headers, "rows": answer_rows}
+    template = {"headers": headers, "rows": template_rows if template_rows is not None else answer_rows}
+    return json.dumps(answer, ensure_ascii=False), json.dumps(template, ensure_ascii=False)
+
+
+def decimal_division_table(number, base):
+    answer_rows, template_rows = [], []
+    value, accumulated = number, ""
     while value:
         quotient, remainder = divmod(value, base)
         digit = DIGITS[remainder]
         accumulated = digit + accumulated
-        rows.append((value, quotient, digit, accumulated))
+        answer_rows.append([f"{value} / {base} = {quotient}", digit, accumulated])
+        template_rows.append([f"{value} / {base} = ____", "", ""])
         value = quotient
-    return rows
+    return table_data(["Rechnung", "R", "GQ"], answer_rows, template_rows)
 
 
-def decimal_to_base(number, base):
-    rows = decimal_division_rows(number, base)
-    lines = ["Rechnung | R | GQ"]
-    lines.extend(f"{value} / {base} = {quotient} | {remainder} | {gq}"
-                 for value, quotient, remainder, gq in rows)
-    return "\n".join(lines)
+def positional_table(number, source):
+    digits = base_string(number, source)
+    answer_rows, template_rows = [], []
+    for index, digit in enumerate(digits):
+        power = len(digits) - index - 1
+        value = int(digit, source) * source ** power
+        answer_rows.append([digit, f"{source}^{power}", f"{int(digit, source)} × {source}^{power}", str(value)])
+        template_rows.append([digit, f"{source}^{power}", "", ""])
+    answer_rows.append(["", "", "Summe", str(number)])
+    template_rows.append(["", "", "Summe", ""])
+    return table_data(["Ziffer", "Stellenwert", "Rechnung", "Ergebnis"], answer_rows, template_rows)
 
 
-def positional_expansion(number, base):
-    digits = base_string(number, base)
-    terms = [f"{int(d, base)}*{base}^{len(digits)-i-1}" for i, d in enumerate(digits)]
-    values = [int(d, base) * base ** (len(digits)-i-1) for i, d in enumerate(digits)]
-    return f"{digits} = " + " + ".join(terms) + "\n" + " = ".join([" + ".join(map(str, values)), str(number)])
-
-
-def grouped_conversion(number, source, target):
-    bits = base_string(number, 2)
+def grouped_table(number, source, target):
     if source in (8, 16) and target == 2:
         width = 3 if source == 8 else 4
         digits = base_string(number, source)
         groups = [f"{int(d, source):0{width}b}" for d in digits]
-        result = "".join(groups).lstrip("0") or "0"
-        return (f"Convert each {BASE_NAMES[source]} digit to {width} bits:\n"
-                f"{' '.join(digits)} -> {' | '.join(groups)}\n"
-                f"Join the groups and remove leading zeroes: {result}")
-    width = 3 if target == 8 else 4
-    padded = bits.zfill(((len(bits) + width - 1) // width) * width)
-    groups = [padded[i:i+width] for i in range(0, len(padded), width)]
-    converted = " ".join(str(int(g, 2)) if target == 8 else DIGITS[int(g, 2)] for g in groups)
-    if source == 2:
-        return (f"Group into {width}-bit chunks from the right:\n{padded} -> {' | '.join(groups)}\n"
-                f"Convert each group: {converted}\nResult: {base_string(number, target)}")
-    source_width = 3 if source == 8 else 4
-    source_digits = base_string(number, source)
-    source_groups = [f"{int(d, source):0{source_width}b}" for d in source_digits]
-    return (f"Convert each base-{source} digit to {source_width} bits:\n"
-            f"{' '.join(source_digits)} -> {' | '.join(source_groups)}\n"
-            f"Group into {width}-bit chunks from the right:\n{padded} -> {' | '.join(groups)}\n"
-            f"Convert each group: {converted}\nResult: {base_string(number, target)}")
+        answers = [[digit, group] for digit, group in zip(digits, groups)]
+        templates = [[digit, ""] for digit in digits]
+        return table_data([f"Ziffer (Basis {source})", "Binärgruppe"], answers, templates)
 
-
-def conversion_work(number, source, target):
-    if source == 10:
-        return decimal_to_base(number, target)
-    if target == 10:
-        return positional_expansion(number, source)
-    return grouped_conversion(number, source, target)
-
-
-def conversion_template(number, source, target):
-    source_value = base_string(number, source)
-    if source == 10:
-        rows = decimal_division_rows(number, target)
-        lines = ["Rechnung | R | GQ"]
-        lines.extend(f"{value} / {target} = ____ | ____ | ____"
-                     for value, quotient, remainder, gq in rows)
-        return "\n".join(lines)
-    if target == 10:
-        terms = [f"{int(d, source)}*{source}^{len(source_value)-i-1}" for i, d in enumerate(source_value)]
-        return f"{source_value} = " + " + ".join(terms) + "\n= ____________________\n= ______"
-    if source in (8, 16) and target == 2:
-        width = 3 if source == 8 else 4
-        return (f"Convert each base-{source} digit to {width} bits:\n"
-                f"{' '.join(source_value)} -> {' | '.join('___' for _ in source_value)}\n"
-                "Join the groups and remove leading zeroes: ______")
     width = 3 if target == 8 else 4
     bits = base_string(number, 2)
-    padded = bits.zfill(((len(bits)+width-1)//width)*width)
-    groups = [padded[i:i+width] for i in range(0, len(padded), width)]
-    if source == 2:
-        return (f"Group into {width}-bit chunks from the right:\n"
-                f"{padded} -> {' | '.join('____' for _ in groups)}\n"
-                "Convert each group: ____________________\nResult: ______")
-    source_width = 3 if source == 8 else 4
-    return (f"Convert each base-{source} digit to {source_width} bits:\n"
-            f"{' '.join(source_value)} -> {' | '.join('___' for _ in source_value)}\n"
-            "Join the binary groups: ____________________\n"
-            f"Group into {width}-bit chunks:\n{' | '.join('____' for _ in groups)}\n"
-            f"Convert groups to base {target}: ______")
+    padded = bits.zfill(((len(bits) + width - 1) // width) * width)
+    groups = [padded[i:i + width] for i in range(0, len(padded), width)]
+    converted = [str(int(group, 2)) if target == 8 else DIGITS[int(group, 2)] for group in groups]
+    answers = [[group, value] for group, value in zip(groups, converted)]
+    templates = [[group, ""] for group in groups]
+    answers.append(["Gesamtergebnis", base_string(number, target)])
+    templates.append(["Gesamtergebnis", ""])
+    return table_data([f"Binärgruppe ({width} Bit)", f"Ziffer (Basis {target})"], answers, templates)
 
 
-def add_binary(a, b):
+def conversion_table(number, source, target):
+    if source == 10:
+        return decimal_division_table(number, target)
+    if target == 10:
+        return positional_table(number, source)
+    return grouped_table(number, source, target)
+
+
+def binary_arithmetic_table(a, b, operator):
     width = max(len(a), len(b))
     aa, bb = a.zfill(width), b.zfill(width)
-    carry, carries, result = 0, [], []
-    for left, right in zip(reversed(aa), reversed(bb)):
-        total = int(left) + int(right) + carry
-        result.append(str(total % 2))
-        carry = total // 2
-        carries.append(str(carry))
-    if carry:
-        result.append("1")
-    result = "".join(reversed(result))
-    return (f"  {aa}\n+ {bb}\n{'-'*(width+2)}\n  {result}\n"
-            f"Carry values (right to left): {''.join(carries)}\n"
-            f"Check: {int(aa,2)} + {int(bb,2)} = {int(aa,2)+int(bb,2)}")
+    carry_or_borrow = 0
+    answer_rows, template_rows = [], []
 
+    for index, (left, right) in enumerate(zip(reversed(aa), reversed(bb))):
+        if operator == "+":
+            total = int(left) + int(right) + carry_or_borrow
+            result_bit = str(total % 2)
+            next_value = total // 2
+            detail = str(carry_or_borrow)
+        else:
+            raw = int(left) - int(right) - carry_or_borrow
+            next_value = int(raw < 0)
+            result_bit = str(raw + 2 if next_value else raw)
+            detail = str(carry_or_borrow)
+        answer_rows.append([f"2^{index}", left, right, detail, result_bit])
+        template_rows.append([f"2^{index}", left, right, "", ""])
+        carry_or_borrow = next_value
 
-def subtract_binary(a, b):
-    width = max(len(a), len(b))
-    aa, bb = a.zfill(width), b.zfill(width)
-    if int(aa, 2) < int(bb, 2):
-        aa, bb = bb, aa
-    borrow, borrows, result = 0, [], []
-    for left, right in zip(reversed(aa), reversed(bb)):
-        value = int(left) - int(right) - borrow
-        borrow = int(value < 0)
-        result.append(str(value + 2 if borrow else value))
-        borrows.append(str(borrow))
-    result = "".join(reversed(result))
-    return (f"  {aa}\n- {bb}\n{'-'*(width+2)}\n  {result}\n"
-            f"Borrow values (right to left): {''.join(borrows)}\n"
-            f"Check: {int(aa,2)} - {int(bb,2)} = {int(result,2)}")
-
-
-def arithmetic_template(a, b, operator):
-    width = max(len(a), len(b))
-    aa, bb = a.zfill(width), b.zfill(width)
-    sign = "+" if operator == "+" else "-"
-    detail = "Carry values (right to left)" if operator == "+" else "Borrow values (right to left)"
-    return (f"  {aa}\n{sign} {bb}\n{'-'*(width+2)}\n  ______\n"
-            f"{detail}: ____\nCheck: ____________________")
+    if operator == "+" and carry_or_borrow:
+        answer_rows.append(["Übertrag", "", "", str(carry_or_borrow), str(carry_or_borrow)])
+        template_rows.append(["Übertrag", "", "", "", ""])
+    result = "".join(row[4] for row in reversed(answer_rows) if row[0] != "Übertrag")
+    if operator == "+" and carry_or_borrow:
+        result = "1" + result
+    answer_rows.append(["Ergebnis", "", "", "", result])
+    template_rows.append(["Ergebnis", "", "", "", ""])
+    return table_data(
+        ["Stelle", "A", "B", "Übertrag" if operator == "+" else "Entleihen", "Ergebnis"],
+        answer_rows,
+        template_rows,
+    )
 
 
 class MathQuestionGenerator:
@@ -166,33 +131,32 @@ class MathQuestionGenerator:
             source, target = CONVERSION_PAIRS[kind]
             number = random.randint(12, 4095)
             source_value = base_string(number, source)
+            answer, template = conversion_table(number, source, target)
             return {
                 "subject_name": "Math",
                 "topic_name": "Number Systems",
                 "question_text": (f"Convert {source_value}₍{source}₎ from {BASE_NAMES[source]} "
-                                  f"to {BASE_NAMES[target]}. Show every calculation step."),
-                "answer": conversion_work(number, source, target),
-                "answer_template": conversion_template(number, source, target),
-                "hint": "Keep each base clear and show the complete conversion path.",
+                                  f"to {BASE_NAMES[target]}. Complete the table."),
+                "answer": answer,
+                "answer_template": template,
+                "hint": "Complete each row, then read the final result in the target base.",
                 "difficulty": 2 if source == 10 or target == 10 else 3,
             }
 
         width = random.randint(4, 8)
-        first = random.randint(1 << (width-1), (1 << width)-1)
-        second = random.randint(1 << (width-2), (1 << (width-1))-1)
+        first = random.randint(1 << (width - 1), (1 << width) - 1)
+        second = random.randint(1 << (width - 2), (1 << (width - 1)) - 1)
         a, b = format(first, "b"), format(second, "b")
         operator = "+" if kind == len(CONVERSION_PAIRS) else "-"
         if operator == "-":
             a, b = (a, b) if first >= second else (b, a)
-            answer = subtract_binary(a, b)
-        else:
-            answer = add_binary(a, b)
+        answer, template = binary_arithmetic_table(a, b, operator)
         return {
             "subject_name": "Math",
             "topic_name": "Binary Arithmetic",
-            "question_text": f"Calculate in binary: {a}₂ {operator} {b}₂. Align the numbers and show all carries or borrows.",
+            "question_text": f"Calculate in binary: {a}₂ {operator} {b}₂. Complete the table.",
             "answer": answer,
-            "answer_template": arithmetic_template(a, b, operator),
-            "hint": "Work one column at a time from right to left.",
+            "answer_template": template,
+            "hint": "Work from the rightmost bit to the left, one column at a time.",
             "difficulty": 2,
         }
