@@ -273,6 +273,11 @@ class QuestionPage(QWidget):
 
     def _show_calculation_table(self, data):
         headers, rows = data["headers"], data["rows"]
+        # Decimal division tables are intentionally blank: the learner fills
+        # every calculation, remainder, and running GQ cell.
+        if headers == ["Rechnung", "R", "GQ"]:
+            rows = [["", "", ""] for _ in rows]
+
         self.calculation_table.clear()
         self.calculation_table.setColumnCount(len(headers))
         self.calculation_table.setRowCount(len(rows))
