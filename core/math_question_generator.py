@@ -83,40 +83,106 @@ def conversion_table(number, source, target):
     return decimal_division_table(number, target)
 
 
+def _binary_layout_row(label, bits, width):
+    """Align a bit string under the operand columns, including an overflow column."""
+    bits = bits[-(width + 1):].rjust(width + 1)
+    return [label, *list(bits)]
+
+
+def _binary_separator(width):
+    return ["__SEPARATOR__", *[""] * (width + 1)]
+
+
 def binary_arithmetic_table(a, b, operator):
     width = max(len(a), len(b))
     aa, bb = a.zfill(width), b.zfill(width)
-    carry_or_borrow = 0
     answer_rows, template_rows = [], []
 
-    for index, (left, right) in enumerate(zip(reversed(aa), reversed(bb))):
-        if operator == "+":
-            total = int(left) + int(right) + carry_or_borrow
-            result_bit = str(total % 2)
-            next_value = total // 2
-            detail = str(carry_or_borrow)
-        else:
-            raw = int(left) - int(right) - carry_or_borrow
-            next_value = int(raw < 0)
-            result_bit = str(raw + 2 if next_value else raw)
-            detail = str(carry_or_borrow)
-        answer_rows.append([f"2^{index}", left, right, detail, result_bit])
-        template_rows.append([f"2^{index}", left, right, "", ""])
-        carry_or_borrow = next_value
+    if operator == "+":
+        carry = 0
+        carry_outs = []
+        result_reversed = []
+        for left, right in zip(reversed(aa), reversed(bb)):
+            total = int(left) + int(right) + carry
+            result_reversed.append(str(total & 1))
+            carry = total >> 1
+            carry_outs.append(str(carry))
 
-    if operator == "+" and carry_or_borrow:
-        answer_rows.append(["Übertrag", "", "", str(carry_or_borrow), str(carry_or_borrow)])
-        template_rows.append(["Übertrag", "", "", "", ""])
-    result = "".join(row[4] for row in reversed(answer_rows) if row[0] != "Übertrag")
-    if operator == "+" and carry_or_borrow:
-        result = "1" + result
-    answer_rows.append(["Ergebnis", "", "", "", result])
-    template_rows.append(["Ergebnis", "", "", "", ""])
-    return table_data(
-        ["Stelle", "A", "B", "Übertrag" if operator == "+" else "Entleihen", "Ergebnis"],
-        answer_rows,
-        template_rows,
-    )
+        result = (str(carry) if carry else "") + "".join(reversed(result_reversed))
+        carry_row = [carry_outs[-1], *reversed(carry_outs[:-1]), ""] if carry_outs else [""] * (width + 1)
+
+        answer_rows.extend([
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("+", bb, width),
+            _binary_separator(width),
+            ["", *carry_row],
+            _binary_separator(width),
+            _binary_layout_row("Ergebnis", result, width),
+        ])
+        template_rows.extend([
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("+", bb, width),
+            _binary_separator(width),
+            ["", *[""] * (width + 1)],
+            _binary_separator(width),
+            _binary_layout_row("Ergebnis", "", width),
+        ])
+    else:
+        # Subtraction is shown using the two's-complement method:
+        # invert B (B1), add one (B2), then add A + B2.
+        mask = (1 << width) - 1
+        b1 = "".join("1" if bit == "0" else "0" for bit in bb)
+        b2_value = ((int(b1, 2) + 1) & mask)
+        b2 = format(b2_value, f"0{width}b")
+
+        carry = 0
+        carry_outs = []
+        result_reversed = []
+        for left, right in zip(reversed(aa), reversed(b2)):
+            total = int(left) + int(right) + carry
+            result_reversed.append(str(total & 1))
+            carry = total >> 1
+            carry_outs.append(str(carry))
+
+        final_sum = (str(carry) if carry else "") + "".join(reversed(result_reversed))
+        carry_row = [carry_outs[-1], *reversed(carry_outs[:-1]), ""] if carry_outs else [""] * (width + 1)
+        one = "0" * (width - 1) + "1"
+
+        answer_rows.extend([
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("-", bb, width),
+            _binary_separator(width),
+            _binary_layout_row("B1", b1, width),
+            _binary_layout_row("+", one, width),
+            _binary_separator(width),
+            _binary_layout_row("B2", b2, width),
+            _binary_separator(width),
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("+", b2, width),
+            _binary_separator(width),
+            ["", *carry_row],
+            _binary_separator(width),
+            _binary_layout_row("Ergebnis", final_sum, width),
+        ])
+        template_rows.extend([
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("-", bb, width),
+            _binary_separator(width),
+            _binary_layout_row("B1", "", width),
+            _binary_layout_row("+", one, width),
+            _binary_separator(width),
+            _binary_layout_row("B2", "", width),
+            _binary_separator(width),
+            _binary_layout_row("", aa, width),
+            _binary_layout_row("+", "", width),
+            _binary_separator(width),
+            ["", *[""] * (width + 1)],
+            _binary_separator(width),
+            _binary_layout_row("Ergebnis", "", width),
+        ])
+
+    headers = ["__binary_layout__", *[""] * (width + 2)]
+    return table_data(headers, answer_rows, template_rows)
 
 
 class MathQuestionGenerator:
