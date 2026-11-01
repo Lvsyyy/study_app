@@ -62,6 +62,12 @@ class ThemeManager:
             QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QSpinBox:focus {{ border-color: {p['accent']}; }}
             QLineEdit:disabled {{ color: {p['muted']}; }}
             QComboBox QAbstractItemView {{ background: {p['panel']}; selection-background-color: {p['raised']}; }}
+            QTableWidget {{ background: {p['panel']}; alternate-background-color: {p['card']}; color: {p['text']}; gridline-color: {p['border']}; border: 1px solid {p['border']}; border-radius: 8px; selection-background-color: {p['raised']}; selection-color: {p['text']}; }}
+            QTableWidget::item {{ background: {p['panel']}; color: {p['text']}; padding: 7px; border: none; }}
+            QTableWidget::item:alternate {{ background: {p['card']}; }}
+            QTableWidget::item:selected {{ background: {p['raised']}; color: {p['text']}; }}
+            QHeaderView::section {{ background: {p['raised']}; color: {p['text']}; border: none; border-right: 1px solid {p['border']}; border-bottom: 1px solid {p['border']}; padding: 9px; font-weight: 700; }}
+            QTableCornerButton::section {{ background: {p['raised']}; border: none; }}
             QProgressBar {{ background: {p['panel']}; border: none; border-radius: 4px; max-height: 8px; }}
             QProgressBar::chunk {{ background: {p['accent']}; border-radius: 4px; }}
             QScrollArea {{ border: none; background: transparent; }}
