@@ -268,6 +268,7 @@ class QuestionPage(QWidget):
             self.feedback.setText(f"Correct ✓{took}" if first else "Correct ✓ (first try counted)")
             set_state(self.feedback, "good")
             self.answer.setEnabled(False)
+            self.calculation_answer.setEnabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
