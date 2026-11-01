@@ -76,7 +76,15 @@ def binary_group_conversion(number, source, target):
         padded = bits.zfill(((len(bits) + width - 1) // width) * width)
         groups = [padded[i:i + width] for i in range(0, len(padded), width)]
         converted = " ".join(str(int(group, 2)) if target == 8 else DIGITS[int(group, 2)] for group in groups)
-        return f"{label}:\n{padded} -> {' | '.join(groups)}\nConvert each group: {converted}\nResult: {base_string(number, target)}"
+        source_digits = base_string(number, source)
+        source_width = 3 if source == 8 else 4
+        source_bits = " ".join(f"{int(digit, source):0{source_width}b}" for digit in source_digits)
+        return (
+            f"Convert each base-{source} digit to {source_width} bits: "
+            f"{source_digits} -> {source_bits}\n"
+            f"{label}:\n{padded} -> {' | '.join(groups)}\n"
+            f"Convert each group: {converted}\nResult: {base_string(number, target)}"
+        )
     bits = base_string(number, 2)
     padded = bits.zfill(((len(bits) + width - 1) // width) * width)
     groups = [padded[i:i + width] for i in range(0, len(padded), width)]
@@ -149,11 +157,23 @@ def conversion_template(number, source, target):
 def add_binary(a, b):
     width = max(len(a), len(b))
     aa, bb = a.zfill(width), b.zfill(width)
-    total = int(aa, 2) + int(bb, 2)
-    result = f"{total:0{width}b}"
+    carry = 0
+    carries = []
+    result = []
+    for left, right in zip(reversed(aa), reversed(bb)):
+        total = int(left) + int(right) + carry
+        result.append(str(total % 2))
+        carry = total // 2
+        carries.append(str(carry))
+    if carry:
+        result.append("1")
+    result = "".join(reversed(result))
+    carry_row = "".join(reversed(carries))
+    decimal_total = int(aa, 2) + int(bb, 2)
     return (
         f"  {aa}\n+ {bb}\n{'-' * (width + 2)}\n  {result}\n"
-        f"Carry/result check: {int(aa, 2)} + {int(bb, 2)} = {total}"
+        f"Carry values (right to left): {carry_row}\n"
+        f"Check: {int(aa, 2)} + {int(bb, 2)} = {decimal_total}"
     )
 
 
@@ -162,9 +182,20 @@ def subtract_binary(a, b):
     aa, bb = a.zfill(width), b.zfill(width)
     if int(aa, 2) < int(bb, 2):
         aa, bb = bb, aa
-    result = f"{int(aa, 2) - int(bb, 2):0{width}b}"
+    borrow = 0
+    borrows = []
+    result = []
+    for left, right in zip(reversed(aa), reversed(bb)):
+        value = int(left) - int(right) - borrow
+        next_borrow = int(value < 0)
+        result.append(str(value + 2 if next_borrow else value))
+        borrow = next_borrow
+        borrows.append(str(borrow))
+    result = "".join(reversed(result))
+    borrow_row = "".join(reversed(borrows))
     return (
         f"  {aa}\n- {bb}\n{'-' * (width + 2)}\n  {result}\n"
+        f"Borrow values (right to left): {borrow_row}\n"
         f"Check: {int(aa, 2)} - {int(bb, 2)} = {int(result, 2)}"
     )
 
