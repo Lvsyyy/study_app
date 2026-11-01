@@ -83,9 +83,10 @@ class QuestionPage(QWidget):
 
         self.calculation_table = QTableWidget()
         self.calculation_table.setMinimumHeight(170)
-        self.calculation_table.setMaximumHeight(320)
         self.calculation_table.setAlternatingRowColors(True)
         self.calculation_table.setShowGrid(True)
+        self.calculation_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.calculation_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.calculation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.calculation_table.verticalHeader().setVisible(False)
         self.calculation_table.hide()
@@ -289,6 +290,13 @@ class QuestionPage(QWidget):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.calculation_table.setItem(row_index, column_index, item)
         self.calculation_table.resizeRowsToContents()
+        table_height = (
+            self.calculation_table.horizontalHeader().height()
+            + sum(self.calculation_table.rowHeight(row) for row in range(self.calculation_table.rowCount()))
+            + self.calculation_table.frameWidth() * 2
+            + 4
+        )
+        self.calculation_table.setFixedHeight(table_height)
 
     def _input_text(self):
         if not self.calculation_table.isHidden():
