@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget)
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -32,9 +32,17 @@ class QuestionPage(QWidget):
         self._round_correct = 0
         self._round_answered = 0
 
-        self.root = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        content = QWidget()
+        self.root = QVBoxLayout(content)
         self.root.setContentsMargins(34, 30, 34, 30)
         self.root.setSpacing(18)
+        self.scroll_area.setWidget(content)
+        outer.addWidget(self.scroll_area)
         self._build()
 
     def _build(self):
@@ -81,16 +89,14 @@ class QuestionPage(QWidget):
         self.calculation_answer.hide()
         self.root.addWidget(self.calculation_answer)
 
+        self.calculation_table_container = QWidget()
+        self.calculation_tables_layout = QVBoxLayout(self.calculation_table_container)
+        self.calculation_tables_layout.setContentsMargins(0, 0, 0, 0)
+        self.calculation_tables_layout.setSpacing(14)
+        self.calculation_tables = []
         self.calculation_table = QTableWidget()
-        self.calculation_table.setMinimumHeight(170)
-        self.calculation_table.setAlternatingRowColors(True)
-        self.calculation_table.setShowGrid(True)
-        self.calculation_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.calculation_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.calculation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.calculation_table.verticalHeader().setVisible(False)
-        self.calculation_table.hide()
-        self.root.addWidget(self.calculation_table)
+        self.calculation_table_container.hide()
+        self.root.addWidget(self.calculation_table_container)
 
         meta = QHBoxLayout()
         self.number_label = muted_label("")
@@ -152,7 +158,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.calculation_table, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.calculation_table_container, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -169,8 +175,8 @@ class QuestionPage(QWidget):
         self.answer.clear()
         self.calculation_answer.clear()
         self.calculation_answer.hide()
-        self.calculation_table.clear()
-        self.calculation_table.hide()
+        self._clear_calculation_tables()
+        self.calculation_table_container.hide()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -211,17 +217,20 @@ class QuestionPage(QWidget):
         self.feedback.clear()
         set_state(self.feedback, None)
         template = question["answer_template"] if "answer_template" in question.keys() else None
-        self.calculation_table.hide()
+        self.calculation_table_container.hide()
         self.calculation_answer.hide()
         if template:
             try:
                 table = json.loads(template)
-                if isinstance(table, dict) and "headers" in table and "rows" in table:
+                if isinstance(table, dict) and (
+                    ("headers" in table and "rows" in table)
+                    or isinstance(table.get("tables"), list)
+                ):
                     self._show_calculation_table(table)
                     self.answer.hide()
                     self.calculation_answer.hide()
-                    self.calculation_table.show()
-                    self.calculation_table.setFocus()
+                    self.calculation_table_container.show()
+                    self.calculation_tables[0].setFocus()
                 else:
                     self.answer.hide()
                     self.calculation_answer.show()
@@ -272,71 +281,116 @@ class QuestionPage(QWidget):
             self.feedback.setText("The question image could not be loaded.")
         self.image_label.hide()
 
-    def _show_calculation_table(self, data, show_answer=False):
+    def _clear_calculation_tables(self):
+        while self.calculation_tables_layout.count():
+            item = self.calculation_tables_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.calculation_tables = []
+        self.calculation_table = QTableWidget()
+
+    def _populate_calculation_table(self, table, data, show_answer=False):
         headers, rows = data["headers"], data["rows"]
         binary_layout = bool(headers and headers[0] == "__binary_layout__")
-        self.calculation_table.setProperty("binary_layout", binary_layout)
+        table.setProperty("binary_layout", binary_layout)
         if binary_layout:
             headers = headers[1:]
-            self.calculation_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
             for column in range(1, len(headers)):
-                self.calculation_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
+                table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
         else:
-            self.calculation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        # Decimal division tables are intentionally blank while practising.
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         if not show_answer and headers == ["Rechnung", "R", "GQ"]:
             rows = [["", "", ""] for _ in rows]
 
-        self.calculation_table.clear()
-        self.calculation_table.setColumnCount(len(headers))
-        self.calculation_table.setRowCount(len(rows))
-        self.calculation_table.setHorizontalHeaderLabels(headers)
-        self.calculation_table.horizontalHeader().setVisible(not binary_layout)
+        table.clear()
+        table.setColumnCount(len(headers))
+        table.setRowCount(len(rows))
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setVisible(not binary_layout)
+        table.verticalHeader().setVisible(False)
+        table.setAlternatingRowColors(True)
+        table.setShowGrid(True)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         for row_index, row in enumerate(rows):
             separator = binary_layout and row and row[0] == "__SEPARATOR__"
             if separator:
-                item = QTableWidgetItem("────────────────────────────────")
+                item = QTableWidgetItem("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.calculation_table.setItem(row_index, 0, item)
-                self.calculation_table.setSpan(row_index, 0, 1, len(headers))
+                table.setItem(row_index, 0, item)
+                table.setSpan(row_index, 0, 1, len(headers))
                 continue
             for column_index, value in enumerate(row):
                 item = QTableWidgetItem(str(value or ""))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if value not in (None, "") and "____" not in str(value):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.calculation_table.setItem(row_index, column_index, item)
-        self.calculation_table.resizeRowsToContents()
+                table.setItem(row_index, column_index, item)
+        table.resizeRowsToContents()
         table_height = (
-            self.calculation_table.horizontalHeader().height()
-            + sum(self.calculation_table.rowHeight(row) for row in range(self.calculation_table.rowCount()))
-            + self.calculation_table.frameWidth() * 2
+            table.horizontalHeader().height()
+            + sum(table.rowHeight(row) for row in range(table.rowCount()))
+            + table.frameWidth() * 2
             + 4
         )
-        self.calculation_table.setFixedHeight(table_height)
+        table.setFixedHeight(max(170, table_height))
+
+    def _show_calculation_table(self, data, show_answer=False):
+        self._clear_calculation_tables()
+        tables = data.get("tables") if isinstance(data, dict) else None
+        multi_table = isinstance(tables, list)
+        entries = tables if multi_table else [data]
+        for entry in entries:
+            if entry.get("title"):
+                heading = QLabel(entry["title"])
+                heading.setWordWrap(True)
+                heading.setProperty("role", "question")
+                self.calculation_tables_layout.addWidget(heading)
+            table = QTableWidget()
+            self._populate_calculation_table(table, entry, show_answer)
+            self.calculation_tables.append(table)
+            self.calculation_tables_layout.addWidget(table)
+        if self.calculation_tables:
+            self.calculation_table = self.calculation_tables[0]
+
+    def _table_input_data(self, table):
+        headers = [
+            table.horizontalHeaderItem(i).text()
+            for i in range(table.columnCount())
+        ]
+        binary_layout = bool(table.property("binary_layout"))
+        if binary_layout:
+            headers.insert(0, "__binary_layout__")
+        rows = []
+        for row in range(table.rowCount()):
+            first = table.item(row, 0)
+            if binary_layout and first and first.text().startswith("━"):
+                rows.append(["__SEPARATOR__", *[""] * (table.columnCount() - 1)])
+                continue
+            rows.append([
+                table.item(row, column).text() if table.item(row, column) else ""
+                for column in range(table.columnCount())
+            ])
+        return {"headers": headers, "rows": rows}
 
     def _input_text(self):
-        if not self.calculation_table.isHidden():
-            headers = [
-                self.calculation_table.horizontalHeaderItem(i).text()
-                for i in range(self.calculation_table.columnCount())
-            ]
-            binary_layout = bool(self.calculation_table.property("binary_layout"))
-            if binary_layout:
-                headers.insert(0, "__binary_layout__")
-            rows = []
-            for row in range(self.calculation_table.rowCount()):
-                first = self.calculation_table.item(row, 0)
-                if binary_layout and first and first.text().startswith("─"):
-                    rows.append(["__SEPARATOR__", *[""] * (self.calculation_table.columnCount() - 1)])
-                    continue
-                rows.append([
-                    self.calculation_table.item(row, column).text()
-                    if self.calculation_table.item(row, column) else ""
-                    for column in range(self.calculation_table.columnCount())
-                ])
-            return json.dumps({"headers": headers, "rows": rows}, ensure_ascii=False)
+        if not self.calculation_table_container.isHidden():
+            tables = [self._table_input_data(table) for table in self.calculation_tables]
+            if len(tables) > 1:
+                titles = [
+                    self.calculation_tables_layout.itemAt(i * 2).widget().text()
+                    for i in range(len(tables))
+                ]
+                return json.dumps({
+                    "tables": [
+                        {"title": title, **table}
+                        for title, table in zip(titles, tables)
+                    ]
+                }, ensure_ascii=False)
+            return json.dumps(tables[0], ensure_ascii=False)
         if not self.calculation_answer.isHidden():
             return self.calculation_answer.toPlainText()
         return self.answer.text()
@@ -389,7 +443,7 @@ class QuestionPage(QWidget):
             set_state(self.feedback, "good")
             self.answer.setEnabled(False)
             self.calculation_answer.setEnabled(False)
-            self.calculation_table.setEnabled(False)
+            self.calculation_table_container.setEnabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -408,7 +462,10 @@ class QuestionPage(QWidget):
         if not self.calculation_table.isHidden():
             try:
                 answer_data = json.loads(self.current["answer"])
-                if isinstance(answer_data, dict) and "headers" in answer_data and "rows" in answer_data:
+                if isinstance(answer_data, dict) and (
+                    ("headers" in answer_data and "rows" in answer_data)
+                    or isinstance(answer_data.get("tables"), list)
+                ):
                     self._show_calculation_table(answer_data, show_answer=True)
                     self.feedback.setText("Correct solution shown in the table.")
                 else:
@@ -420,7 +477,7 @@ class QuestionPage(QWidget):
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.calculation_answer.setEnabled(False)
-        self.calculation_table.setEnabled(False)
+        self.calculation_table_container.setEnabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
