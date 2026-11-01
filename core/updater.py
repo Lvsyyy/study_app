@@ -11,7 +11,8 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-UPDATE_URL = "https://github.com/Lvsyyy/study_app/archive/refs/heads/main.zip"
+API_URL = "https://api.github.com/repos/Lvsyyy/study_app/commits/main"
+ARCHIVE_URL = "https://github.com/Lvsyyy/study_app/archive/{commit}.zip"
 
 HELPER = r"""
 import json
@@ -23,7 +24,7 @@ import time
 import zipfile
 from pathlib import Path
 
-archive, app_root, parent_pid, launch_command = sys.argv[1:]
+archive, app_root, parent_pid, launch_command, commit = sys.argv[1:]
 archive = Path(archive)
 app_root = Path(app_root)
 launch_command = json.loads(launch_command)
@@ -60,25 +61,37 @@ for current, dirs, files in os.walk(source):
             continue
         shutil.copy2(Path(current) / filename, destination / filename)
 
+(app_root / ".study_app_commit").write_text(commit, encoding="utf-8")
 subprocess.Popen(launch_command, cwd=app_root)
 """
 
 
 class UpdateWorker(QThread):
-    completed = Signal(str, str)
+    completed = Signal(str, str, str)
 
     def run(self):
         try:
             from urllib.request import Request, urlopen
 
+            headers = {"User-Agent": "Study-App-Updater"}
+            request = Request(API_URL, headers=headers)
+            with urlopen(request, timeout=20) as response:
+                commit = json.loads(response.read())["sha"]
+
+            app_root = Path(__file__).resolve().parent.parent
+            marker = app_root / ".study_app_commit"
+            if marker.is_file() and marker.read_text(encoding="utf-8").strip() == commit:
+                self.completed.emit("", "", "UP_TO_DATE")
+                return
+
             folder = Path(tempfile.mkdtemp(prefix="study-app-update-"))
             archive = folder / "update.zip"
-            request = Request(UPDATE_URL, headers={"User-Agent": "Study-App-Updater"})
+            request = Request(ARCHIVE_URL.format(commit=commit), headers=headers)
             with urlopen(request, timeout=60) as response, archive.open("wb") as output:
                 shutil.copyfileobj(response, output)
-            self.completed.emit(str(archive), "")
+            self.completed.emit(str(archive), commit, "")
         except Exception as error:
-            self.completed.emit("", str(error))
+            self.completed.emit("", "", str(error))
 
 
 def start_update(dialog):
@@ -88,26 +101,33 @@ def start_update(dialog):
     answer = QMessageBox.question(
         dialog,
         "Update Study App",
-        "Download and install the latest version? Your progress and settings will be kept.",
+        "Check GitHub for updates and install the latest version? Your progress and settings will be kept.",
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.Yes,
     )
     if answer != QMessageBox.StandardButton.Yes:
         return
 
-    button = dialog.update_button
-    button.setEnabled(False)
-    button.setText("Downloading…")
+    dialog.update_button.setEnabled(False)
+    dialog.update_button.setText("Checking…")
     dialog.update_worker = UpdateWorker(dialog)
-    dialog.update_worker.completed.connect(lambda archive, error: _finish_update(dialog, archive, error))
+    dialog.update_worker.completed.connect(
+        lambda archive, commit, error: _finish_update(dialog, archive, commit, error)
+    )
     dialog.update_worker.start()
 
 
-def _finish_update(dialog, archive, error):
+def _finish_update(dialog, archive, commit, error):
+    if error == "UP_TO_DATE":
+        dialog.update_button.setEnabled(True)
+        dialog.update_button.setText("Check for updates")
+        QMessageBox.information(dialog, "No updates", "You are already using the latest version.")
+        return
+
     if error:
         dialog.update_button.setEnabled(True)
         dialog.update_button.setText("Check for updates")
-        QMessageBox.critical(dialog, "Update failed", f"Could not download the update:\n{error}")
+        QMessageBox.critical(dialog, "Update failed", f"Could not check for or download the update:\n{error}")
         return
 
     app_root = Path(__file__).resolve().parent.parent
@@ -130,6 +150,7 @@ def _finish_update(dialog, archive, error):
                 str(app_root),
                 str(os.getpid()),
                 json.dumps(launch_command),
+                commit,
             ],
             cwd=folder,
             creationflags=flags,
