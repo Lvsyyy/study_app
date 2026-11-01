@@ -280,7 +280,7 @@ class QuestionPage(QWidget):
         for row_index, row in enumerate(rows):
             for column_index, value in enumerate(row):
                 item = QTableWidgetItem(str(value or ""))
-                if value not in (None, ""):
+                if value not in (None, "") and "____" not in str(value):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.calculation_table.setItem(row_index, column_index, item)
         self.calculation_table.resizeRowsToContents()
