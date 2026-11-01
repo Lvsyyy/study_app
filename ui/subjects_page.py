@@ -43,12 +43,16 @@ class SubjectsPage(QWidget):
             box.addWidget(section_title(subject["name"]))
             attempts, correct = subject["attempts"], subject["correct"]
             accuracy = 100.0 * correct / attempts if attempts else None
-            box.addWidget(muted_label(
-                f"{subject['questions']} question(s)  ·  {attempts} attempt(s)"))
+            summary = (
+                "Random questions generated as you practise"
+                if subject["name"] == "Math"
+                else f"{subject['questions']} question(s)  ·  {attempts} attempt(s)"
+            )
+            box.addWidget(muted_label(summary))
             box.addWidget(muted_label(f"Accuracy: {format_percent(accuracy)}"))
             box.addWidget(progress_bar(accuracy or 0))
             button = action_button("Practice", primary=True)
-            button.setEnabled(subject["questions"] > 0)
+            button.setEnabled(subject["questions"] > 0 or subject["name"] == "Math")
             button.clicked.connect(lambda _=False, n=subject["name"]: self.subject_requested.emit(n))
             box.addWidget(button)
             self.grid.addWidget(frame, index // COLUMNS, index % COLUMNS)
