@@ -1,9 +1,10 @@
+import json
 import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget)
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -80,6 +81,16 @@ class QuestionPage(QWidget):
         self.calculation_answer.hide()
         self.root.addWidget(self.calculation_answer)
 
+        self.calculation_table = QTableWidget()
+        self.calculation_table.setMinimumHeight(170)
+        self.calculation_table.setMaximumHeight(320)
+        self.calculation_table.setAlternatingRowColors(True)
+        self.calculation_table.setShowGrid(True)
+        self.calculation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.calculation_table.verticalHeader().setVisible(False)
+        self.calculation_table.hide()
+        self.root.addWidget(self.calculation_table)
+
         meta = QHBoxLayout()
         self.number_label = muted_label("")
         meta.addWidget(self.number_label)
@@ -140,7 +151,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.calculation_table, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -157,6 +168,8 @@ class QuestionPage(QWidget):
         self.answer.clear()
         self.calculation_answer.clear()
         self.calculation_answer.hide()
+        self.calculation_table.clear()
+        self.calculation_table.hide()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -197,13 +210,28 @@ class QuestionPage(QWidget):
         self.feedback.clear()
         set_state(self.feedback, None)
         template = question["answer_template"] if "answer_template" in question.keys() else None
+        self.calculation_table.hide()
+        self.calculation_answer.hide()
         if template:
-            self.answer.hide()
-            self.calculation_answer.show()
-            self.calculation_answer.setPlainText(template)
-            self.calculation_answer.setFocus()
+            try:
+                table = json.loads(template)
+                if isinstance(table, dict) and "headers" in table and "rows" in table:
+                    self._show_calculation_table(table)
+                    self.answer.hide()
+                    self.calculation_answer.hide()
+                    self.calculation_table.show()
+                    self.calculation_table.setFocus()
+                else:
+                    self.answer.hide()
+                    self.calculation_answer.show()
+                    self.calculation_answer.setPlainText(template)
+                    self.calculation_answer.setFocus()
+            except (json.JSONDecodeError, TypeError):
+                self.answer.hide()
+                self.calculation_answer.show()
+                self.calculation_answer.setPlainText(template)
+                self.calculation_answer.setFocus()
         else:
-            self.calculation_answer.hide()
             self.answer.show()
             self.answer.clear()
             self.answer.setFocus()
@@ -243,8 +271,37 @@ class QuestionPage(QWidget):
             self.feedback.setText("The question image could not be loaded.")
         self.image_label.hide()
 
+    def _show_calculation_table(self, data):
+        headers, rows = data["headers"], data["rows"]
+        self.calculation_table.clear()
+        self.calculation_table.setColumnCount(len(headers))
+        self.calculation_table.setRowCount(len(rows))
+        self.calculation_table.setHorizontalHeaderLabels(headers)
+        for row_index, row in enumerate(rows):
+            for column_index, value in enumerate(row):
+                item = QTableWidgetItem(str(value or ""))
+                if value not in (None, ""):
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.calculation_table.setItem(row_index, column_index, item)
+        self.calculation_table.resizeRowsToContents()
+
     def _input_text(self):
-        return self.calculation_answer.toPlainText() if not self.calculation_answer.isHidden() else self.answer.text()
+        if not self.calculation_table.isHidden():
+            headers = [
+                self.calculation_table.horizontalHeaderItem(i).text()
+                for i in range(self.calculation_table.columnCount())
+            ]
+            rows = []
+            for row in range(self.calculation_table.rowCount()):
+                rows.append([
+                    self.calculation_table.item(row, column).text()
+                    if self.calculation_table.item(row, column) else ""
+                    for column in range(self.calculation_table.columnCount())
+                ])
+            return json.dumps({"headers": headers, "rows": rows}, ensure_ascii=False)
+        if not self.calculation_answer.isHidden():
+            return self.calculation_answer.toPlainText()
+        return self.answer.text()
 
     def _primary_action(self):
         if self.current is None:
@@ -294,6 +351,7 @@ class QuestionPage(QWidget):
             set_state(self.feedback, "good")
             self.answer.setEnabled(False)
             self.calculation_answer.setEnabled(False)
+            self.calculation_table.setEnabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -313,6 +371,7 @@ class QuestionPage(QWidget):
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.calculation_answer.setEnabled(False)
+        self.calculation_table.setEnabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
