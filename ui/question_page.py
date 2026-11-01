@@ -274,7 +274,7 @@ class QuestionPage(QWidget):
             note = "Only your first attempt counts. " if first else ""
             self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
             set_state(self.feedback, "bad")
-            if self.calculation_answer.isVisible():
+            if not self.calculation_answer.isHidden():
                 self.calculation_answer.selectAll()
             else:
                 self.answer.selectAll()
