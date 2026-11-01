@@ -78,7 +78,9 @@ def conversion_table(number, source, target):
         return decimal_division_table(number, target)
     if target == 10:
         return positional_table(number, source)
-    return grouped_table(number, source, target)
+    # Avoid bit-group shortcuts: convert the source value to decimal first,
+    # then use the same repeated-division method as decimal conversions.
+    return decimal_division_table(number, target)
 
 
 def binary_arithmetic_table(a, b, operator):
@@ -135,8 +137,12 @@ class MathQuestionGenerator:
             return {
                 "subject_name": "Math",
                 "topic_name": "Number Systems",
-                "question_text": (f"Convert {source_value}₍{source}₎ from {BASE_NAMES[source]} "
-                                  f"to {BASE_NAMES[target]}. Complete the table."),
+                "question_text": (
+                    f"Convert {source_value}₍{source}₎ from {BASE_NAMES[source]} "
+                    f"to {BASE_NAMES[target]}."
+                    + (f" First convert to decimal: {number}₁₀." if source != 10 and target != 10 else "")
+                    + " Complete the table."
+                ),
                 "answer": answer,
                 "answer_template": template,
                 "hint": "Complete each row, then read the final result in the target base.",
