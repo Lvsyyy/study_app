@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QVBoxLayout, QWidget
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -72,6 +72,13 @@ class QuestionPage(QWidget):
         self.answer.returnPressed.connect(self._primary_action)
         self.root.addWidget(self.answer)
 
+        self.calculation_answer = QPlainTextEdit()
+        self.calculation_answer.setPlaceholderText("Complete the calculation…")
+        self.calculation_answer.setMinimumHeight(150)
+        self.calculation_answer.setMaximumHeight(230)
+        self.calculation_answer.hide()
+        self.root.addWidget(self.calculation_answer)
+
         meta = QHBoxLayout()
         self.number_label = muted_label("")
         meta.addWidget(self.number_label)
@@ -120,7 +127,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -135,6 +142,9 @@ class QuestionPage(QWidget):
         self.number_label.clear()
         self.accuracy_label.clear()
         self.answer.clear()
+        self.calculation_answer.clear()
+        self.calculation_answer.hide()
+        self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
         self.primary_button.setText("Check answer")
@@ -171,8 +181,17 @@ class QuestionPage(QWidget):
         self.hint_text.clear()
         self.feedback.clear()
         set_state(self.feedback, None)
-        self.answer.clear()
-        self.answer.setFocus()
+        template = question["answer_template"] if "answer_template" in question.keys() else None
+        if template:
+            self.answer.hide()
+            self.calculation_answer.show()
+            self.calculation_answer.setPlainText(template)
+            self.calculation_answer.setFocus()
+        else:
+            self.calculation_answer.hide()
+            self.answer.show()
+            self.answer.clear()
+            self.answer.setFocus()
         self.hint_button.setEnabled(bool(question["hint"]))
         difficulty = question["difficulty"]
         self.topic.setText(
@@ -206,6 +225,9 @@ class QuestionPage(QWidget):
             self.feedback.setText("The question image could not be loaded.")
         self.image_label.hide()
 
+    def _input_text(self):
+        return self.calculation_answer.toPlainText() if self.calculation_answer.isVisible() else self.answer.text()
+
     def _primary_action(self):
         if self.current is None:
             if self._finished:
@@ -231,7 +253,7 @@ class QuestionPage(QWidget):
     def check_answer(self):
         if self.current is None or self._solved:
             return
-        entered = self.answer.text().strip()
+        entered = self._input_text().strip()
         if not entered:
             self.feedback.setText("Enter an answer first.")
             set_state(self.feedback, None)
@@ -251,16 +273,20 @@ class QuestionPage(QWidget):
             note = "Only your first attempt counts. " if first else ""
             self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
             set_state(self.feedback, "bad")
-            self.answer.selectAll()
+            if self.calculation_answer.isVisible():
+                self.calculation_answer.selectAll()
+            else:
+                self.answer.selectAll()
 
     def reveal_answer(self):
         if self.current is None or self._solved:
             return
-        self._record_first_attempt(self.answer.text().strip(), False)
+        self._record_first_attempt(self._input_text().strip(), False)
         self._solved = True
         self.feedback.setText(f"Answer: {self.current['answer']}")
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
+        self.calculation_answer.setEnabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
