@@ -78,9 +78,35 @@ def conversion_table(number, source, target):
         return decimal_division_table(number, target)
     if target == 10:
         return positional_table(number, source)
-    # Avoid bit-group shortcuts: convert the source value to decimal first,
-    # then use the same repeated-division method as decimal conversions.
-    return decimal_division_table(number, target)
+
+    first_answer, first_template = positional_table(number, source)
+    second_answer, second_template = decimal_division_table(number, target)
+    return (
+        json.dumps({
+            "tables": [
+                {
+                    "title": f"{BASE_NAMES[source]} → Decimal",
+                    **json.loads(first_answer),
+                },
+                {
+                    "title": f"Decimal → {BASE_NAMES[target]}",
+                    **json.loads(second_answer),
+                },
+            ]
+        }, ensure_ascii=False),
+        json.dumps({
+            "tables": [
+                {
+                    "title": f"{BASE_NAMES[source]} → Decimal",
+                    **json.loads(first_template),
+                },
+                {
+                    "title": f"Decimal → {BASE_NAMES[target]}",
+                    **json.loads(second_template),
+                },
+            ]
+        }, ensure_ascii=False),
+    )
 
 
 def _binary_layout_row(label, bits, width):
@@ -106,7 +132,7 @@ def binary_arithmetic_table(a, b, operator):
             total = int(left) + int(right) + carry
             result_reversed.append(str(total & 1))
             carry = total >> 1
-            carry_outs.append(str(carry))
+            carry_outs.append(str(carry) if carry else "")
 
         result = (str(carry) if carry else "") + "".join(reversed(result_reversed))
         carry_row = [carry_outs[-1], *reversed(carry_outs[:-1]), ""] if carry_outs else [""] * (width + 1)
@@ -206,8 +232,7 @@ class MathQuestionGenerator:
                 "question_text": (
                     f"Convert {source_value}₍{source}₎ from {BASE_NAMES[source]} "
                     f"to {BASE_NAMES[target]}."
-                    + (f" First convert to decimal: {number}₁₀." if source != 10 and target != 10 else "")
-                    + " Complete the table."
+                    + (" First convert to decimal, then to the target base. Complete both tables." if source != 10 and target != 10 else " Complete the table.")
                 ),
                 "answer": answer,
                 "answer_template": template,
