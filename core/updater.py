@@ -95,9 +95,6 @@ class UpdateWorker(QThread):
 
 
 def start_update(dialog):
-    if sys.platform not in {"win32", "darwin"}:
-        return
-
     answer = QMessageBox.question(
         dialog,
         "Update Study App",
