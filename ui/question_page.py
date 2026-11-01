@@ -272,20 +272,32 @@ class QuestionPage(QWidget):
             self.feedback.setText("The question image could not be loaded.")
         self.image_label.hide()
 
-    def _show_calculation_table(self, data):
+    def _show_calculation_table(self, data, show_answer=False):
         headers, rows = data["headers"], data["rows"]
-        # Decimal division tables are intentionally blank: the learner fills
-        # every calculation, remainder, and running GQ cell.
-        if headers == ["Rechnung", "R", "GQ"]:
+        binary_layout = bool(headers and headers[0] == "__binary_layout__")
+        if binary_layout:
+            headers = headers[1:]
+        # Decimal division tables are intentionally blank while practising.
+        if not show_answer and headers == ["Rechnung", "R", "GQ"]:
             rows = [["", "", ""] for _ in rows]
 
         self.calculation_table.clear()
         self.calculation_table.setColumnCount(len(headers))
         self.calculation_table.setRowCount(len(rows))
         self.calculation_table.setHorizontalHeaderLabels(headers)
+        self.calculation_table.horizontalHeader().setVisible(not binary_layout)
         for row_index, row in enumerate(rows):
+            separator = binary_layout and row and row[0] == "__SEPARATOR__"
+            if separator:
+                item = QTableWidgetItem("────────────────────────────────")
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.calculation_table.setItem(row_index, 0, item)
+                self.calculation_table.setSpan(row_index, 0, 1, len(headers))
+                continue
             for column_index, value in enumerate(row):
                 item = QTableWidgetItem(str(value or ""))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if value not in (None, "") and "____" not in str(value):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.calculation_table.setItem(row_index, column_index, item)
@@ -380,7 +392,18 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text().strip(), False)
         self._solved = True
-        self.feedback.setText(f"Answer: {self.current['answer']}")
+        if not self.calculation_table.isHidden():
+            try:
+                answer_data = json.loads(self.current["answer"])
+                if isinstance(answer_data, dict) and "headers" in answer_data and "rows" in answer_data:
+                    self._show_calculation_table(answer_data, show_answer=True)
+                    self.feedback.setText("Correct solution shown in the table.")
+                else:
+                    self.feedback.setText(f"Answer: {self.current['answer']}")
+            except (json.JSONDecodeError, TypeError):
+                self.feedback.setText(f"Answer: {self.current['answer']}")
+        else:
+            self.feedback.setText(f"Answer: {self.current['answer']}")
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.calculation_answer.setEnabled(False)
