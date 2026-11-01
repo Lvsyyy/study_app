@@ -43,8 +43,6 @@ python3 -m venv .venv
 ./.venv/bin/python main.py
 ```
 
-PySide6 unterstützt macOS. Die App sollte daher auch dort laufen.
-
 ## Später starten
 
 Im Projektordner:
