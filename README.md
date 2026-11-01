@@ -129,3 +129,11 @@ question_id = question_repository.add_question(
 - `core/` — theme and settings
 - `database/` — SQLite connection, schema and repositories
 - `ui/` — reusable PySide6 screens and widgets
+
+
+## Developer math question seeder
+
+Run `python dev_math_questions.py` from the project root to add worked number-system
+conversions (binary, octal, decimal and hexadecimal) and binary addition/subtraction.
+The script skips questions that already exist. Calculation questions show a multiline
+working template and require the full calculation path, not only the final result.
