@@ -7,6 +7,10 @@ from database.question_repository import QuestionRepository
 DIGITS = "0123456789ABCDEF"
 BASE_NAMES = {2: "Binary", 8: "Octal", 10: "Decimal", 16: "Hexadecimal"}
 CONVERSION_PAIRS = [(s, t) for s in (2, 8, 10, 16) for t in (2, 8, 10, 16) if s != t]
+MATH_QUESTION_TYPES = [
+    (f"convert_{source}_{target}", f"{BASE_NAMES[source]} → {BASE_NAMES[target]}")
+    for source, target in CONVERSION_PAIRS
+] + [("binary_add", "Binary addition"), ("binary_subtract", "Binary subtraction")]
 
 
 def base_string(number, base):
@@ -220,13 +224,17 @@ class MathQuestionGenerator:
     def __init__(self, question_repository: QuestionRepository):
         self.questions = question_repository
 
-    def generate_question_id(self):
-        return self.questions.add_question(**self._generate())
+    def generate_question_id(self, question_type="mix"):
+        return self.questions.add_question(**self._generate(question_type))
 
-    def _generate(self):
-        kind = random.randrange(len(CONVERSION_PAIRS) + 2)
-        if kind < len(CONVERSION_PAIRS):
-            source, target = CONVERSION_PAIRS[kind]
+    def _generate(self, question_type="mix"):
+        available_types = [key for key, _label in MATH_QUESTION_TYPES]
+        if question_type == "mix":
+            question_type = random.choice(available_types)
+
+        if question_type.startswith("convert_"):
+            _, source, target = question_type.split("_")
+            source, target = int(source), int(target)
             number = random.randint(12, 4095)
             source_value = base_string(number, source)
             answer, template = conversion_table(number, source, target)
@@ -244,11 +252,14 @@ class MathQuestionGenerator:
                 "difficulty": 2 if source == 10 or target == 10 else 3,
             }
 
+        if question_type not in {"binary_add", "binary_subtract"}:
+            raise ValueError(f"Unknown math question type: {question_type}")
+
         width = random.randint(4, 8)
         first = random.randint(1 << (width - 1), (1 << width) - 1)
         second = random.randint(1 << (width - 2), (1 << (width - 1)) - 1)
         a, b = format(first, "b"), format(second, "b")
-        operator = "+" if kind == len(CONVERSION_PAIRS) else "-"
+        operator = "+" if question_type == "binary_add" else "-"
         if operator == "-":
             a, b = (a, b) if first >= second else (b, a)
         answer, template = binary_arithmetic_table(a, b, operator)
