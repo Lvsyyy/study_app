@@ -314,6 +314,10 @@ class QuestionPage(QWidget):
         table.verticalHeader().setVisible(False)
         table.setAlternatingRowColors(True)
         table.setShowGrid(True)
+        table.setStyleSheet(
+            "QLineEdit { background: transparent; border: none; "
+            "border-radius: 0; padding: 0; margin: 0; }"
+        )
         table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         for row_index, row in enumerate(rows):
