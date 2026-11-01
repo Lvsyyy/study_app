@@ -19,6 +19,10 @@ def base_string(number, base):
     return result
 
 
+def base_subscript(base):
+    return str(base).translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
+
+
 def table_data(headers, answer_rows, template_rows=None):
     """Store a table schema in the existing text fields without a DB migration."""
     answer = {"headers": headers, "rows": answer_rows}
@@ -112,7 +116,7 @@ def conversion_table(number, source, target):
 def _binary_layout_row(label, bits, width):
     """Align a bit string under the operand columns, including an overflow column."""
     bits = bits[-(width + 1):].rjust(width + 1)
-    return [label, *list(bits)]
+    return [label, *[bit if bit.strip() else "" for bit in bits]]
 
 
 def _binary_separator(width):
@@ -168,7 +172,7 @@ def binary_arithmetic_table(a, b, operator):
             total = int(left) + int(right) + carry
             result_reversed.append(str(total & 1))
             carry = total >> 1
-            carry_outs.append(str(carry))
+            carry_outs.append(str(carry) if carry else "")
 
         final_sum = (str(carry) if carry else "") + "".join(reversed(result_reversed))
         carry_row = [carry_outs[-1], *reversed(carry_outs[:-1]), ""] if carry_outs else [""] * (width + 1)
@@ -230,7 +234,7 @@ class MathQuestionGenerator:
                 "subject_name": "Math",
                 "topic_name": "Number Systems",
                 "question_text": (
-                    f"Convert {source_value}₍{source}₎ from {BASE_NAMES[source]} "
+                    f"Convert {source_value}₍{base_subscript(source)}₎ from {BASE_NAMES[source]} "
                     f"to {BASE_NAMES[target]}."
                     + (" First convert to decimal, then to the target base. Complete both tables." if source != 10 and target != 10 else " Complete the table.")
                 ),
