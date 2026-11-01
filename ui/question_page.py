@@ -275,8 +275,14 @@ class QuestionPage(QWidget):
     def _show_calculation_table(self, data, show_answer=False):
         headers, rows = data["headers"], data["rows"]
         binary_layout = bool(headers and headers[0] == "__binary_layout__")
+        self.calculation_table.setProperty("binary_layout", binary_layout)
         if binary_layout:
             headers = headers[1:]
+            self.calculation_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            for column in range(1, len(headers)):
+                self.calculation_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
+        else:
+            self.calculation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         # Decimal division tables are intentionally blank while practising.
         if not show_answer and headers == ["Rechnung", "R", "GQ"]:
             rows = [["", "", ""] for _ in rows]
@@ -316,8 +322,15 @@ class QuestionPage(QWidget):
                 self.calculation_table.horizontalHeaderItem(i).text()
                 for i in range(self.calculation_table.columnCount())
             ]
+            binary_layout = bool(self.calculation_table.property("binary_layout"))
+            if binary_layout:
+                headers.insert(0, "__binary_layout__")
             rows = []
             for row in range(self.calculation_table.rowCount()):
+                first = self.calculation_table.item(row, 0)
+                if binary_layout and first and first.text().startswith("─"):
+                    rows.append(["__SEPARATOR__", *[""] * (self.calculation_table.columnCount() - 1)])
+                    continue
                 rows.append([
                     self.calculation_table.item(row, column).text()
                     if self.calculation_table.item(row, column) else ""
