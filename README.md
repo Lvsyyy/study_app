@@ -131,9 +131,11 @@ question_id = question_repository.add_question(
 - `ui/` — reusable PySide6 screens and widgets
 
 
-## Developer math question seeder
 
-Run `python dev_math_questions.py` from the project root to add worked number-system
-conversions (binary, octal, decimal and hexadecimal) and binary addition/subtraction.
-The script skips questions that already exist. Calculation questions show a multiline
-working template and require the full calculation path, not only the final result.
+## Math question generation
+
+Math questions are generated randomly when you enter the Math practice page and
+whenever you advance to the next question. Supported conversions cover binary,
+octal, decimal and hexadecimal in both directions, plus binary addition and
+subtraction. Generated questions and worked-answer templates are stored so
+attempts can be tracked in statistics.
