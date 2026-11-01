@@ -49,6 +49,7 @@ Im Projektordner:
 
 - **Linux:** `source .venv/bin/activate` und danach `python main.py`
 - **Windows:** ` .\.venv\Scripts\python.exe main.py`
+- **macOS:** `./.venv/bin/python main.py`
 
 ## Aktualisieren
 
