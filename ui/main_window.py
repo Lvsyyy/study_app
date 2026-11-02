@@ -138,6 +138,9 @@ class MainWindow(QMainWindow):
         self._active_subject = subject
         topics = self.question_repository.list_topics(subject)
         groups = None
+        if subject == "PuG":
+            self.question_repository.add_topics(subject, ("Arbeitsvertrag",))
+            topics = self.question_repository.list_topics(subject)
         if subject == "BS":
             self.question_repository.add_topics(subject, (
                 "Bootvorgang",
