@@ -321,6 +321,7 @@ class SubnettingPage(QWidget):
         root.addLayout(buttons)
         root.addStretch()
         self._saved = False
+        self._answer_revealed = False
 
         self.canvas.changed.connect(self.refresh_text)
         self.refresh_text()
