@@ -391,14 +391,14 @@ class QuestionPage(QWidget):
         main_index = next(
             (
                 index for index, line in enumerate(lines)
-                if re.search(r"\\bstatic\\s+void\\s+Main\\s*\\(", line)
+                if re.search(r"\bstatic\s+void\s+Main\s*\(", line)
             ),
             None,
         )
         if main_index is None:
             return question_text.strip(), "", "", ""
 
-        prompt = "\\n".join(lines[:main_index]).strip()
+        prompt = "\n".join(lines[:main_index]).strip()
         signature = lines[main_index].strip()
         opening_index = next(
             (index for index in range(main_index + 1, len(lines)) if "{" in lines[index]),
@@ -407,7 +407,7 @@ class QuestionPage(QWidget):
         if opening_index is None:
             return prompt, signature, "", ""
 
-        prefix = signature + "\\n" + lines[opening_index].strip()
+        prefix = signature + "\n" + lines[opening_index].strip()
         depth = lines[opening_index].count("{") - lines[opening_index].count("}")
         closing_index = None
         for index in range(opening_index + 1, len(lines)):
@@ -423,7 +423,7 @@ class QuestionPage(QWidget):
             body_lines = lines[opening_index + 1:closing_index]
             suffix = lines[closing_index].strip()
 
-        body = "\\n".join(body_lines).strip("\\n")
+        body = "\n".join(body_lines).strip("\n")
         return prompt, prefix, body, suffix
 
     @staticmethod
