@@ -13,6 +13,7 @@ from database.statistics_repository import StatisticsRepository
 from ui.dashboard import Dashboard
 from ui.question_page import QuestionPage
 from ui.math_menu_page import MathMenuPage
+from ui.subject_menu_page import SubjectMenuPage
 from ui.saved_page import SavedPage
 from ui.settings_dialog import SettingsDialog
 from ui.sidebar import NAV_ITEMS, Sidebar
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
             self.question_repository, self.attempt_repository
         )
         self.math_menu_page = MathMenuPage()
+        self.subject_menu_page = SubjectMenuPage()
         self.pages = {
             "Home": self.dashboard,
             "Subjects": self.subjects_page,
@@ -76,6 +78,7 @@ class MainWindow(QMainWindow):
             "Saved": self.saved_page,
             "Question": self.question_page,
             "MathMenu": self.math_menu_page,
+            "SubjectMenu": self.subject_menu_page,
         }
         for page in self.pages.values():
             self.stack.addWidget(page)
@@ -83,6 +86,8 @@ class MainWindow(QMainWindow):
         self.subjects_page.subject_requested.connect(self.show_page)
         self.math_menu_page.back_requested.connect(lambda: self.show_page("Subjects"))
         self.math_menu_page.question_type_requested.connect(self.start_math_practice)
+        self.subject_menu_page.back_requested.connect(lambda: self.show_page("Subjects"))
+        self.subject_menu_page.topic_requested.connect(self.start_subject_practice)
         self.saved_page.practice_requested.connect(self.practice_saved)
         self.question_page.back_requested.connect(lambda: self.show_page(self._return_page))
         self.question_page.answered.connect(lambda _correct: self.session.record_question())
@@ -109,10 +114,10 @@ class MainWindow(QMainWindow):
             elif name == "Subjects":
                 self.subjects_page.refresh()
         elif name in self.subject_names:
-            self._return_page = "Subjects"
-            self.question_page.set_subject(name)
-            self.stack.setCurrentWidget(self.question_page)
-            self.sidebar.set_active(name)
+            if name == "Math":
+                self.show_math_menu()
+            else:
+                self.show_subject_menu(name)
         else:
             self.show_page("Home")
 
@@ -120,6 +125,27 @@ class MainWindow(QMainWindow):
         self._return_page = "Subjects"
         self.stack.setCurrentWidget(self.math_menu_page)
         self.sidebar.set_active("Math")
+
+    def show_subject_menu(self, subject):
+        self._return_page = "Subjects"
+        topics = self.question_repository.list_topics(subject)
+        self.subject_menu_page.set_subject(subject, topics)
+        self.stack.setCurrentWidget(self.subject_menu_page)
+        self.sidebar.set_active(subject)
+
+    def start_subject_practice(self, subject, topic):
+        if topic is None:
+            ids = self.question_repository.get_study_queue(subject)
+            rebuild = lambda: self.question_repository.get_study_queue(subject)
+            heading = f"{subject} · Mixed practice"
+        else:
+            ids = self.question_repository.get_topic_study_queue(subject, topic)
+            rebuild = lambda: self.question_repository.get_topic_study_queue(subject, topic)
+            heading = f"{subject} · {topic}"
+        self._return_page = "SubjectMenu"
+        self.question_page.set_queue(heading, ids, rebuild=rebuild)
+        self.stack.setCurrentWidget(self.question_page)
+        self.sidebar.set_active(subject)
 
     def start_math_practice(self, question_type):
         self._return_page = "MathMenu"
