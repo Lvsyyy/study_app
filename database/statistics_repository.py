@@ -59,7 +59,8 @@ class StatisticsRepository:
                           SUM(duration) AS duration,
                           SUM(questions_completed) AS questions
                    FROM study_sessions
-                   WHERE strftime('%Y-%m', started_at, 'localtime') = ?
+                   WHERE (duration >= 60 OR questions_completed > 0)
+                     AND strftime('%Y-%m', started_at, 'localtime') = ?
                    GROUP BY day
                ),
                attempt_days AS (
