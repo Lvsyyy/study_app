@@ -331,9 +331,6 @@ class SubnettingPage(QWidget):
         self.feedback.setText("Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und Subnetzmaske. Jede Teilung erhöht den Präfix um 1.")
 
     def reveal_answer(self):
-        if self.canvas.phase != "done":
-            self.feedback.setText("Schließe zuerst die Aufteilung ab.")
-            return
         self.canvas.reveal_answers()
         for row, value in zip((2, 3), (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))):
             self.info_table.item(row, 1).setText(value)
