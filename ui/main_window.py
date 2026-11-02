@@ -134,6 +134,19 @@ class MainWindow(QMainWindow):
         self._active_subject = subject
         topics = self.question_repository.list_topics(subject)
         groups = None
+        if subject == "BS":
+            for topic_name in (
+                "Bootvorgang",
+                "BIOS update",
+                "Windows Dateisysteme",
+                "Festplatten",
+                "Partitionierung",
+                "Virtuelle PCs",
+                "Batch",
+                "Benutzer",
+            ):
+                self.question_repository.add_topic(subject, topic_name)
+            topics = self.question_repository.list_topics(subject)
         if subject == "AE":
             groups = {
                 "OOP": {
