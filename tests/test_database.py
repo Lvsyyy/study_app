@@ -200,3 +200,36 @@ def test_monthly_activity_ignores_sessions_without_study(repos):
     assert len(rows) == 1
     assert rows[0]["duration"] == 59
     assert rows[0]["questions"] == 1
+
+
+def test_bulk_topic_creation_is_idempotent(repos):
+    questions = repos[0]
+    ids = questions.add_topics("Math", ["Binary", "Decimal", "Binary"])
+    assert ids[0] == ids[2]
+    assert len(ids) == 3
+    assert questions.list_topics("Math") == ["Binary", "Decimal"]
+    with pytest.raises(ValueError):
+        questions.add_topics("Missing", ["Topic"])
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"subject": None},
+        {"subject": ["Math"]},
+        {"difficulty": True},
+        {"question_type": []},
+        {"image": []},
+    ],
+)
+def test_import_rejects_invalid_field_types(tmp_path, overrides):
+    question = {
+        "subject": "Math",
+        "topic": "Binary",
+        "question": "Convert 1 to decimal.",
+        "answer": "1",
+    }
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps([{**question, **overrides}]), encoding="utf-8")
+    _, errors = load_questions(path, {"Math"})
+    assert errors
