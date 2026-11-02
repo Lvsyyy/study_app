@@ -1,4 +1,4 @@
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
@@ -11,6 +11,33 @@ MIGRATIONS = {
     """,
     3: """
     ALTER TABLE questions ADD COLUMN answer_template TEXT;
+    """,
+    4: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Ausgabe' FROM subjects WHERE name = 'AE';
+
+    INSERT INTO questions
+        (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT
+        t.id,
+        'Gebe "Hallo Welt" aus' || char(10) ||
+        '    static void Main(string[] args)' || char(10) ||
+        '    {' || char(10) ||
+        '        ' || char(10) ||
+        '    }',
+        'Console.WriteLine("Hallo Welt")',
+        'Console. benutzen',
+        1,
+        'code'
+    FROM topics t
+    JOIN subjects s ON s.id = t.subject_id
+    WHERE s.name = 'AE'
+      AND t.name = 'Ausgabe'
+      AND NOT EXISTS (
+          SELECT 1 FROM questions q
+          WHERE q.topic_id = t.id
+            AND q.question_text LIKE 'Gebe "Hallo Welt" aus%'
+      );
     """,
 }
 
