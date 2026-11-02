@@ -327,13 +327,38 @@ class SubnettingPage(QWidget):
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
         self.canvas.reveal_answers()
-        self.feedback.setText("Lösungen wurden in die Felder der Räume eingetragen.")
+        rows = [
+            (self.canvas._ip(self.canvas.network),
+             ".".join(f"{int(part):08b}" for part in self.canvas._ip(self.canvas.network).split("."))),
+            (self.canvas._ip(self.canvas.broadcast),
+             ".".join(f"{int(part):08b}" for part in self.canvas._ip(self.canvas.broadcast).split("."))),
+        ]
+        for row, values in zip((2, 3), rows):
+            for column, value in zip((1, 2), values):
+                self.info_table.item(row, column).setText(value)
+        self.feedback.setText("Lösungen wurden eingetragen.")
 
     def check_answers(self):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
-        if self.canvas.check_answers():
+        expected = (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))
+        table_ok = True
+        for row, decimal_value in zip((2, 3), expected):
+            binary_value = ".".join(f"{int(part):08b}" for part in decimal_value.split("."))
+            decimal_item = self.info_table.item(row, 1)
+            binary_item = self.info_table.item(row, 2)
+            decimal_ok = bool(decimal_item and decimal_item.text().strip() == decimal_value)
+            binary_ok = bool(binary_item and binary_item.text().strip() == binary_value)
+            for item, correct in ((decimal_item, decimal_ok), (binary_item, binary_ok)):
+                if item:
+                    item.setBackground(self.palette().color(
+                        QPalette.ColorRole.AlternateBase if correct else QPalette.ColorRole.Base
+                    ))
+            table_ok = table_ok and decimal_ok and binary_ok
+
+        rooms_ok = self.canvas.check_answers()
+        if table_ok and rooms_ok:
             self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
         else:
             self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
@@ -355,8 +380,6 @@ class SubnettingPage(QWidget):
                 item = QTableWidgetItem(value)
                 if column == 0 or (row < 2 and column > 0):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                else:
-                    item.setPlaceholderText("Eintragen")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.info_table.setItem(row, column, item)
 
