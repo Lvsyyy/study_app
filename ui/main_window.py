@@ -18,6 +18,7 @@ from ui.saved_page import SavedPage
 from ui.settings_dialog import SettingsDialog
 from ui.sidebar import NAV_ITEMS, Sidebar
 from ui.statistics_page import StatisticsPage
+from ui.subnetting_page import SubnettingPage
 from ui.subjects_page import SubjectsPage
 
 
@@ -71,6 +72,7 @@ class MainWindow(QMainWindow):
         )
         self.math_menu_page = MathMenuPage()
         self.subject_menu_page = SubjectMenuPage()
+        self.subnetting_page = SubnettingPage()
         self.pages = {
             "Home": self.dashboard,
             "Subjects": self.subjects_page,
@@ -79,6 +81,7 @@ class MainWindow(QMainWindow):
             "Question": self.question_page,
             "MathMenu": self.math_menu_page,
             "SubjectMenu": self.subject_menu_page,
+            "Subnetting": self.subnetting_page,
         }
         for page in self.pages.values():
             self.stack.addWidget(page)
@@ -88,6 +91,7 @@ class MainWindow(QMainWindow):
         self.math_menu_page.question_type_requested.connect(self.start_math_practice)
         self.subject_menu_page.back_requested.connect(lambda: self.show_page("Subjects"))
         self.subject_menu_page.topic_requested.connect(self.start_subject_practice)
+        self.subnetting_page.back_requested.connect(lambda: self.show_page("SubjectMenu"))
         self.saved_page.practice_requested.connect(self.practice_saved)
         self.question_page.back_requested.connect(lambda: self.show_page(self._return_page))
         self.question_page.answered.connect(lambda _correct: self.session.record_question())
@@ -208,6 +212,12 @@ class MainWindow(QMainWindow):
         self.sidebar.set_active(subject)
 
     def start_subject_practice(self, subject, topic):
+        if subject == "NT" and topic == "Subnetting":
+            self._return_page = "SubjectMenu"
+            self.subnetting_page.new_exercise()
+            self.stack.setCurrentWidget(self.subnetting_page)
+            self.sidebar.set_active(subject)
+            return
         if topic is None:
             ids = self.question_repository.get_study_queue(subject)
             rebuild = lambda: self.question_repository.get_study_queue(subject)
