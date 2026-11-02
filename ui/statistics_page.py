@@ -69,7 +69,7 @@ class StatisticsPage(QWidget):
         self.numbers["accuracy"].setText(format_percent(totals["accuracy"]))
         self.numbers["time"].setText(format_duration(study["seconds"]))
         avg = totals["avg_time"]
-        self.numbers["avg"].setText(f"{avg:.1f}s" if avg else "–")
+        self.numbers["avg"].setText(f"{avg:.1f}s" if avg is not None else "–")
         self.numbers["sessions"].setText(str(study["sessions"]))
         self.numbers["longest"].setText(f"{self.statistics.longest_streak()} d")
 
