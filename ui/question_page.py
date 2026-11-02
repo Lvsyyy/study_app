@@ -12,6 +12,26 @@ from core.formatting import format_duration
 from ui.widgets import action_button, card, muted_label, set_state, title_label
 
 
+class AutoIndentCodeEditor(QPlainTextEdit):
+    """Code editor that keeps method-body indentation consistent."""
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return and not event.modifiers() & (
+            Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
+        ):
+            line = self.textCursor().block().text()
+            indent = re.match(r"[ \\t]*", line).group()
+            stripped = line.strip()
+            if stripped.endswith("{"):
+                indent += "    "
+            elif stripped.startswith("}") and len(indent) >= 4:
+                indent = indent[:-4]
+            super().keyPressEvent(event)
+            self.textCursor().insertText(indent)
+            return
+        super().keyPressEvent(event)
+
+
 class CSharpHighlighter(QSyntaxHighlighter):
     """Small C# syntax highlighter for the embedded practice editor."""
 
@@ -122,7 +142,7 @@ class QuestionPage(QWidget):
         self.code_prefix.setStyleSheet("color: #d4d4d4; padding: 10px 12px 0 12px;")
         code_layout.addWidget(self.code_prefix)
 
-        self.code_editor = QPlainTextEdit()
+        self.code_editor = AutoIndentCodeEditor()
         self.code_editor.setObjectName("CodeEditor")
         self.code_editor.setPlaceholderText("// Write your code here")
         self.code_editor.setMinimumHeight(210)
@@ -330,7 +350,7 @@ class QuestionPage(QWidget):
             self.code_suffix.setText(code_suffix)
             self.code_editor.setPlainText(editable_body)
             cursor = self.code_editor.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.Start)
+            cursor.movePosition(QTextCursor.MoveOperation.End)
             self.code_editor.setTextCursor(cursor)
             self.code_editor_container.show()
             self.code_editor.setEnabled(True)
@@ -425,6 +445,19 @@ class QuestionPage(QWidget):
 
         body = "\n".join(body_lines).strip("\n")
         return prompt, prefix, body, suffix
+
+    @staticmethod
+    def _format_code_body(code):
+        """Indent a solution as a body inside the fixed Main method."""
+        import textwrap
+
+        body = textwrap.dedent((code or "").strip("\\n"))
+        if not body:
+            return ""
+        return "\\n".join(
+            ("        " + line if line.strip() else "")
+            for line in body.splitlines()
+        )
 
     @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
@@ -644,7 +677,10 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text().strip(), False)
         self._solved = True
-        if not self.calculation_table_container.isHidden():
+        if self._code_mode:
+            self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
+            self.feedback.setText("Correct solution shown in the code editor.")
+        elif not self.calculation_table_container.isHidden():
             try:
                 answer_data = json.loads(self.current["answer"])
                 if isinstance(answer_data, dict) and (
