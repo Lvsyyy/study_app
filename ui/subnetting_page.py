@@ -17,8 +17,9 @@ class SubnetCanvas(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(560, 500)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setAutoFillBackground(True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet("background: transparent;")
         self.rooms = []
         self.inputs = {}
         self.selected_id = None
@@ -218,7 +219,6 @@ class SubnetCanvas(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         palette = self.palette()
         background = palette.color(QPalette.ColorRole.Window)
-        painter.fillRect(self.rect(), background)
         bounds = self._bounds()
         accent = palette.color(QPalette.ColorRole.Highlight)
         border = palette.color(QPalette.ColorRole.Mid)
