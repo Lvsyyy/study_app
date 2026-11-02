@@ -1,4 +1,4 @@
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
@@ -11,6 +11,17 @@ MIGRATIONS = {
     """,
     3: """
     ALTER TABLE questions ADD COLUMN answer_template TEXT;
+    """,
+    5: """
+    UPDATE questions
+    SET answer = 'Console.WriteLine("Hallo Welt");'
+    WHERE topic_id IN (
+        SELECT t.id
+        FROM topics t
+        JOIN subjects s ON s.id = t.subject_id
+        WHERE s.name = 'AE' AND t.name = 'Ausgabe'
+    )
+      AND question_text LIKE 'Gebe "Hallo Welt" aus%';
     """,
     4: """
     INSERT OR IGNORE INTO topics(subject_id, name)
