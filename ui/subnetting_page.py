@@ -75,8 +75,9 @@ class SubnetCanvas(QWidget):
             edit.setProperty("answerState", "")
             edit.setFrame(False)
             edit.setStyleSheet(
-                "QLineEdit { background: transparent; color: palette(text); border: none; padding: 0px; }"
-                "QLineEdit:focus { background: palette(base); color: palette(text); border: 1px solid palette(highlight); }"
+                "QLineEdit { background: transparent; border: none; padding: 0px; }"
+                "QLineEdit:focus { background: rgba(0, 0, 0, 35); border: 1px solid palette(highlight); }"
+                "QLineEdit::placeholder { color: #a6adc8; }"
             )
         self.inputs[room["id"]] = (network, broadcast)
         self._position_inputs(room)
@@ -274,7 +275,7 @@ class SubnettingPage(QWidget):
         root.addWidget(self.instructions)
 
         frame, table_layout = card(padding=12)
-        self.info_table = QTableWidget(3, 3)
+        self.info_table = QTableWidget(4, 3)
         self.info_table.setHorizontalHeaderLabels(["", "Decimal", "Binary"])
         self.info_table.verticalHeader().setVisible(False)
         self.info_table.setAlternatingRowColors(True)
@@ -282,10 +283,10 @@ class SubnettingPage(QWidget):
         self.info_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.info_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.info_table.verticalHeader().setDefaultSectionSize(42)
-        self.info_table.setMinimumHeight(170)
+        self.info_table.setMinimumHeight(212)
         self.info_table.setStyleSheet(
-            "QTableWidget QLineEdit { background: transparent; color: palette(text); "
-            "border: 1px solid palette(highlight); padding: 2px; }"
+            "QTableWidget QLineEdit { background: transparent; "
+            "border: 1px solid #eb6f92; padding: 2px; }"
         )
         self.info_table.setEditTriggers(QTableWidget.EditTrigger.AllEditTriggers)
         self.info_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
@@ -335,7 +336,7 @@ class SubnettingPage(QWidget):
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
         self.canvas.reveal_answers()
-        for row, value in zip((1, 2), (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))):
+        for row, value in zip((2, 3), (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))):
             self.info_table.item(row, 1).setText(value)
         self.feedback.setText("Lösungen wurden eingetragen.")
 
@@ -345,7 +346,7 @@ class SubnettingPage(QWidget):
             return
         expected = (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))
         table_ok = True
-        for row, decimal_value in zip((1, 2), expected):
+        for row, decimal_value in zip((2, 3), expected):
             binary_value = ".".join(f"{int(part):08b}" for part in decimal_value.split("."))
             decimal_item = self.info_table.item(row, 1)
             binary_item = self.info_table.item(row, 2)
@@ -384,19 +385,17 @@ class SubnettingPage(QWidget):
         ip_item.setFlags(ip_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         ip_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_table.setItem(0, 1, ip_item)
-        blank_binary = QTableWidgetItem("")
-        blank_binary.setFlags(blank_binary.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.info_table.setItem(0, 2, blank_binary)
-        for row, label in enumerate(("IP Adresse", "Netzwerkadresse", "Broadcastadresse")):
+        for row, label in enumerate(("IP Adresse", "Subnetzmaske", "Netzwerkadresse", "Broadcastadresse")):
             label_item = QTableWidgetItem(label)
             label_item.setFlags(label_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             label_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.info_table.setItem(row, 0, label_item)
-        for row in (1, 2):
+        for row in (0, 1, 2, 3):
             for column in (1, 2):
                 item = self.info_table.item(row, column)
-                if item is None:
+                if item is None or row in (0, 1):
                     item = QTableWidgetItem("")
                     self.info_table.setItem(row, column, item)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+        ip_item.setFlags(ip_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
