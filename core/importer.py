@@ -31,19 +31,23 @@ def load_questions(path, valid_subjects):
         if not isinstance(item, dict):
             errors.append(f"#{index}: not an object")
             continue
-        missing = [k for k in REQUIRED if not str(item.get(k, "")).strip()]
+        missing = [
+            k for k in REQUIRED
+            if item.get(k) is None or not str(item.get(k)).strip()
+        ]
         if missing:
             errors.append(f"#{index}: missing {', '.join(missing)}")
             continue
-        if item["subject"] not in valid_subjects:
-            errors.append(f"#{index}: unknown subject '{item['subject']}'")
+        subject = item["subject"]
+        if not isinstance(subject, str) or subject not in valid_subjects:
+            errors.append(f"#{index}: unknown or invalid subject '{subject}'")
             continue
         difficulty = item.get("difficulty", 1)
-        if not isinstance(difficulty, int) or not 1 <= difficulty <= 5:
+        if type(difficulty) is not int or not 1 <= difficulty <= 5:
             errors.append(f"#{index}: difficulty must be 1-5")
             continue
         question_type = item.get("question_type", "text")
-        if question_type not in ("text", "code", "batch"):
+        if not isinstance(question_type, str) or question_type not in ("text", "code", "batch"):
             errors.append(f"#{index}: question_type must be 'text', 'code' or 'batch'")
             continue
         alts = item.get("alt_answers") or []
@@ -52,6 +56,9 @@ def load_questions(path, valid_subjects):
             continue
         image = item.get("image")
         if image:
+            if not isinstance(image, str):
+                errors.append(f"#{index}: image path must be a string")
+                continue
             image_path = Path(image)
             if not image_path.is_absolute():
                 image_path = path.parent / image_path
@@ -79,8 +86,17 @@ def import_file(path, question_repository):
     questions, errors = load_questions(path, valid)
     if errors or not questions:
         return 0, errors or ["The file contains no questions."]
-    for question in questions:
-        if question["question_image"]:
-            question["question_image"] = store_image(question["question_image"])
-    question_repository.add_questions(questions)
+
+    stored_images = []
+    try:
+        for question in questions:
+            if question["question_image"]:
+                stored = store_image(question["question_image"])
+                stored_images.append(stored)
+                question["question_image"] = stored
+        question_repository.add_questions(questions)
+    except Exception:
+        for stored in stored_images:
+            Path(stored).unlink(missing_ok=True)
+        raise
     return len(questions), []
