@@ -313,7 +313,7 @@ class SubnettingPage(QWidget):
         self.hint_button.clicked.connect(self.show_hint)
         self.reveal_button.clicked.connect(self.reveal_answer)
         self.save_button.clicked.connect(self.toggle_saved)
-        self.primary_button.clicked.connect(self.check_answers)
+        self.primary_button.clicked.connect(self._primary_action)
         for button in (self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             buttons.addWidget(button)
         buttons.addStretch()
@@ -329,10 +329,18 @@ class SubnettingPage(QWidget):
         self._saved = not self._saved
         self.save_button.setText("★  Saved" if self._saved else "☆  Save")
 
+    def _primary_action(self):
+        if self._answer_revealed:
+            self.new_exercise()
+        else:
+            self.check_answers()
+
     def new_exercise(self):
         self.canvas.reset_exercise()
         self._saved = False
+        self._answer_revealed = False
         self.save_button.setText("☆  Save")
+        self.primary_button.setText("Check answer")
         self.feedback.setText("")
         self.info_table.clearContents()
         self.refresh_text()
@@ -345,6 +353,8 @@ class SubnettingPage(QWidget):
         return ".".join(f"{int(part):08b}" for part in value.split("."))
 
     def reveal_answer(self):
+        self._answer_revealed = True
+        self.primary_button.setText("Next  →")
         self.canvas.reveal_answers()
         ip_value = self.canvas._ip(self.canvas.ip)
         mask_value = self.canvas._mask(self.canvas.prefix)
