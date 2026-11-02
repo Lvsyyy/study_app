@@ -4,8 +4,8 @@ import random
 from PySide6.QtCore import Qt, Signal, QRectF, QPointF
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QBrush, QPalette
 from PySide6.QtWidgets import (
-    QHBoxLayout, QLabel, QLineEdit, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget
+    QHBoxLayout, QLabel, QLineEdit, QScrollArea, QTableWidget,
+    QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget
 )
 
 from ui.widgets import action_button, card, muted_label, title_label
@@ -70,7 +70,7 @@ class SubnetCanvas(QWidget):
         for edit in (network, broadcast):
             edit.setMaxLength(15)
             edit.setToolTip("IPv4-Adresse eingeben")
-            edit.setStyleSheet("QLineEdit { padding: 2px 3px; }")
+            edit.setProperty("answerState", "")
         self.inputs[room["id"]] = (network, broadcast)
         self._position_inputs(room)
 
@@ -132,7 +132,6 @@ class SubnetCanvas(QWidget):
         first["prefix"] += 1
         second["prefix"] += 1
         second["network"] += half_size
-
         if edge in ("top", "bottom"):
             first["w"] /= 2
             second["x"] += first["w"]
@@ -144,8 +143,7 @@ class SubnetCanvas(QWidget):
 
         was_extra = self.phase == "extra"
         self.rooms.remove(room)
-        old_inputs = self.inputs.pop(room["id"], ())
-        for edit in old_inputs:
+        for edit in self.inputs.pop(room["id"], ()):
             edit.deleteLater()
         self.rooms.extend((first, second))
         self._create_inputs(first)
@@ -164,9 +162,7 @@ class SubnetCanvas(QWidget):
         for room in self.rooms:
             network_edit, broadcast_edit = self.inputs[room["id"]]
             expected_network = self._ip(room["network"])
-            expected_broadcast = self._ip(
-                room["network"] + (1 << (32 - room["prefix"])) - 1
-            )
+            expected_broadcast = self._ip(room["network"] + (1 << (32 - room["prefix"])) - 1)
             try:
                 given_network = str(ipaddress.IPv4Address(network_edit.text().strip()))
             except ipaddress.AddressValueError:
@@ -183,6 +179,14 @@ class SubnetCanvas(QWidget):
                 edit.style().unpolish(edit)
                 edit.style().polish(edit)
         return not incorrect
+
+    def reveal_answers(self):
+        for room in self.rooms:
+            network_edit, broadcast_edit = self.inputs[room["id"]]
+            network_edit.setText(self._ip(room["network"]))
+            broadcast_edit.setText(
+                self._ip(room["network"] + (1 << (32 - room["prefix"])) - 1)
+            )
 
     def mousePressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton or self.phase == "done":
@@ -213,16 +217,14 @@ class SubnetCanvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         palette = self.palette()
-        painter.fillRect(self.rect(), palette.color(QPalette.ColorRole.Base))
+        background = palette.color(QPalette.ColorRole.Window)
+        painter.fillRect(self.rect(), background)
         bounds = self._bounds()
         accent = palette.color(QPalette.ColorRole.Highlight)
         border = palette.color(QPalette.ColorRole.Mid)
-        text_color = palette.color(QPalette.ColorRole.Text)
-
         painter.setPen(QPen(accent, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(bounds)
-
         for room in self.rooms:
             rect = self._room_rect(room)
             selected = room["id"] == self.selected_id
@@ -231,10 +233,9 @@ class SubnetCanvas(QWidget):
                 painter.setBrush(QColor(accent.red(), accent.green(), accent.blue(), 24))
                 painter.drawRect(rect)
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-
-            if self.phase == "base" or (self.phase == "extra" and room["id"] == self.selected_id):
+            if self.phase == "base" or (self.phase == "extra" and selected):
                 for edge_point, _edge in self._edge_points(room):
-                    painter.setPen(QPen(palette.color(QPalette.ColorRole.Base), 1))
+                    painter.setPen(QPen(background, 1))
                     painter.setBrush(QBrush(accent))
                     painter.drawEllipse(edge_point, 7, 7)
         painter.end()
@@ -245,9 +246,17 @@ class SubnettingPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        root = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        content = QWidget()
+        root = QVBoxLayout(content)
         root.setContentsMargins(34, 30, 34, 30)
-        root.setSpacing(14)
+        root.setSpacing(18)
+        self.scroll_area.setWidget(content)
+        outer.addWidget(self.scroll_area)
 
         header = QHBoxLayout()
         back = action_button("←  Back")
@@ -255,36 +264,51 @@ class SubnettingPage(QWidget):
         header.addWidget(back)
         header.addStretch()
         root.addLayout(header)
-
         root.addWidget(title_label("Subnetting"))
         self.instructions = muted_label("")
         self.instructions.setWordWrap(True)
         root.addWidget(self.instructions)
 
-        self.network_info = QTableWidget(2, 2)
-        self.network_info.setHorizontalHeaderLabels(["Angabe", "Wert"])
-        self.network_info.verticalHeader().setVisible(False)
-        self.network_info.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.network_info.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
-        self.network_info.horizontalHeader().setStretchLastSection(True)
-        self.network_info.setMaximumHeight(92)
-        root.addWidget(self.network_info)
+        frame, table_layout = card(padding=12)
+        self.info_table = QTableWidget(4, 3)
+        self.info_table.setHorizontalHeaderLabels(["", "Decimal", "Binary"])
+        self.info_table.verticalHeader().setVisible(False)
+        self.info_table.setAlternatingRowColors(True)
+        self.info_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.info_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.info_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.info_table.verticalHeader().setDefaultSectionSize(42)
+        self.info_table.setMinimumHeight(220)
+        self.info_table.setEditTriggers(QTableWidget.EditTrigger.AllEditTriggers)
+        self.info_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
+        self.info_table.setWordWrap(False)
+        table_layout.addWidget(self.info_table)
+        root.addWidget(frame)
 
-        frame, layout = card(padding=12)
+        canvas_frame, canvas_layout = card(padding=12)
         self.canvas = SubnetCanvas()
-        layout.addWidget(self.canvas)
-        root.addWidget(frame, 1)
+        canvas_layout.addWidget(self.canvas)
+        root.addWidget(canvas_frame)
 
-        controls = QHBoxLayout()
-        self.check_button = action_button("Check answers", primary=True)
-        self.check_button.clicked.connect(self.check_answers)
-        controls.addWidget(self.check_button)
+        buttons = QHBoxLayout()
+        self.skip_button = action_button("Skip")
+        self.hint_button = action_button("Hint")
+        self.reveal_button = action_button("Show answer")
+        self.save_button = action_button("☆  Save")
+        self.primary_button = action_button("Check answer", primary=True)
+        self.skip_button.clicked.connect(self.new_exercise)
+        self.hint_button.clicked.connect(self.show_hint)
+        self.reveal_button.clicked.connect(self.reveal_answer)
+        self.save_button.setEnabled(False)
+        self.primary_button.clicked.connect(self.check_answers)
+        for button in (self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+            buttons.addWidget(button)
+        buttons.addStretch()
+        buttons.addWidget(self.primary_button)
+        root.addLayout(buttons)
         self.feedback = muted_label("")
-        controls.addWidget(self.feedback, 1)
-        self.reset_button = action_button("New exercise")
-        self.reset_button.clicked.connect(self.new_exercise)
-        controls.addWidget(self.reset_button)
-        root.addLayout(controls)
+        root.addWidget(self.feedback)
+        root.addStretch()
 
         self.canvas.changed.connect(self.refresh_text)
         self.refresh_text()
@@ -292,44 +316,68 @@ class SubnettingPage(QWidget):
     def new_exercise(self):
         self.canvas.reset_exercise()
         self.feedback.setText("")
+        self.info_table.clearContents()
         self.refresh_text()
+
+    def show_hint(self):
+        self.feedback.setText("Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und Subnetzmaske. Jede Teilung erhöht den Präfix um 1.")
+
+    def reveal_answer(self):
+        if self.canvas.phase != "done":
+            self.feedback.setText("Schließe zuerst die Aufteilung ab.")
+            return
+        self.canvas.reveal_answers()
+        self.feedback.setText("Lösungen wurden in die Felder der Räume eingetragen.")
 
     def check_answers(self):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
-        correct = self.canvas.check_answers()
-        self.feedback.setText("Alle Adressen korrekt." if correct else "Einige Adressen sind noch falsch.")
+        if self.canvas.check_answers():
+            self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
+        else:
+            self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
 
     def refresh_text(self):
         canvas = self.canvas
         ip = canvas._ip(canvas.ip)
         mask = canvas._mask(canvas.prefix)
-        self.network_info.setItem(0, 0, QTableWidgetItem("IP-Adresse"))
-        self.network_info.setItem(0, 1, QTableWidgetItem(f"{ip}/{canvas.prefix}"))
-        self.network_info.setItem(1, 0, QTableWidgetItem("Subnetzmaske"))
-        self.network_info.setItem(1, 1, QTableWidgetItem(mask))
+        binary_ip = ".".join(f"{int(part):08b}" for part in ip.split("."))
+        binary_mask = ".".join(f"{int(part):08b}" for part in mask.split("."))
+        values = [
+            ("IP Adresse", ip, binary_ip),
+            ("Subnetzmaske", mask, binary_mask),
+            ("Netzwerkadresse", "", ""),
+            ("Broadcastadresse", "", ""),
+        ]
+        for row, values_row in enumerate(values):
+            for column, value in enumerate(values_row):
+                item = QTableWidgetItem(value)
+                if column == 0 or (row < 2 and column > 0):
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                else:
+                    item.setPlaceholderText("Eintragen")
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.info_table.setItem(row, column, item)
 
         if canvas.phase == "base":
             remaining = canvas.initial_rooms - 1 - canvas.base_splits_done
             self.instructions.setText(
-                f"Teile das Netzwerk in {canvas.initial_rooms} Räume auf. "
-                f"Noch {remaining} Teilung(en). Klicke auf einen Randpunkt des Raums, "
-                "den du teilen möchtest. Trage anschließend die Netzwerk- und Broadcastadresse ein."
+                f"Teile das Netzwerk in {canvas.initial_rooms} Räume auf. Noch {remaining} Teilung(en). "
+                "Klicke auf einen Randpunkt des Raums, den du teilen möchtest."
             )
         elif canvas.phase == "extra":
             if canvas.selected_id is None:
                 self.instructions.setText(
-                    f"Wähle einen der markierten Räume aus und unterteile diesen Zweig "
-                    f"anschließend noch {canvas.extra_splits - canvas.extra_splits_done} Mal."
+                    f"Wähle einen Raum aus und unterteile diesen Zweig anschließend noch "
+                    f"{canvas.extra_splits - canvas.extra_splits_done} Mal."
                 )
             else:
                 self.instructions.setText(
-                    f"Teile den markierten Raum. Noch "
-                    f"{canvas.extra_splits - canvas.extra_splits_done} weitere Teilung(en)."
+                    f"Teile den markierten Raum. Noch {canvas.extra_splits - canvas.extra_splits_done} weitere Teilung(en)."
                 )
         else:
             self.instructions.setText(
                 f"Aufteilung abgeschlossen: {len(canvas.rooms)} Subnetze. "
-                "Trage für jedes Subnetz Netzwerkadresse und Broadcastadresse ein und prüfe deine Antworten."
+                "Trage die Netzwerk- und Broadcastadressen für jedes Teilnetz in die Felder im Quadrat ein."
             )
