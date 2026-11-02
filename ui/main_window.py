@@ -103,6 +103,9 @@ class MainWindow(QMainWindow):
             self._return_page = "Subjects"
             self.stack.setCurrentWidget(self.math_menu_page)
             self.sidebar.set_active("Math")
+        elif name == "SubjectMenu":
+            self.stack.setCurrentWidget(self.subject_menu_page)
+            self.sidebar.set_active(self._active_subject)
         elif name in NAV_ITEMS:
             self._return_page = name
             self.stack.setCurrentWidget(self.pages[name])
@@ -128,6 +131,7 @@ class MainWindow(QMainWindow):
 
     def show_subject_menu(self, subject):
         self._return_page = "Subjects"
+        self._active_subject = subject
         topics = self.question_repository.list_topics(subject)
         self.subject_menu_page.set_subject(subject, topics)
         self.stack.setCurrentWidget(self.subject_menu_page)
