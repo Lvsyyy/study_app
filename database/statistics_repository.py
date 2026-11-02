@@ -19,7 +19,7 @@ class StatisticsRepository:
             """SELECT COUNT(*) AS sessions,
                       COALESCE(SUM(duration), 0) AS seconds
                FROM study_sessions
-               WHERE duration > 0"""
+               WHERE duration > 0 OR questions_completed > 0"""
         )
         return {"sessions": row["sessions"], "seconds": row["seconds"]}
 
