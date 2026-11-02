@@ -461,13 +461,14 @@ class QuestionPage(QWidget):
 
     @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
-        """Allow an answer snippet to be entered inside a complete starter program."""
-        submitted = " ".join((entered or "").split())
+        """Compare code exactly, including indentation and whitespace."""
+        submitted = (entered or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
         if not submitted:
             return False
+
         for candidate in (expected, *alternatives):
-            target = " ".join((candidate or "").split())
-            if target and (submitted == target or target in submitted):
+            target = QuestionPage._format_code_body(candidate)
+            if target and submitted == target:
                 return True
         return False
 
