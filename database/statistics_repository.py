@@ -54,19 +54,34 @@ class StatisticsRepository:
     def monthly_activity(self, year, month):
         key = f"{year:04d}-{month:02d}"
         return self.db.fetch_all(
-            """SELECT day, SUM(duration) AS duration, SUM(questions) AS questions
-               FROM (
+            """WITH session_days AS (
                    SELECT date(started_at, 'localtime') AS day,
-                          duration, questions_completed AS questions
+                          SUM(duration) AS duration,
+                          SUM(questions_completed) AS questions
                    FROM study_sessions
                    WHERE strftime('%Y-%m', started_at, 'localtime') = ?
-                   UNION ALL
-                   SELECT date(created_at, 'localtime') AS day, 0 AS duration, 1 AS questions
+                   GROUP BY day
+               ),
+               attempt_days AS (
+                   SELECT date(created_at, 'localtime') AS day,
+                          COUNT(*) AS questions
                    FROM attempts
                    WHERE strftime('%Y-%m', created_at, 'localtime') = ?
+                   GROUP BY day
+               ),
+               active_days AS (
+                   SELECT day FROM session_days
+                   UNION
+                   SELECT day FROM attempt_days
                )
-               GROUP BY day
-               ORDER BY day""",
+               SELECT active_days.day,
+                      COALESCE(session_days.duration, 0) AS duration,
+                      MAX(COALESCE(session_days.questions, 0),
+                          COALESCE(attempt_days.questions, 0)) AS questions
+               FROM active_days
+               LEFT JOIN session_days USING (day)
+               LEFT JOIN attempt_days USING (day)
+               ORDER BY active_days.day""",
             (key, key),
         )
 
