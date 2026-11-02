@@ -20,7 +20,7 @@ class AutoIndentCodeEditor(QPlainTextEdit):
             Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
         ):
             line = self.textCursor().block().text()
-            indent = re.match(r"[ \\t]*", line).group()
+            indent = re.match(r"[ \t]*", line).group()
             stripped = line.strip()
             if stripped.endswith("{"):
                 indent += "    "
@@ -451,10 +451,10 @@ class QuestionPage(QWidget):
         """Indent a solution as a body inside the fixed Main method."""
         import textwrap
 
-        body = textwrap.dedent((code or "").strip("\\n"))
+        body = textwrap.dedent((code or "").strip("\n"))
         if not body:
             return ""
-        return "\\n".join(
+        return "\n".join(
             ("        " + line if line.strip() else "")
             for line in body.splitlines()
         )
