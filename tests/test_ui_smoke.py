@@ -138,3 +138,10 @@ def test_correct_subnet_answer_changes_primary_action_to_next(window):
     assert page.primary_button.text() == "Next  →"
     page._primary_action()
     assert page.primary_button.text() == "Check answer"
+
+
+def test_statistics_displays_zero_second_average(window):
+    qid = window.question_repository.add_question("Math", "Binary", "Q", "A")
+    window.attempt_repository.record(qid, "A", True, 0)
+    window.statistics_page.refresh()
+    assert window.statistics_page.numbers["avg"].text() == "0.0s"
