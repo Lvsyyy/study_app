@@ -97,3 +97,44 @@ def test_session_is_saved_on_close(app, tmp_path):
     row = sqlite3.connect(tmp_path / "d.sqlite3").execute(
         "SELECT duration, questions_completed, ended_at FROM study_sessions").fetchone()
     assert row[0] >= 90 and row[1] == 1 and row[2] is not None
+
+
+def test_subnet_canvas_can_split_a_slash_29_room(window):
+    canvas = window.subnetting_page.canvas
+    room = canvas.rooms[0]
+    room["network"] = 167772160  # 10.0.0.0
+    room["prefix"] = 29
+
+    canvas._split(room, "top")
+
+    children = [item for item in canvas.rooms if item["id"] in canvas.allowed_extra_ids]
+    assert len(children) == 2
+    assert {item["prefix"] for item in children} == {30}
+    assert sorted(item["network"] for item in children) == [167772160, 167772164]
+
+
+def test_correct_subnet_answer_changes_primary_action_to_next(window):
+    page = window.subnetting_page
+    canvas = page.canvas
+    canvas.extra_splits_done = canvas.extra_splits
+
+    for room in canvas.rooms:
+        network_edit, broadcast_edit = canvas.inputs[room["id"]]
+        network_edit.setText(canvas._ip(room["network"]))
+        broadcast_edit.setText(
+            canvas._ip(room["network"] + (1 << (32 - room["prefix"])) - 1)
+        )
+
+    network = canvas._ip(canvas.network)
+    broadcast = canvas._ip(canvas.broadcast)
+    for row, value in ((2, network), (3, broadcast)):
+        page.info_table.item(row, 1).setText(value)
+        page.info_table.item(row, 2).setText(
+            ".".join(f"{int(part):08b}" for part in value.split("."))
+        )
+
+    page.check_answers()
+
+    assert page.primary_button.text() == "Next  →"
+    page._primary_action()
+    assert page.primary_button.text() == "Check answer"
