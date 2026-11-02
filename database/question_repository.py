@@ -74,6 +74,31 @@ class QuestionRepository:
         with self.db.connection:
             return self._ensure_topic(subject_name, topic_name)
 
+    def add_topics(self, subject_name, topic_names):
+        """Create several topics in one transaction and return their ids in input order."""
+        names = tuple(dict.fromkeys(
+            str(name).strip() for name in topic_names if name is not None and str(name).strip()
+        ))
+        if not names:
+            return []
+
+        placeholders = ",".join("?" for _ in names)
+        with self.db.connection:
+            subject_id = self.get_subject_id(subject_name)
+            if subject_id is None:
+                raise ValueError(f"Unknown subject: {subject_name}")
+            self.db.connection.executemany(
+                "INSERT OR IGNORE INTO topics(subject_id, name) VALUES (?, ?)",
+                ((subject_id, name) for name in names),
+            )
+            rows = self.db.fetch_all(
+                f"SELECT name, id FROM topics WHERE subject_id = ? AND name IN ({placeholders})",
+                (subject_id, *names),
+            )
+
+        ids = {row["name"]: row["id"] for row in rows}
+        return [ids[name] for name in names]
+
     # -- questions -----------------------------------------------------------
 
     def _insert_question(
