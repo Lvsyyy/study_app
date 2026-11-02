@@ -157,6 +157,29 @@ class MainWindow(QMainWindow):
             ):
                 self.question_repository.add_topic(subject, topic_name)
             topics = self.question_repository.list_topics(subject)
+        if subject == "CS_P":
+            for topic_name in (
+                "Strom- Spannungs- Wiederstandsmessung",
+                "Elektrische Grundbasis",
+                "Ohmsches Gesetz",
+                "Reihenschaltung",
+                "Parallelschaltung",
+                "Mischschaltung",
+            ):
+                self.question_repository.add_topic(subject, topic_name)
+            topics = self.question_repository.list_topics(subject)
+        if subject == "NT":
+            for topic_name in (
+                "Grundbasis",
+                "Ausdehnungen",
+                "Topologien",
+                "Architekturen",
+                "Kommunikationsteilnehmer",
+                "Adressbereiche",
+                "Subnetting",
+            ):
+                self.question_repository.add_topic(subject, topic_name)
+            topics = self.question_repository.list_topics(subject)
         if subject == "AE":
             groups = {
                 "OOP": {
