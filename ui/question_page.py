@@ -16,7 +16,7 @@ class AutoIndentCodeEditor(QPlainTextEdit):
     """Code editor that keeps method-body indentation consistent."""
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Return and not event.modifiers() & (
+        if getattr(self, "auto_indent", True) and event.key() == Qt.Key.Key_Return and not event.modifiers() & (
             Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
         ):
             line = self.textCursor().block().text()
@@ -143,6 +143,7 @@ class QuestionPage(QWidget):
         code_layout.addWidget(self.code_prefix)
 
         self.code_editor = AutoIndentCodeEditor()
+        self.code_editor.auto_indent = True
         self.code_editor.setObjectName("CodeEditor")
         self.code_editor.setPlaceholderText("// Write your code here")
         self.code_editor.setMinimumHeight(210)
@@ -336,12 +337,23 @@ class QuestionPage(QWidget):
         self.code_editor_container.hide()
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
-        self._code_mode = question_type == "code" or (
+        self._batch_mode = question_type == "batch"
+        self._code_mode = question_type in ("code", "batch") or (
             question["subject_name"] == "AE"
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
         )
         if self._code_mode:
-            prompt, code_prefix, editable_body, code_suffix = self._split_code_question(question_text)
+            if self._batch_mode:
+                prompt = question_text
+                code_prefix = r"C:\Users\Supercoolerbenutzer>"
+                editable_body = ""
+                code_suffix = ""
+                self.code_editor_header.setText("  Batch   |   Eingabeaufforderung")
+                self.code_editor.auto_indent = False
+            else:
+                prompt, code_prefix, editable_body, code_suffix = self._split_code_question(question_text)
+                self.code_editor_header.setText("  C#   |   Program.cs")
+                self.code_editor.auto_indent = True
             self.question_text.setText(prompt)
             self.question_text.setVisible(bool(prompt))
             self.answer.hide()
