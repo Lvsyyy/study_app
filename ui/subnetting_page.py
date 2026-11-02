@@ -27,7 +27,7 @@ class SubnetCanvas(QWidget):
         self.reset_exercise()
 
     def reset_exercise(self):
-        prefix = random.randint(22, 24)
+        prefix = random.randint(21, 23)
         block_size = 1 << (32 - prefix)
         base = random.randint(1, 254) * 256
         base = (base // block_size) * block_size
