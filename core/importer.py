@@ -43,8 +43,8 @@ def load_questions(path, valid_subjects):
             errors.append(f"#{index}: difficulty must be 1-5")
             continue
         question_type = item.get("question_type", "text")
-        if question_type not in ("text", "code"):
-            errors.append(f"#{index}: question_type must be 'text' or 'code'")
+        if question_type not in ("text", "code", "batch"):
+            errors.append(f"#{index}: question_type must be 'text', 'code' or 'batch'")
             continue
         alts = item.get("alt_answers") or []
         if not isinstance(alts, list):
