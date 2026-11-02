@@ -44,6 +44,12 @@ class Database:
             self.connection.execute("PRAGMA user_version = 1")
             current = 1
 
+        with self.connection:
+            self.connection.executemany(
+                "INSERT OR IGNORE INTO subjects(name) VALUES (?)",
+                [(name,) for name in DEFAULT_SUBJECTS],
+            )
+
         for version in range(current + 1, SCHEMA_VERSION + 1):
             migration = MIGRATIONS.get(version)
             if migration is None:
@@ -57,11 +63,6 @@ class Database:
                     self.connection.rollback()
                 raise
 
-        with self.connection:
-            self.connection.executemany(
-                "INSERT OR IGNORE INTO subjects(name) VALUES (?)",
-                [(name,) for name in DEFAULT_SUBJECTS],
-            )
 
     def execute(self, sql, params=()):
         return self.connection.execute(sql, params)
