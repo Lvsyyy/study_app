@@ -185,6 +185,34 @@ class QuestionRepository:
 
         return [row["id"] for row in rows]
 
+    def get_topic_study_queue(self, subject_name, topic_name):
+        """Question ids for one topic, ordered by weakest performance first."""
+        rows = self.db.fetch_all(
+            """SELECT q.id
+               FROM questions q
+               JOIN topics t ON t.id = q.topic_id
+               JOIN subjects s ON s.id = t.subject_id
+               LEFT JOIN (
+                   SELECT question_id,
+                          COUNT(*) AS n,
+                          SUM(is_correct) AS c,
+                          MAX(created_at) AS last
+                   FROM attempts
+                   GROUP BY question_id
+               ) a ON a.question_id = q.id
+               WHERE s.name = ? AND t.name = ?
+               ORDER BY
+                   (a.n IS NOT NULL),
+                   CASE
+                       WHEN a.n IS NULL THEN 0
+                       ELSE 1.0 * a.c / a.n
+                   END ASC,
+                   a.last ASC,
+                   RANDOM()""",
+            (subject_name, topic_name),
+        )
+        return [row["id"] for row in rows]
+
     def get_next_question(self, subject_name, offset=0):
         return self.db.fetch_one(
             """SELECT q.*, t.name AS topic_name, s.name AS subject_name
