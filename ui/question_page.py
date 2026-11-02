@@ -461,13 +461,19 @@ class QuestionPage(QWidget):
 
     @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
-        """Compare code exactly, including indentation and whitespace."""
-        submitted = (entered or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+        """Compare code while ignoring indentation differences."""
+        import textwrap
+
+        submitted = textwrap.dedent(
+            (entered or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+        ).rstrip()
         if not submitted:
             return False
 
         for candidate in (expected, *alternatives):
-            target = QuestionPage._format_code_body(candidate)
+            target = textwrap.dedent(
+                QuestionPage._format_code_body(candidate)
+            ).rstrip()
             if target and submitted == target:
                 return True
         return False
