@@ -314,14 +314,14 @@ class QuestionPage(QWidget):
             self.calculation_answer.hide()
             self.code_editor.setPlainText(starter_code)
             cursor = self.code_editor.textCursor()
-            blank_line = re.search(r"\\n[ \\t]*\\n(?=[ \\t]*})", starter_code)
+            blank_line = re.search(r"\n[ \t]*\n(?=[ \t]*})", starter_code)
             if blank_line:
                 cursor.setPosition(blank_line.start() + 1)
             else:
                 closing_brace = starter_code.rfind("}")
                 if closing_brace >= 0:
                     cursor.setPosition(closing_brace)
-                    cursor.insertText("\\n        ")
+                    cursor.insertText("\n        ")
                 else:
                     cursor.movePosition(QTextCursor.MoveOperation.End)
             self.code_editor.setTextCursor(cursor)
