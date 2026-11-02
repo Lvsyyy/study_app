@@ -139,7 +139,7 @@ class MainWindow(QMainWindow):
         topics = self.question_repository.list_topics(subject)
         groups = None
         if subject == "BS":
-            for topic_name in (
+            self.question_repository.add_topics(subject, (
                 "Bootvorgang",
                 "BIOS update",
                 "Windows Dateisysteme",
@@ -148,32 +148,29 @@ class MainWindow(QMainWindow):
                 "Virtuelle PCs",
                 "Batch",
                 "Benutzer",
-            ):
-                self.question_repository.add_topic(subject, topic_name)
+            ))
             topics = self.question_repository.list_topics(subject)
         if subject == "CS":
-            for topic_name in (
+            self.question_repository.add_topics(subject, (
                 "IT-Systeme",
                 "Komponenten",
                 "Anschlüsse und Schnittstellen",
                 "Neumann Architektur",
                 "Bussystem",
-            ):
-                self.question_repository.add_topic(subject, topic_name)
+            ))
             topics = self.question_repository.list_topics(subject)
         if subject == "CS_P":
-            for topic_name in (
+            self.question_repository.add_topics(subject, (
                 "Strom- Spannungs- Wiederstandsmessung",
                 "Elektrische Grundbasis",
                 "Ohmsches Gesetz",
                 "Reihenschaltung",
                 "Parallelschaltung",
                 "Mischschaltung",
-            ):
-                self.question_repository.add_topic(subject, topic_name)
+            ))
             topics = self.question_repository.list_topics(subject)
         if subject == "NT":
-            for topic_name in (
+            self.question_repository.add_topics(subject, (
                 "Grundbasis",
                 "Ausdehnungen",
                 "Topologien",
@@ -181,8 +178,7 @@ class MainWindow(QMainWindow):
                 "Kommunikationsteilnehmer",
                 "Adressbereiche",
                 "Subnetting",
-            ):
-                self.question_repository.add_topic(subject, topic_name)
+            ))
             topics = self.question_repository.list_topics(subject)
         if subject == "AE":
             groups = {
@@ -202,10 +198,15 @@ class MainWindow(QMainWindow):
                     "Themen": ["HTML", "CSS"],
                 },
             }
-            for group in groups.values():
-                for subgroup_topics in group.values():
-                    for topic_name in subgroup_topics:
-                        self.question_repository.add_topic(subject, topic_name)
+            self.question_repository.add_topics(
+                subject,
+                (
+                    topic_name
+                    for group in groups.values()
+                    for subgroup_topics in group.values()
+                    for topic_name in subgroup_topics
+                ),
+            )
             topics = self.question_repository.list_topics(subject)
         self.subject_menu_page.set_subject(subject, topics, groups=groups)
         self.stack.setCurrentWidget(self.subject_menu_page)
