@@ -72,6 +72,56 @@ class ThemeManager:
             QProgressBar::chunk {{ background: {p['accent']}; border-radius: 4px; }}
             QScrollArea {{ border: none; background: transparent; }}
             QScrollArea > QWidget > QWidget {{ background: transparent; }}
+            QScrollBar:vertical {{
+                background: transparent;
+                width: 9px;
+                margin: 3px 2px 3px 2px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {p['border']};
+                min-height: 32px;
+                border-radius: 4px;
+                margin: 0 1px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {p['accent']};
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0;
+                border: none;
+                background: transparent;
+            }}
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {{
+                background: transparent;
+            }}
+            QScrollBar:horizontal {{
+                background: transparent;
+                height: 9px;
+                margin: 2px 3px 2px 3px;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {p['border']};
+                min-width: 32px;
+                border-radius: 4px;
+                margin: 1px 0;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {p['accent']};
+            }}
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {{
+                width: 0;
+                border: none;
+                background: transparent;
+            }}
+            QScrollBar::add-page:horizontal,
+            QScrollBar::sub-page:horizontal {{
+                background: transparent;
+            }}
             QLabel[muted="true"] {{ color: {p['muted']}; }}
             QPushButton {{ background: {p['raised']}; border: 1px solid {p['border']}; border-radius: 8px; padding: 9px 13px; }}
             QPushButton:hover {{ border-color: {p['accent']}; }}
