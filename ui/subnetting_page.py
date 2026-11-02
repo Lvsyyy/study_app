@@ -27,39 +27,40 @@ class SubnetCanvas(QWidget):
         self.reset_exercise()
 
     def reset_exercise(self):
-        prefix = random.randint(21, 23)
-        block_size = 1 << (32 - prefix)
-        base = random.randint(1, 254) * 256
-        base = (base // block_size) * block_size
+        self.initial_rooms = random.choice((2, 4))
+        self.extra_splits = random.randint(2, 4)
+        room_depth = 1 if self.initial_rooms == 2 else 2
+        self.prefix = random.randint(10, 30 - room_depth - self.extra_splits)
+        block_size = 1 << (32 - self.prefix)
+        base_network = int(ipaddress.IPv4Address("10.0.0.0"))
+        base = base_network + random.randrange(1 << (self.prefix - 8)) * block_size
         self.network = base
-        self.prefix = prefix
         self.broadcast = base + block_size - 1
         self.ip = random.randint(base + 1, self.broadcast - 1)
-        self.initial_rooms = random.randint(2, 4)
-        self.extra_splits = random.randint(2, 4)
-        self.base_splits_done = 0
         self.extra_splits_done = 0
         self.selected_id = None
-        self.allowed_extra_ids = set()
-        self.next_id = 1
+        self.next_id = 0
         for pair in self.inputs.values():
             for edit in pair:
                 edit.deleteLater()
         self.inputs.clear()
-        self.rooms = [{
-            "id": 0, "x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0,
-            "network": base, "prefix": prefix,
-        }]
-        self._create_inputs(self.rooms[0])
+        self.rooms = []
+        room_size = block_size // self.initial_rooms
+        for index in range(self.initial_rooms):
+            self.rooms.append({
+                "id": self.next_id, "x": index / self.initial_rooms, "y": 0.0,
+                "w": 1.0 / self.initial_rooms, "h": 1.0,
+                "network": base + index * room_size, "prefix": self.prefix + room_depth,
+            })
+            self.next_id += 1
+        self.allowed_extra_ids = {room["id"] for room in self.rooms}
+        for room in self.rooms:
+            self._create_inputs(room)
         self.update()
 
     @property
     def phase(self):
-        if self.base_splits_done < self.initial_rooms - 1:
-            return "base"
-        if self.extra_splits_done < self.extra_splits:
-            return "extra"
-        return "done"
+        return "extra" if self.extra_splits_done < self.extra_splits else "done"
 
     def _create_inputs(self, room):
         network = QLineEdit(self)
@@ -147,19 +148,15 @@ class SubnetCanvas(QWidget):
             second["y"] += first["h"]
             second["h"] /= 2
 
-        was_extra = self.phase == "extra"
         self.rooms.remove(room)
         for edit in self.inputs.pop(room["id"], ()):
             edit.deleteLater()
         self.rooms.extend((first, second))
         self._create_inputs(first)
         self._create_inputs(second)
-        if was_extra:
-            self.extra_splits_done += 1
-            self.allowed_extra_ids = {first["id"], second["id"]}
-            self.selected_id = None
-        else:
-            self.base_splits_done += 1
+        self.extra_splits_done += 1
+        self.allowed_extra_ids = {first["id"], second["id"]}
+        self.selected_id = None
         self.update()
         self.changed.emit()
 
@@ -277,7 +274,7 @@ class SubnettingPage(QWidget):
         root.addWidget(self.instructions)
 
         frame, table_layout = card(padding=12)
-        self.info_table = QTableWidget(4, 3)
+        self.info_table = QTableWidget(3, 3)
         self.info_table.setHorizontalHeaderLabels(["", "Decimal", "Binary"])
         self.info_table.verticalHeader().setVisible(False)
         self.info_table.setAlternatingRowColors(True)
@@ -285,7 +282,11 @@ class SubnettingPage(QWidget):
         self.info_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.info_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.info_table.verticalHeader().setDefaultSectionSize(42)
-        self.info_table.setMinimumHeight(220)
+        self.info_table.setMinimumHeight(170)
+        self.info_table.setStyleSheet(
+            "QTableWidget QLineEdit { background: transparent; color: palette(text); "
+            "border: 1px solid palette(highlight); padding: 2px; }"
+        )
         self.info_table.setEditTriggers(QTableWidget.EditTrigger.AllEditTriggers)
         self.info_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.info_table.setWordWrap(False)
@@ -334,80 +335,53 @@ class SubnettingPage(QWidget):
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
         self.canvas.reveal_answers()
-        rows = [
-            (self.canvas._ip(self.canvas.network),
-             ".".join(f"{int(part):08b}" for part in self.canvas._ip(self.canvas.network).split("."))),
-            (self.canvas._ip(self.canvas.broadcast),
-             ".".join(f"{int(part):08b}" for part in self.canvas._ip(self.canvas.broadcast).split("."))),
-        ]
-        for row, values in zip((2, 3), rows):
-            for column, value in zip((1, 2), values):
-                self.info_table.item(row, column).setText(value)
+        for row, value in zip((1, 2), (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))):
+            self.info_table.item(row, 1).setText(value)
         self.feedback.setText("Lösungen wurden eingetragen.")
 
     def check_answers(self):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
-        expected = (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))
-        table_ok = True
-        for row, decimal_value in zip((2, 3), expected):
-            binary_value = ".".join(f"{int(part):08b}" for part in decimal_value.split("."))
-            decimal_item = self.info_table.item(row, 1)
-            binary_item = self.info_table.item(row, 2)
-            decimal_ok = bool(decimal_item and decimal_item.text().strip() == decimal_value)
-            binary_ok = bool(binary_item and binary_item.text().strip() == binary_value)
-            for item, correct in ((decimal_item, decimal_ok), (binary_item, binary_ok)):
-                if item:
-                    item.setBackground(self.palette().color(
-                        QPalette.ColorRole.AlternateBase if correct else QPalette.ColorRole.Base
-                    ))
-            table_ok = table_ok and decimal_ok and binary_ok
-
         rooms_ok = self.canvas.check_answers()
-        if table_ok and rooms_ok:
+        if rooms_ok:
             self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
         else:
             self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
 
     def refresh_text(self):
         canvas = self.canvas
-        ip = canvas._ip(canvas.ip)
-        mask = canvas._mask(canvas.prefix)
-        binary_ip = ".".join(f"{int(part):08b}" for part in ip.split("."))
-        binary_mask = ".".join(f"{int(part):08b}" for part in mask.split("."))
-        values = [
-            ("IP Adresse", ip, binary_ip),
-            ("Subnetzmaske", mask, binary_mask),
-            ("Netzwerkadresse", "", ""),
-            ("Broadcastadresse", "", ""),
-        ]
-        for row, values_row in enumerate(values):
-            for column, value in enumerate(values_row):
-                item = QTableWidgetItem(value)
-                if column == 0 or (row < 2 and column > 0):
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.info_table.setItem(row, column, item)
-
-        if canvas.phase == "base":
-            remaining = canvas.initial_rooms - 1 - canvas.base_splits_done
-            self.instructions.setText(
-                f"Teile das Netzwerk in {canvas.initial_rooms} Räume auf. Noch {remaining} Teilung(en). "
-                "Klicke auf einen Randpunkt des Raums, den du teilen möchtest."
+        if canvas.phase == "extra":
+            detail = (
+                f"Wähle einen der vorgeteilten Räume und teile ihn weiter. "
+                f"Noch {canvas.extra_splits - canvas.extra_splits_done} Teilung(en)."
+                if canvas.selected_id is None else
+                f"Teile den markierten Raum. Noch {canvas.extra_splits - canvas.extra_splits_done} Teilung(en)."
             )
-        elif canvas.phase == "extra":
-            if canvas.selected_id is None:
-                self.instructions.setText(
-                    f"Wähle einen Raum aus und unterteile diesen Zweig anschließend noch "
-                    f"{canvas.extra_splits - canvas.extra_splits_done} Mal."
-                )
-            else:
-                self.instructions.setText(
-                    f"Teile den markierten Raum. Noch {canvas.extra_splits - canvas.extra_splits_done} weitere Teilung(en)."
-                )
+            self.instructions.setText(f"Berechne und beschrifte das Netzwerk. {detail}")
         else:
             self.instructions.setText(
-                f"Aufteilung abgeschlossen: {len(canvas.rooms)} Subnetze. "
-                "Trage die Netzwerk- und Broadcastadressen für jedes Teilnetz in die Felder im Quadrat ein."
+                "Berechne und beschrifte das Netzwerk. Trage die Netzwerk- und "
+                "Broadcastadressen aller Teilnetze in die Felder im Quadrat ein."
             )
+
+        ip_item = QTableWidgetItem(f"{canvas._ip(canvas.ip)}/{canvas.prefix}")
+        ip_item.setFlags(ip_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        ip_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_table.setItem(0, 1, ip_item)
+        blank_binary = QTableWidgetItem("")
+        blank_binary.setFlags(blank_binary.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.info_table.setItem(0, 2, blank_binary)
+        for row, label in enumerate(("IP Adresse", "Netzwerkadresse", "Broadcastadresse")):
+            label_item = QTableWidgetItem(label)
+            label_item.setFlags(label_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            label_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.info_table.setItem(row, 0, label_item)
+        for row in (1, 2):
+            for column in (1, 2):
+                item = self.info_table.item(row, column)
+                if item is None:
+                    item = QTableWidgetItem("")
+                    self.info_table.setItem(row, column, item)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
