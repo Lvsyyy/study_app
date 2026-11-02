@@ -1,14 +1,50 @@
 import json
+import re
 import time
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, Signal, QRegularExpression
+from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget)
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
 from ui.widgets import action_button, card, muted_label, set_state, title_label
+
+
+class CSharpHighlighter(QSyntaxHighlighter):
+    """Small C# syntax highlighter for the embedded practice editor."""
+
+    def __init__(self, document):
+        super().__init__(document)
+        self.rules = []
+        for word in (
+            "using", "namespace", "class", "public", "private", "protected",
+            "static", "void", "int", "string", "bool", "var", "new", "return",
+            "if", "else", "for", "foreach", "while", "true", "false", "null",
+        ):
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor("#569CD6"))
+            fmt.setFontWeight(QFont.Weight.Bold)
+            self.rules.append((QRegularExpression(r"\b" + word + r"\b"), fmt))
+
+        for pattern, color in (
+            (r'"[^"\\]*(?:\\.[^"\\]*)*"', "#CE9178"),
+            (r"//[^\n]*", "#6A9955"),
+            (r"\b\d+\b", "#B5CEA8"),
+            (r"\bConsole\b", "#4EC9B0"),
+            (r"\b(WriteLine|ReadLine|Write)\b", "#DCDCAA"),
+        ):
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor(color))
+            self.rules.append((QRegularExpression(pattern), fmt))
+
+    def highlightBlock(self, text):
+        for expression, fmt in self.rules:
+            matches = expression.globalMatch(text)
+            while matches.hasNext():
+                match = matches.next()
+                self.setFormat(match.capturedStart(), match.capturedLength(), fmt)
 
 
 class QuestionPage(QWidget):
@@ -31,6 +67,7 @@ class QuestionPage(QWidget):
         self._generator = None
         self._round_correct = 0
         self._round_answered = 0
+        self._code_mode = False
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -65,6 +102,44 @@ class QuestionPage(QWidget):
         self.question_text.setProperty("role", "question")
         self.question_text.setWordWrap(True)
         box.addWidget(self.question_text)
+
+        self.code_editor_container = QWidget()
+        self.code_editor_container.setObjectName("CodeEditorFrame")
+        code_layout = QVBoxLayout(self.code_editor_container)
+        code_layout.setContentsMargins(0, 0, 0, 0)
+        code_layout.setSpacing(0)
+        self.code_editor_header = QLabel("  C#   |   Program.cs")
+        self.code_editor_header.setObjectName("CodeEditorHeader")
+        self.code_editor_header.setFixedHeight(34)
+        code_layout.addWidget(self.code_editor_header)
+        self.code_editor = QPlainTextEdit()
+        self.code_editor.setObjectName("CodeEditor")
+        self.code_editor.setPlaceholderText("// Write your code here")
+        self.code_editor.setMinimumHeight(210)
+        self.code_editor.setMaximumHeight(340)
+        code_font = QFont("Cascadia Code")
+        code_font.setStyleHint(QFont.StyleHint.Monospace)
+        code_font.setPointSize(11)
+        self.code_editor.setFont(code_font)
+        self.code_editor.setTabStopDistance(
+            self.code_editor.fontMetrics().horizontalAdvance(" ") * 4
+        )
+        self.code_editor.setStyleSheet(
+            "QPlainTextEdit#CodeEditor { background: #1e1e1e; color: #d4d4d4; "
+            "border: none; border-radius: 0; padding: 12px; selection-background-color: #264f78; }"
+        )
+        self.code_highlighter = CSharpHighlighter(self.code_editor.document())
+        code_layout.addWidget(self.code_editor)
+        self.code_editor_container.setStyleSheet(
+            "QWidget#CodeEditorFrame { background: #1e1e1e; "
+            "border: 1px solid #3c3c3c; border-radius: 7px; } "
+            "QLabel#CodeEditorHeader { background: #252526; color: #cccccc; "
+            "border: none; border-bottom: 1px solid #3c3c3c; "
+            "font-size: 11px; font-weight: 600; }"
+        )
+        self.code_editor_container.hide()
+        box.addWidget(self.code_editor_container)
+
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setMaximumHeight(300)
@@ -159,7 +234,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.calculation_table_container, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -174,6 +249,10 @@ class QuestionPage(QWidget):
         self.number_label.clear()
         self.accuracy_label.clear()
         self.answer.clear()
+        self.code_editor.clear()
+        self.code_editor_container.hide()
+        self._code_mode = False
+        self.question_text.show()
         self.calculation_answer.clear()
         self.calculation_answer.hide()
         self._clear_calculation_tables()
@@ -220,7 +299,25 @@ class QuestionPage(QWidget):
         template = question["answer_template"] if "answer_template" in question.keys() else None
         self.calculation_table_container.hide()
         self.calculation_answer.hide()
-        if template:
+        question_text = question["question_text"]
+        question_type = question["question_type"] if "question_type" in question.keys() else "text"
+        self._code_mode = question_type == "code" or (
+            question["subject_name"] == "AE"
+            and bool(re.search(r"\\b(?:static\\s+void\\s+Main|Console\\.|using\\s+System|class\\s+\\w+)\\b", question_text))
+        )
+        if self._code_mode:
+            prompt, starter_code = self._split_code_question(question_text)
+            self.question_text.setText(prompt)
+            self.question_text.setVisible(bool(prompt))
+            self.answer.hide()
+            self.calculation_answer.hide()
+            self.code_editor.setPlainText(starter_code)
+            self.code_editor_container.show()
+            self.code_editor.setEnabled(True)
+            self.code_editor.setFocus()
+        elif template:
+            self.question_text.setText(question_text)
+            self.question_text.show()
             try:
                 table = json.loads(template)
                 if isinstance(table, dict) and (
@@ -243,6 +340,9 @@ class QuestionPage(QWidget):
                 self.calculation_answer.setPlainText(template)
                 self.calculation_answer.setFocus()
         else:
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            self.code_editor_container.hide()
             self.answer.show()
             self.answer.clear()
             self.answer.setFocus()
@@ -252,7 +352,6 @@ class QuestionPage(QWidget):
             f"{question['subject_name']} / {question['topic_name']} · "
             f"difficulty {'●' * difficulty}{'○' * (5 - difficulty)}"
         )
-        self.question_text.setText(question["question_text"])
         self.number_label.setText(
             f"Question {self.index + 1}" if self._generator is not None
             else f"Question {self.index + 1} of {len(self.queue)}"
@@ -264,6 +363,37 @@ class QuestionPage(QWidget):
             if stats else "No attempts in this topic yet"
         )
         self._load_image(question["question_image"])
+
+    @staticmethod
+    def _split_code_question(question_text):
+        """Split an instruction from an embedded C# starter-code template."""
+        lines = question_text.splitlines()
+        code_start = None
+        code_pattern = re.compile(
+            r"^\\s*(?:using\\s+System|(?:public\\s+)?static\\s+void\\s+Main|"
+            r"class\\s+\\w+|Console\\.|if\\s*\\(|for\\s*\\(|while\\s*\\()"
+        )
+        for index, line in enumerate(lines):
+            if code_pattern.search(line):
+                code_start = index
+                break
+        if code_start is None:
+            return question_text.strip(), ""
+        prompt = "\\n".join(lines[:code_start]).strip()
+        starter = "\\n".join(lines[code_start:]).strip("\\n")
+        return prompt, starter
+
+    @staticmethod
+    def _code_answer_matches(entered, expected, alternatives=()):
+        """Allow an answer snippet to be entered inside a complete starter program."""
+        submitted = " ".join((entered or "").split())
+        if not submitted:
+            return False
+        for candidate in (expected, *alternatives):
+            target = " ".join((candidate or "").split())
+            if target and (submitted == target or target in submitted):
+                return True
+        return False
 
     def _load_image(self, path):
         self.image_label.clear()
@@ -384,6 +514,8 @@ class QuestionPage(QWidget):
         return {"headers": headers, "rows": rows}
 
     def _input_text(self):
+        if self._code_mode:
+            return self.code_editor.toPlainText()
         if not self.calculation_table_container.isHidden():
             tables = [self._table_input_data(table) for table in self.calculation_tables]
             if len(tables) > 1:
@@ -437,7 +569,10 @@ class QuestionPage(QWidget):
             set_state(self.feedback, None)
             return
         alternatives = self.questions.alternatives(self.current)
-        correct = is_correct(entered, self.current["answer"], alternatives)
+        correct = (
+            self._code_answer_matches(entered, self.current["answer"], alternatives)
+            if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
+        )
         first = not self._attempted
         elapsed = self._record_first_attempt(entered, correct)
         if correct:
@@ -446,6 +581,7 @@ class QuestionPage(QWidget):
             self.feedback.setText(f"Correct ✓{took}" if first else "Correct ✓ (first try counted)")
             set_state(self.feedback, "good")
             self.answer.setEnabled(False)
+            self.code_editor.setEnabled(False)
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
             self.primary_button.setText("Next  →")
@@ -453,7 +589,9 @@ class QuestionPage(QWidget):
             note = "Only your first attempt counts. " if first else ""
             self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
             set_state(self.feedback, "bad")
-            if not self.calculation_answer.isHidden():
+            if self._code_mode:
+                self.code_editor.selectAll()
+            elif not self.calculation_answer.isHidden():
                 self.calculation_answer.selectAll()
             else:
                 self.answer.selectAll()
@@ -480,6 +618,7 @@ class QuestionPage(QWidget):
             self.feedback.setText(f"Answer: {self.current['answer']}")
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
+        self.code_editor.setEnabled(False)
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
         self.primary_button.setText("Next  →")
