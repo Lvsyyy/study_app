@@ -112,14 +112,21 @@ class QuestionPage(QWidget):
         self.code_editor_header.setObjectName("CodeEditorHeader")
         self.code_editor_header.setFixedHeight(34)
         code_layout.addWidget(self.code_editor_header)
+
+        code_font = QFont("Cascadia Code")
+        code_font.setStyleHint(QFont.StyleHint.Monospace)
+        code_font.setPointSize(11)
+        self.code_prefix = QLabel()
+        self.code_prefix.setTextFormat(Qt.TextFormat.PlainText)
+        self.code_prefix.setFont(code_font)
+        self.code_prefix.setStyleSheet("color: #d4d4d4; padding: 10px 12px 0 12px;")
+        code_layout.addWidget(self.code_prefix)
+
         self.code_editor = QPlainTextEdit()
         self.code_editor.setObjectName("CodeEditor")
         self.code_editor.setPlaceholderText("// Write your code here")
         self.code_editor.setMinimumHeight(210)
         self.code_editor.setMaximumHeight(340)
-        code_font = QFont("Cascadia Code")
-        code_font.setStyleHint(QFont.StyleHint.Monospace)
-        code_font.setPointSize(11)
         self.code_editor.setFont(code_font)
         self.code_editor.setTabStopDistance(
             self.code_editor.fontMetrics().horizontalAdvance(" ") * 4
@@ -130,6 +137,13 @@ class QuestionPage(QWidget):
         )
         self.code_highlighter = CSharpHighlighter(self.code_editor.document())
         code_layout.addWidget(self.code_editor)
+
+        self.code_suffix = QLabel()
+        self.code_suffix.setTextFormat(Qt.TextFormat.PlainText)
+        self.code_suffix.setFont(code_font)
+        self.code_suffix.setStyleSheet("color: #d4d4d4; padding: 0 12px 10px 12px;")
+        code_layout.addWidget(self.code_suffix)
+
         self.code_editor_container.setStyleSheet(
             "QWidget#CodeEditorFrame { background: #1e1e1e; "
             "border: 1px solid #3c3c3c; border-radius: 7px; } "
@@ -307,23 +321,16 @@ class QuestionPage(QWidget):
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
         )
         if self._code_mode:
-            prompt, starter_code = self._split_code_question(question_text)
+            prompt, code_prefix, editable_body, code_suffix = self._split_code_question(question_text)
             self.question_text.setText(prompt)
             self.question_text.setVisible(bool(prompt))
             self.answer.hide()
             self.calculation_answer.hide()
-            self.code_editor.setPlainText(starter_code)
+            self.code_prefix.setText(code_prefix)
+            self.code_suffix.setText(code_suffix)
+            self.code_editor.setPlainText(editable_body)
             cursor = self.code_editor.textCursor()
-            blank_line = re.search(r"\n[ \t]*\n(?=[ \t]*})", starter_code)
-            if blank_line:
-                cursor.setPosition(blank_line.start() + 1)
-            else:
-                closing_brace = starter_code.rfind("}")
-                if closing_brace >= 0:
-                    cursor.setPosition(closing_brace)
-                    cursor.insertText("\n        ")
-                else:
-                    cursor.movePosition(QTextCursor.MoveOperation.End)
+            cursor.movePosition(QTextCursor.MoveOperation.Start)
             self.code_editor.setTextCursor(cursor)
             self.code_editor_container.show()
             self.code_editor.setEnabled(True)
@@ -379,22 +386,45 @@ class QuestionPage(QWidget):
 
     @staticmethod
     def _split_code_question(question_text):
-        """Split an instruction from an embedded C# starter-code template."""
+        """Separate the fixed Main method shell from its editable body."""
         lines = question_text.splitlines()
-        code_start = None
-        code_pattern = re.compile(
-            r"^\s*(?:using\s+System|(?:public\s+)?static\s+void\s+Main|"
-            r"class\s+\w+|Console\.|if\s*\(|for\s*\(|while\s*\()"
+        main_index = next(
+            (
+                index for index, line in enumerate(lines)
+                if re.search(r"\\bstatic\\s+void\\s+Main\\s*\\(", line)
+            ),
+            None,
         )
-        for index, line in enumerate(lines):
-            if code_pattern.search(line):
-                code_start = index
+        if main_index is None:
+            return question_text.strip(), "", "", ""
+
+        prompt = "\\n".join(lines[:main_index]).strip()
+        signature = lines[main_index].strip()
+        opening_index = next(
+            (index for index in range(main_index + 1, len(lines)) if "{" in lines[index]),
+            None,
+        )
+        if opening_index is None:
+            return prompt, signature, "", ""
+
+        prefix = signature + "\\n" + lines[opening_index].strip()
+        depth = lines[opening_index].count("{") - lines[opening_index].count("}")
+        closing_index = None
+        for index in range(opening_index + 1, len(lines)):
+            depth += lines[index].count("{") - lines[index].count("}")
+            if depth <= 0:
+                closing_index = index
                 break
-        if code_start is None:
-            return question_text.strip(), ""
-        prompt = "\n".join(lines[:code_start]).strip()
-        starter = "\n".join(lines[code_start:]).strip("\n")
-        return prompt, starter
+
+        if closing_index is None:
+            body_lines = lines[opening_index + 1:]
+            suffix = ""
+        else:
+            body_lines = lines[opening_index + 1:closing_index]
+            suffix = lines[closing_index].strip()
+
+        body = "\\n".join(body_lines).strip("\\n")
+        return prompt, prefix, body, suffix
 
     @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
