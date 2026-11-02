@@ -300,6 +300,9 @@ class SubnettingPage(QWidget):
         canvas_layout.addWidget(self.canvas)
         root.addWidget(canvas_frame)
 
+        self.feedback = muted_label("")
+        root.addWidget(self.feedback)
+
         buttons = QHBoxLayout()
         self.skip_button = action_button("Skip")
         self.hint_button = action_button("Hint")
@@ -309,22 +312,27 @@ class SubnettingPage(QWidget):
         self.skip_button.clicked.connect(self.new_exercise)
         self.hint_button.clicked.connect(self.show_hint)
         self.reveal_button.clicked.connect(self.reveal_answer)
-        self.save_button.setEnabled(False)
+        self.save_button.clicked.connect(self.toggle_saved)
         self.primary_button.clicked.connect(self.check_answers)
         for button in (self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             buttons.addWidget(button)
         buttons.addStretch()
         buttons.addWidget(self.primary_button)
         root.addLayout(buttons)
-        self.feedback = muted_label("")
-        root.addWidget(self.feedback)
         root.addStretch()
+        self._saved = False
 
         self.canvas.changed.connect(self.refresh_text)
         self.refresh_text()
 
+    def toggle_saved(self):
+        self._saved = not self._saved
+        self.save_button.setText("★  Saved" if self._saved else "☆  Save")
+
     def new_exercise(self):
         self.canvas.reset_exercise()
+        self._saved = False
+        self.save_button.setText("☆  Save")
         self.feedback.setText("")
         self.info_table.clearContents()
         self.refresh_text()
@@ -343,7 +351,7 @@ class SubnettingPage(QWidget):
         network_value = self.canvas._ip(self.canvas.network)
         broadcast_value = self.canvas._ip(self.canvas.broadcast)
         values = {
-            0: (ip_value, self._binary_ip(ip_value)),
+            0: (f"{ip_value}/{self.canvas.prefix}", self._binary_ip(ip_value)),
             1: (mask_value, self._binary_ip(mask_value)),
             2: (network_value, self._binary_ip(network_value)),
             3: (broadcast_value, self._binary_ip(broadcast_value)),
