@@ -27,9 +27,9 @@ class SubnetCanvas(QWidget):
         self.reset_exercise()
 
     def reset_exercise(self):
-        self.initial_rooms = random.choice((2, 4))
+        self.initial_rooms = 4
         self.extra_splits = random.randint(2, 4)
-        room_depth = 1 if self.initial_rooms == 2 else 2
+        room_depth = 2
         self.prefix = random.randint(10, 30 - room_depth - self.extra_splits)
         block_size = 1 << (32 - self.prefix)
         base_network = int(ipaddress.IPv4Address("10.0.0.0"))
@@ -46,13 +46,15 @@ class SubnetCanvas(QWidget):
         self.inputs.clear()
         self.rooms = []
         room_size = block_size // self.initial_rooms
-        for index in range(self.initial_rooms):
-            self.rooms.append({
-                "id": self.next_id, "x": index / self.initial_rooms, "y": 0.0,
-                "w": 1.0 / self.initial_rooms, "h": 1.0,
-                "network": base + index * room_size, "prefix": self.prefix + room_depth,
-            })
-            self.next_id += 1
+        for row in range(2):
+            for column in range(2):
+                index = row * 2 + column
+                self.rooms.append({
+                    "id": self.next_id, "x": column / 2, "y": row / 2,
+                    "w": 0.5, "h": 0.5,
+                    "network": base + index * room_size, "prefix": self.prefix + room_depth,
+                })
+                self.next_id += 1
         self.allowed_extra_ids = {room["id"] for room in self.rooms}
         for room in self.rooms:
             self._create_inputs(room)
@@ -330,10 +332,25 @@ class SubnettingPage(QWidget):
     def show_hint(self):
         self.feedback.setText("Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und Subnetzmaske. Jede Teilung erhöht den Präfix um 1.")
 
+    @staticmethod
+    def _binary_ip(value):
+        return ".".join(f"{int(part):08b}" for part in value.split("."))
+
     def reveal_answer(self):
         self.canvas.reveal_answers()
-        for row, value in zip((2, 3), (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))):
-            self.info_table.item(row, 1).setText(value)
+        ip_value = self.canvas._ip(self.canvas.ip)
+        mask_value = self.canvas._mask(self.canvas.prefix)
+        network_value = self.canvas._ip(self.canvas.network)
+        broadcast_value = self.canvas._ip(self.canvas.broadcast)
+        values = {
+            0: (ip_value, self._binary_ip(ip_value)),
+            1: (mask_value, self._binary_ip(mask_value)),
+            2: (network_value, self._binary_ip(network_value)),
+            3: (broadcast_value, self._binary_ip(broadcast_value)),
+        }
+        for row, (decimal_value, binary_value) in values.items():
+            self.info_table.item(row, 1).setText(decimal_value)
+            self.info_table.item(row, 2).setText(binary_value)
         self.feedback.setText("Lösungen wurden eingetragen.")
 
     def check_answers(self):
