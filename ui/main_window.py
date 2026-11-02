@@ -147,6 +147,16 @@ class MainWindow(QMainWindow):
             ):
                 self.question_repository.add_topic(subject, topic_name)
             topics = self.question_repository.list_topics(subject)
+        if subject == "CS":
+            for topic_name in (
+                "IT-Systeme",
+                "Komponenten",
+                "Anschlüsse und Schnittstellen",
+                "Neumann Architektur",
+                "Bussystem",
+            ):
+                self.question_repository.add_topic(subject, topic_name)
+            topics = self.question_repository.list_topics(subject)
         if subject == "AE":
             groups = {
                 "OOP": {
