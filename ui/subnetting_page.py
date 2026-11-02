@@ -129,7 +129,7 @@ class SubnetCanvas(QWidget):
         return str(ipaddress.IPv4Network(f"0.0.0.0/{prefix}").netmask)
 
     def _split(self, room, edge):
-        if room["prefix"] >= 29:
+        if room["prefix"] >= 30:
             return
         half_size = 1 << (31 - room["prefix"])
         first = dict(room)
@@ -321,7 +321,7 @@ class SubnettingPage(QWidget):
         root.addLayout(buttons)
         root.addStretch()
         self._saved = False
-        self._answer_revealed = False
+        self._completed = False
 
         self.canvas.changed.connect(self.refresh_text)
         self.refresh_text()
@@ -331,7 +331,7 @@ class SubnettingPage(QWidget):
         self.save_button.setText("★  Saved" if self._saved else "☆  Save")
 
     def _primary_action(self):
-        if self._answer_revealed:
+        if self._completed:
             self.new_exercise()
         else:
             self.check_answers()
@@ -339,7 +339,7 @@ class SubnettingPage(QWidget):
     def new_exercise(self):
         self.canvas.reset_exercise()
         self._saved = False
-        self._answer_revealed = False
+        self._completed = False
         self.save_button.setText("☆  Save")
         self.primary_button.setText("Check answer")
         self.feedback.setText("")
@@ -354,7 +354,7 @@ class SubnettingPage(QWidget):
         return ".".join(f"{int(part):08b}" for part in value.split("."))
 
     def reveal_answer(self):
-        self._answer_revealed = True
+        self._completed = True
         self.primary_button.setText("Next  →")
         self.canvas.reveal_answers()
         ip_value = self.canvas._ip(self.canvas.ip)
@@ -393,6 +393,8 @@ class SubnettingPage(QWidget):
 
         rooms_ok = self.canvas.check_answers()
         if table_ok and rooms_ok:
+            self._completed = True
+            self.primary_button.setText("Next  →")
             self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
         else:
             self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
