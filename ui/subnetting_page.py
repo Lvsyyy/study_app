@@ -391,10 +391,11 @@ class SubnettingPage(QWidget):
             self.info_table.setItem(row, 0, label_item)
         for row in (0, 1, 2, 3):
             for column in (1, 2):
+                if row == 0 and column == 1:
+                    continue
                 item = self.info_table.item(row, column)
                 if item is None or row in (0, 1):
                     item = QTableWidgetItem("")
                     self.info_table.setItem(row, column, item)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
-        ip_item.setFlags(ip_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
