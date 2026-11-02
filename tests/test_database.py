@@ -185,3 +185,18 @@ def test_import_validation(tmp_path):
     assert errors and "difficulty" in errors[0]
     path.write_text("not json")
     assert load_questions(path, {"Math"})[1]
+
+def test_monthly_activity_ignores_sessions_without_study(repos):
+    _, _, stats, sessions = repos
+    session_id = sessions.start()
+    now = datetime.now()
+    assert stats.monthly_activity(now.year, now.month) == []
+
+    sessions.finish(session_id, 59, 0)
+    assert stats.monthly_activity(now.year, now.month) == []
+
+    sessions.finish(session_id, 59, 1)
+    rows = stats.monthly_activity(now.year, now.month)
+    assert len(rows) == 1
+    assert rows[0]["duration"] == 59
+    assert rows[0]["questions"] == 1
