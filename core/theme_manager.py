@@ -122,15 +122,5 @@ class ThemeManager:
             QScrollBar::sub-page:horizontal {{
                 background: transparent;
             }}
-            QLabel[muted="true"] {{ color: {p['muted']}; }}
-            QPushButton {{ background: {p['raised']}; border: 1px solid {p['border']}; border-radius: 8px; padding: 9px 13px; }}
-            QPushButton:hover {{ border-color: {p['accent']}; }}
-            QPushButton[primary="true"] {{ background: {p['accent']}; color: {p['bg']}; border: none; font-weight: 700; }}
-            QPushButton[primary="true"]:hover {{ background: {p['accent_hover']}; }}
-            QPushButton[nav="true"] {{ text-align: left; background: transparent; border: none; padding: 10px 12px; color: {p['muted']}; }}
-            QPushButton[nav="true"]:checked {{ background: {p['raised']}; color: {p['text']}; border-left: 3px solid {p['accent']}; }}
-            QLineEdit, QComboBox {{ background: {p['panel']}; border: 1px solid {p['border']}; border-radius: 8px; padding: 10px; }}
-            QComboBox QAbstractItemView {{ background: {p['panel']}; selection-background-color: {p['raised']}; }}
-            QScrollArea {{ border: none; background: transparent; }}
             QToolTip {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['border']}; padding: 5px; }}
         """)
