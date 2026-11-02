@@ -55,7 +55,7 @@ def load_questions(path, valid_subjects):
             errors.append(f"#{index}: alt_answers must be a list")
             continue
         image = item.get("image")
-        if image:
+        if image is not None and image != "":
             if not isinstance(image, str):
                 errors.append(f"#{index}: image path must be a string")
                 continue
