@@ -29,7 +29,7 @@ class CSharpHighlighter(QSyntaxHighlighter):
             self.rules.append((QRegularExpression(r"\b" + word + r"\b"), fmt))
 
         for pattern, color in (
-            (r'"[^"\\]*(?:\\.[^"\\]*)*"', "#CE9178"),
+            (r'"[^"\\]*(?:\.[^"\\]*)*"', "#CE9178"),
             (r"//[^\n]*", "#6A9955"),
             (r"\b\d+\b", "#B5CEA8"),
             (r"\bConsole\b", "#4EC9B0"),
@@ -303,7 +303,7 @@ class QuestionPage(QWidget):
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._code_mode = question_type == "code" or (
             question["subject_name"] == "AE"
-            and bool(re.search(r"\\b(?:static\\s+void\\s+Main|Console\\.|using\\s+System|class\\s+\\w+)\\b", question_text))
+            and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
         )
         if self._code_mode:
             prompt, starter_code = self._split_code_question(question_text)
@@ -370,8 +370,8 @@ class QuestionPage(QWidget):
         lines = question_text.splitlines()
         code_start = None
         code_pattern = re.compile(
-            r"^\\s*(?:using\\s+System|(?:public\\s+)?static\\s+void\\s+Main|"
-            r"class\\s+\\w+|Console\\.|if\\s*\\(|for\\s*\\(|while\\s*\\()"
+            r"^\s*(?:using\s+System|(?:public\s+)?static\s+void\s+Main|"
+            r"class\s+\w+|Console\.|if\s*\(|for\s*\(|while\s*\()"
         )
         for index, line in enumerate(lines):
             if code_pattern.search(line):
@@ -379,8 +379,8 @@ class QuestionPage(QWidget):
                 break
         if code_start is None:
             return question_text.strip(), ""
-        prompt = "\\n".join(lines[:code_start]).strip()
-        starter = "\\n".join(lines[code_start:]).strip("\\n")
+        prompt = "\n".join(lines[:code_start]).strip()
+        starter = "\n".join(lines[code_start:]).strip("\n")
         return prompt, starter
 
     @staticmethod
