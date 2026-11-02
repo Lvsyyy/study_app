@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
 from ui.widgets import action_button, card, clear_layout, muted_label, section_title, title_label
