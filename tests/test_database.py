@@ -233,3 +233,10 @@ def test_import_rejects_invalid_field_types(tmp_path, overrides):
     path.write_text(json.dumps([{**question, **overrides}]), encoding="utf-8")
     _, errors = load_questions(path, {"Math"})
     assert errors
+
+
+def test_study_totals_count_zero_duration_sessions_with_questions(repos):
+    _, _, stats, sessions = repos
+    session_id = sessions.start()
+    sessions.finish(session_id, 0, 1)
+    assert stats.study_totals() == {"sessions": 1, "seconds": 0}
