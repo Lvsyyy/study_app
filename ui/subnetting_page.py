@@ -27,7 +27,7 @@ class SubnetCanvas(QWidget):
         self.reset_exercise()
 
     def reset_exercise(self):
-        prefix = random.randint(24, 27)
+        prefix = random.randint(22, 24)
         block_size = 1 << (32 - prefix)
         base = random.randint(1, 254) * 256
         base = (base // block_size) * block_size
@@ -40,6 +40,7 @@ class SubnetCanvas(QWidget):
         self.base_splits_done = 0
         self.extra_splits_done = 0
         self.selected_id = None
+        self.allowed_extra_ids = set()
         self.next_id = 1
         self.rooms = [{
             "id": 0, "x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0,
@@ -108,13 +109,15 @@ class SubnetCanvas(QWidget):
             second["y"] += first["h"]
             second["h"] /= 2
 
+        was_extra = self.phase == "extra"
         self.rooms.remove(room)
         self.rooms.extend((first, second))
-        if self.phase == "base":
-            self.base_splits_done += 1
-        elif self.phase == "extra":
+        if was_extra:
             self.extra_splits_done += 1
+            self.allowed_extra_ids = {first["id"], second["id"]}
             self.selected_id = None
+        else:
+            self.base_splits_done += 1
         self.update()
         self.changed.emit()
 
@@ -126,8 +129,10 @@ class SubnetCanvas(QWidget):
             return
 
         if self.phase == "extra" and self.selected_id is None:
+            if not self.allowed_extra_ids:
+                self.allowed_extra_ids = {room["id"] for room in self.rooms}
             for room in self.rooms:
-                if self._room_rect(room).contains(point):
+                if room["id"] in self.allowed_extra_ids and self._room_rect(room).contains(point):
                     self.selected_id = room["id"]
                     self.update()
                     return
