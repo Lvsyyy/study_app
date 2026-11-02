@@ -72,6 +72,11 @@ class SubnetCanvas(QWidget):
             edit.setMaxLength(15)
             edit.setToolTip("IPv4-Adresse eingeben")
             edit.setProperty("answerState", "")
+            edit.setFrame(False)
+            edit.setStyleSheet(
+                "QLineEdit { background: transparent; border: none; padding: 0px; }"
+                "QLineEdit:focus { background: palette(base); border: 1px solid palette(highlight); }"
+            )
         self.inputs[room["id"]] = (network, broadcast)
         self._position_inputs(room)
 
@@ -93,12 +98,12 @@ class SubnetCanvas(QWidget):
         if not pair:
             return
         rect = self._room_rect(room).toRect()
-        width = max(42, min(142, rect.width() - 12))
-        height = 23
-        pair[0].setGeometry(rect.left() + 5, rect.top() + 5, width, height)
-        pair[1].setGeometry(rect.right() - width - 5, rect.bottom() - height - 5, width, height)
+        width = max(24, int(rect.width() * 0.44))
+        height = min(20, max(15, int(rect.height() * 0.22)))
+        pair[0].setGeometry(rect.left() + 4, rect.top() + 4, width, height)
+        pair[1].setGeometry(rect.right() - width - 4, rect.bottom() - height - 4, width, height)
         font = QFont()
-        font.setPointSize(7 if rect.width() < 150 or rect.height() < 100 else 8)
+        font.setPointSize(6 if rect.width() < 110 or rect.height() < 110 else 8)
         for edit in pair:
             edit.setFont(font)
             edit.setVisible(True)
@@ -229,6 +234,8 @@ class SubnetCanvas(QWidget):
             rect = self._room_rect(room)
             selected = room["id"] == self.selected_id
             painter.setPen(QPen(accent if selected else border, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(rect)
             if selected:
                 painter.setBrush(QColor(accent.red(), accent.green(), accent.blue(), 24))
                 painter.drawRect(rect)
