@@ -178,7 +178,8 @@ def binary_arithmetic_table(a, b, operator):
             carry = total >> 1
             carry_outs.append(str(carry) if carry else "")
 
-        final_sum = (str(carry) if carry else "") + "".join(reversed(result_reversed))
+        # Two's-complement subtraction discards the final carry-out.
+        final_sum = "".join(reversed(result_reversed))
         carry_row = [carry_outs[-1], *reversed(carry_outs[:-1]), ""] if carry_outs else [""] * (width + 1)
         one = "0" * (width - 1) + "1"
 
