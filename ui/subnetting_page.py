@@ -75,8 +75,8 @@ class SubnetCanvas(QWidget):
             edit.setProperty("answerState", "")
             edit.setFrame(False)
             edit.setStyleSheet(
-                "QLineEdit { background: transparent; border: none; padding: 0px; }"
-                "QLineEdit:focus { background: palette(base); border: 1px solid palette(highlight); }"
+                "QLineEdit { background: transparent; color: palette(text); border: none; padding: 0px; }"
+                "QLineEdit:focus { background: palette(base); color: palette(text); border: 1px solid palette(highlight); }"
             )
         self.inputs[room["id"]] = (network, broadcast)
         self._position_inputs(room)
@@ -223,7 +223,7 @@ class SubnetCanvas(QWidget):
         background = palette.color(QPalette.ColorRole.Window)
         bounds = self._bounds()
         accent = palette.color(QPalette.ColorRole.Highlight)
-        border = palette.color(QPalette.ColorRole.Mid)
+        border = accent
         painter.setPen(QPen(accent, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(bounds)
@@ -343,8 +343,23 @@ class SubnettingPage(QWidget):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
+        expected = (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))
+        table_ok = True
+        for row, decimal_value in zip((1, 2), expected):
+            binary_value = ".".join(f"{int(part):08b}" for part in decimal_value.split("."))
+            decimal_item = self.info_table.item(row, 1)
+            binary_item = self.info_table.item(row, 2)
+            decimal_ok = bool(decimal_item and decimal_item.text().strip() == decimal_value)
+            binary_ok = bool(binary_item and binary_item.text().strip() == binary_value)
+            for item, correct in ((decimal_item, decimal_ok), (binary_item, binary_ok)):
+                if item:
+                    item.setBackground(self.palette().color(
+                        QPalette.ColorRole.AlternateBase if correct else QPalette.ColorRole.Base
+                    ))
+            table_ok = table_ok and decimal_ok and binary_ok
+
         rooms_ok = self.canvas.check_answers()
-        if rooms_ok:
+        if table_ok and rooms_ok:
             self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
         else:
             self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
