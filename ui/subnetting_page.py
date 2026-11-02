@@ -77,7 +77,6 @@ class SubnetCanvas(QWidget):
             edit.setStyleSheet(
                 "QLineEdit { background: transparent; border: none; padding: 0px; }"
                 "QLineEdit:focus { background: rgba(0, 0, 0, 35); border: 1px solid palette(highlight); }"
-                "QLineEdit::placeholder { color: #a6adc8; }"
             )
         self.inputs[room["id"]] = (network, broadcast)
         self._position_inputs(room)
@@ -286,7 +285,7 @@ class SubnettingPage(QWidget):
         self.info_table.setMinimumHeight(212)
         self.info_table.setStyleSheet(
             "QTableWidget QLineEdit { background: transparent; "
-            "border: 1px solid #eb6f92; padding: 2px; }"
+            "border: 1px solid palette(highlight); padding: 2px; }"
         )
         self.info_table.setEditTriggers(QTableWidget.EditTrigger.AllEditTriggers)
         self.info_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
