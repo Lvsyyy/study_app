@@ -42,6 +42,10 @@ def load_questions(path, valid_subjects):
         if not isinstance(difficulty, int) or not 1 <= difficulty <= 5:
             errors.append(f"#{index}: difficulty must be 1-5")
             continue
+        question_type = item.get("question_type", "text")
+        if question_type not in ("text", "code"):
+            errors.append(f"#{index}: question_type must be 'text' or 'code'")
+            continue
         alts = item.get("alt_answers") or []
         if not isinstance(alts, list):
             errors.append(f"#{index}: alt_answers must be a list")
@@ -64,6 +68,7 @@ def load_questions(path, valid_subjects):
             "hint": (str(item["hint"]).strip() or None) if item.get("hint") else None,
             "question_image": image,
             "difficulty": difficulty,
+            "question_type": question_type,
         })
     return questions, errors
 
