@@ -299,6 +299,7 @@ class QuestionPage(QWidget):
         template = question["answer_template"] if "answer_template" in question.keys() else None
         self.calculation_table_container.hide()
         self.calculation_answer.hide()
+        self.code_editor_container.hide()
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._code_mode = question_type == "code" or (
