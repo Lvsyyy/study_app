@@ -145,3 +145,8 @@ def test_statistics_displays_zero_second_average(window):
     window.attempt_repository.record(qid, "A", True, 0)
     window.statistics_page.refresh()
     assert window.statistics_page.numbers["avg"].text() == "0.0s"
+
+def test_pug_subject_includes_arbeitsvertrag(window):
+    window.show_page("PuG")
+    assert "Arbeitsvertrag" in window.question_repository.list_topics("PuG")
+    assert window.subject_menu_page.title.text() == "PuG"
