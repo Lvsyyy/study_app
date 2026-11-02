@@ -263,7 +263,7 @@ class SubnettingPage(QWidget):
 
         self.network_info = QTableWidget(2, 2)
         self.network_info.setHorizontalHeaderLabels(["Angabe", "Wert"])
-        self.network_info.setVerticalHeaderHidden(True)
+        self.network_info.verticalHeader().setVisible(False)
         self.network_info.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.network_info.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self.network_info.horizontalHeader().setStretchLastSection(True)
