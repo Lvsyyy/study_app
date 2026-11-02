@@ -133,7 +133,31 @@ class MainWindow(QMainWindow):
         self._return_page = "Subjects"
         self._active_subject = subject
         topics = self.question_repository.list_topics(subject)
-        self.subject_menu_page.set_subject(subject, topics)
+        groups = None
+        if subject == "AE":
+            groups = {
+                "OOP": {
+                    "Praxis": [
+                        "Ausgabe",
+                        "Eingabe",
+                        "Ausgabe formatierung",
+                        "Variablen",
+                        "Operatoren",
+                        "Bedingungen",
+                        "Verzweigte Bedingungen",
+                    ],
+                    "Theorie": ["Alles in einen Programm", "PAP"],
+                },
+                "DB / WEB": {
+                    "Themen": ["HTML", "CSS"],
+                },
+            }
+            for group in groups.values():
+                for subgroup_topics in group.values():
+                    for topic_name in subgroup_topics:
+                        self.question_repository.add_topic(subject, topic_name)
+            topics = self.question_repository.list_topics(subject)
+        self.subject_menu_page.set_subject(subject, topics, groups=groups)
         self.stack.setCurrentWidget(self.subject_menu_page)
         self.sidebar.set_active(subject)
 
@@ -141,6 +165,13 @@ class MainWindow(QMainWindow):
         if topic is None:
             ids = self.question_repository.get_study_queue(subject)
             rebuild = lambda: self.question_repository.get_study_queue(subject)
+            heading = f"{subject} · Mixed practice"
+        elif isinstance(topic, (tuple, list)):
+            selected_topics = tuple(topic)
+            ids = self.question_repository.get_topics_study_queue(subject, selected_topics)
+            rebuild = lambda: self.question_repository.get_topics_study_queue(
+                subject, selected_topics
+            )
             heading = f"{subject} · Mixed practice"
         else:
             ids = self.question_repository.get_topic_study_queue(subject, topic)
