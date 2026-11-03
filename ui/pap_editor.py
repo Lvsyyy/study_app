@@ -255,7 +255,14 @@ class PapEditor(QWidget):
             for x in range(columns)
         ]
         random.shuffle(slots)
-        return slots[:count]
+        # Center the complete grid around the canvas origin.
+        x_offset = ((columns - 1) * 240 + FlowNode.WIDTH) / 2
+        y_offset = ((rows - 1) * 132 + FlowNode.HEIGHT) / 2
+        return [
+            (round((x - x_offset) / self.GRID) * self.GRID,
+             round((y - y_offset) / self.GRID) * self.GRID)
+            for x, y in slots[:count]
+        ]
 
     def is_endpoint_node(self, node_id):
         # The first and last configured blocks are the only Start/End shapes.
@@ -298,6 +305,20 @@ class PapEditor(QWidget):
                 node["x"], node["y"] = x, y
         self._connection_source = None
         self.refresh()
+        self.center_on_nodes()
+
+    def center_on_nodes(self):
+        """Center the current complete layout in the visible canvas."""
+        if not self._graphics_nodes:
+            self.view.centerOn(0, 0)
+            return
+        bounds = QRectF()
+        first = True
+        for node in self._graphics_nodes.values():
+            rect = node.sceneBoundingRect()
+            bounds = rect if first else bounds.united(rect)
+            first = False
+        self.view.centerOn(bounds.center())
 
     def _arrange_solution(self):
         """Arrange the main path vertically and error branches beside it."""
@@ -342,6 +363,18 @@ class PapEditor(QWidget):
             by_id[node_id]["x"], by_id[node_id]["y"] = 0, index * 132
         for index, node_id in enumerate(branches):
             by_id[node_id]["x"], by_id[node_id]["y"] = 300, index * 132
+
+        # Center the whole solution (main path and branches) around the
+        # canvas origin so long answers do not start above the visible area.
+        min_x = min(node["x"] for node in self.nodes)
+        max_x = max(node["x"] + FlowNode.WIDTH for node in self.nodes)
+        min_y = min(node["y"] for node in self.nodes)
+        max_y = max(node["y"] + FlowNode.HEIGHT for node in self.nodes)
+        offset_x = (min_x + max_x) / 2
+        offset_y = (min_y + max_y) / 2
+        for node in self.nodes:
+            node["x"] = round((node["x"] - offset_x) / self.GRID) * self.GRID
+            node["y"] = round((node["y"] - offset_y) / self.GRID) * self.GRID
 
     def reset(self):
         self.nodes.clear()
