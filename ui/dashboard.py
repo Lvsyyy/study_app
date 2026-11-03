@@ -34,7 +34,7 @@ class Dashboard(QWidget):
         self.timetable_error = ""
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(30, 26, 30, 26)
-        self.root.setSpacing(24)
+        self.root.setSpacing(18)
         self._build()
         self.refresh()
 
