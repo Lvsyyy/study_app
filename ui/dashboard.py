@@ -107,16 +107,17 @@ class Dashboard(QWidget):
 
         self.exam_scroll = QScrollArea()
         self.exam_scroll.setWidgetResizable(True)
-        self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.exam_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.exam_container = QWidget()
-        self.exam_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        self.exam_row = QHBoxLayout(self.exam_container)
-        self.exam_row.setContentsMargins(0, 0, 0, 0)
-        self.exam_row.setSpacing(12)
+        self.exam_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.exam_row = QVBoxLayout(self.exam_container)
+        self.exam_row.setContentsMargins(0, 0, 8, 0)
+        self.exam_row.setSpacing(10)
         self.exam_scroll.setWidget(self.exam_container)
-        self.exam_scroll.setFixedHeight(150)
+        self.exam_scroll.setMinimumHeight(160)
+        self.exam_scroll.setMaximumHeight(280)
         self.root.addWidget(self.exam_scroll)
 
     def set_exams(self, exams, error=""):
@@ -142,6 +143,7 @@ class Dashboard(QWidget):
             days_left = (exam_day - today).days
             date_label = QLabel(start.strftime("%d.%m"))
             date_label.setStyleSheet("font-size: 22px; font-weight: 700;")
+            weekday_label = muted_label(start.strftime("%A"))
             countdown_text = (
                 "Today" if days_left == 0
                 else f"In {days_left} days" if days_left > 0
@@ -157,13 +159,16 @@ class Dashboard(QWidget):
             time_label = muted_label(time_text)
             card_button = QPushButton()
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            card_button.setFixedSize(218, 126)
+            card_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            card_button.setMinimumHeight(132)
             card_button.setStyleSheet(
-                "QPushButton { text-align: left; padding: 10px; border: 1px solid palette(mid); "
-                "border-radius: 10px; } QPushButton:hover { border: 1px solid palette(highlight); }"
+                "QPushButton { text-align: left; padding: 12px; "
+                "background: palette(base); border: 1px solid palette(mid); "
+                "border-radius: 10px; } "
+                "QPushButton:hover { border: 1px solid palette(highlight); }"
             )
             card_layout = QVBoxLayout(card_button)
-            card_layout.setContentsMargins(2, 2, 2, 2)
+            card_layout.setContentsMargins(4, 4, 4, 4)
             top = QHBoxLayout()
             top.addWidget(date_label)
             top.addStretch()
@@ -175,6 +180,7 @@ class Dashboard(QWidget):
                 )
                 top.addWidget(new_label)
             card_layout.addLayout(top)
+            card_layout.addWidget(weekday_label)
             card_layout.addWidget(countdown)
             card_layout.addWidget(subject)
             card_layout.addWidget(time_label)
