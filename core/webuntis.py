@@ -13,7 +13,6 @@ from core.paths import app_data_dir
 
 SCHOOL = "bsz-roth"
 CLASS_ID = 4215
-EXAM_STATE = app_data_dir() / "webuntis_exams.json"
 ENTRIES_URL = f"https://{SCHOOL}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries"
 
 
@@ -119,13 +118,14 @@ class WebUntisExamManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.worker = None
+        self.state_path = app_data_dir() / "webuntis_exams.json"
         self._new_until = {}
         self._known_ids = set()
         self._load_state()
 
     def _load_state(self):
         try:
-            data = json.loads(EXAM_STATE.read_text(encoding="utf-8"))
+            data = json.loads(self.state_path.read_text(encoding="utf-8"))
             self._new_until = data.get("new_until", {})
             self._known_ids = set(data.get("known_ids", []))
         except (OSError, ValueError, TypeError):
@@ -133,11 +133,15 @@ class WebUntisExamManager(QObject):
             self._known_ids = set()
 
     def _save_state(self):
-        EXAM_STATE.parent.mkdir(parents=True, exist_ok=True)
-        EXAM_STATE.write_text(
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.state_path.write_text(
             json.dumps({"new_until": self._new_until, "known_ids": sorted(self._known_ids)}, indent=2),
             encoding="utf-8",
         )
+
+    def shutdown(self):
+        if self.worker is not None and self.worker.isRunning():
+            self.worker.wait()
 
     def check(self):
         if self.worker is not None and self.worker.isRunning():
