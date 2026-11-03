@@ -169,7 +169,9 @@ class Dashboard(QWidget):
             exam_day = start.date()
             days_left = (exam_day - today).days
             date_label = QLabel(start.strftime("%d.%m"))
-            date_label.setStyleSheet("font-size: 22px; font-weight: 700;")
+            date_label.setStyleSheet(
+                f"font-size: 22px; font-weight: 700; color: {ThemeManager.palette(self.theme_name)['text']};"
+            )
             weekday_label = muted_label(start.strftime("%A"))
             countdown_text = (
                 "Today" if days_left == 0
@@ -177,7 +179,13 @@ class Dashboard(QWidget):
                 else f"{abs(days_left)} days ago"
             )
             countdown = QLabel(countdown_text)
+            countdown.setStyleSheet(
+                f"color: {ThemeManager.palette(self.theme_name)['muted']};"
+            )
             subject = QLabel(exam["subject"])
+            subject.setStyleSheet(
+                f"color: {ThemeManager.palette(self.theme_name)['text']}; font-weight: 600;"
+            )
             subject.setWordWrap(True)
             time_text = start.strftime("%H:%M")
             if exam.get("end"):
@@ -226,7 +234,7 @@ class Dashboard(QWidget):
             )
             return
         entries = sorted(self.timetable, key=lambda item: item["start"])
-        self.timetable_count.setText(f"{len(entries)} lessons")
+        self.timetable_count.setText(f"{len(entries)} entries")
         if not entries:
             self.timetable_layout.addWidget(muted_label("No schedule entries found."))
             return
