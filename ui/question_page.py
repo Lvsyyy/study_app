@@ -1,5 +1,6 @@
 import json
 import re
+import random
 import time
 from pathlib import Path
 
@@ -310,11 +311,15 @@ class QuestionPage(QWidget):
 
     def set_queue(self, heading, ids, rebuild=None):
         self._generator = None
-        self._review_subject = heading.split(" · ", 1)[0] if " · " in heading else None
+        # Normal subject/topic rounds are finite and randomized.
+        # Adaptive review belongs in a separate review mode, not at the end
+        # of every topic queue.
+        self._review_subject = None
         self.heading = heading
         self._rebuild = rebuild
         self.subject_label.setText(heading)
-        self.queue = list(ids)
+        self.queue = list(dict.fromkeys(ids))
+        random.shuffle(self.queue)
         self.index = 0
         self._round_correct = 0
         self._round_answered = 0
