@@ -1,9 +1,197 @@
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+
+    12: """
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Welche Daten sollten vor einem BIOS-Update gesichert werden?',
+           'Wichtige Daten und wichtige Dateien.',
+           'Sichere wichtige persönliche Dateien und andere wichtige Daten.',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='BIOS update'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Daten sollten vor einem BIOS-Update gesichert werden?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Warum kann ein Backup trotz eines BIOS-Update-Fehlers, bei dem normalerweise keine Daten verloren gehen, sinnvoll sein?',
+           'Mit einem Backup ist ein sofortiger Zugriff auf die gesicherten Daten möglich.',
+           'Denke daran, wie schnell du nach einem Problem wieder auf wichtige Dateien zugreifen kannst.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='BIOS update'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Warum kann ein Backup trotz eines BIOS-Update-Fehlers, bei dem normalerweise keine Daten verloren gehen, sinnvoll sein?');
+
+    UPDATE questions
+    SET answer = '{"options":["Systeminformation","System Information (A7)","MsInfo32 (A2)","Aufkleber (A3)","Webseite des Herstellers (A4)","Handbuch (A5)","Tools (A6)"],"correct":[0,1,2,3,4,5,6]}'
+    WHERE question_text='Welche Möglichkeiten gibt es, die installierte BIOS-Version zu ermitteln? Wähle alle passenden Antworten.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='BIOS update');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wofür steht BIOS?',
+           'Basic Input / Output System',
+           'Basic Input / Output System',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wofür steht BIOS?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wofür steht UEFI?',
+           'Unified Extensible Firmware Interface',
+           'Unified Extensible Firmware Interface',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wofür steht UEFI?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wofür steht CMOS?',
+           'Complementary metal oxide semiconductor',
+           'Complementary metal oxide semiconductor',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wofür steht CMOS?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wofür steht CPU?',
+           'Central Processing Unit',
+           'Central Processing Unit',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wofür steht CPU?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wofür steht POST?',
+           'Power On Self Test',
+           'Power On Self Test',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wofür steht POST?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Was versteht man unter POST?',
+           'Ein Selbsttest, der nach dem Einschalten durchgeführt wird. Er prüft beim Hochfahren die Funktionsfähigkeit der grundlegenden Komponenten des Geräts.',
+           'POST ist der Selbsttest direkt nach dem Einschalten.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Was versteht man unter POST?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Welche Bedeutung hat das BIOS / UEFI für den PC?',
+           'BIOS und UEFI bereiten alles für das Betriebssystem vor.',
+           'Sie initialisieren und prüfen die Hardware und leiten den Betriebssystemstart ein.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Bedeutung hat das BIOS / UEFI für den PC?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Worin liegt der Unterschied zwischen EFI und UEFI?',
+           'EFI ist herstellerspezifisch, UEFI ist standardisiert.',
+           'Achte darauf, ob die Firmware-Schnittstelle herstellerspezifisch oder standardisiert ist.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Worin liegt der Unterschied zwischen EFI und UEFI?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Was ist Secure Boot und welches Problem kann dadurch entstehen?',
+           'Secure Boot überprüft digitale Signaturen. Nicht signierte bzw. nicht unterstützte Firmware kann dadurch blockiert werden.',
+           'Secure Boot prüft digitale Signaturen beim Start.',
+           3, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Was ist Secure Boot und welches Problem kann dadurch entstehen?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wie kann die Bootreihenfolge eines PCs verändert werden?',
+           'Im Boot Priority Menü.',
+           'Suche die Einstellung für die Startreihenfolge in den Firmware-Einstellungen.',
+           1, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Bootvorgang'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wie kann die Bootreihenfolge eines PCs verändert werden?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Warum kann die Geschwindigkeit (insbesondere die Zugriffszeit) bei Festplatten nicht beliebig gesteigert werden?',
+           'Festplatten bestehen aus beweglichen Teilen. Physikalische und materielle Grenzen müssen akzeptiert werden.',
+           'Denke an die mechanischen, beweglichen Bauteile einer Festplatte.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Warum kann die Geschwindigkeit (insbesondere die Zugriffszeit) bei Festplatten nicht beliebig gesteigert werden?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Welche Faktoren beeinflussen die Zugriffszeit einer Festplatte?',
+           'Suchzeit (Average Seek Time) und Zugriffsverzögerung durch Umdrehung (Average Rotational Latency Time).',
+           'Es gibt eine Zeit für die Bewegung des Schreib-/Lesekopfs und eine für das Warten auf die richtige Position der Scheibe.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Faktoren beeinflussen die Zugriffszeit einer Festplatte?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Beschreibe Suchzeit und Zugriffsverzögerung durch Umdrehung.',
+           'Suchzeit: Die Zeit, die der Schwungarm benötigt, um eine Spur zu erreichen. Zugriffsverzögerung durch Umdrehung: Die Wartezeit, bis der Schreib-/Lesekopf den gewünschten Block erreicht; sie hängt von der Drehgeschwindigkeit der Scheiben ab.',
+           'Unterscheide die Bewegung des Arms von der Rotation der Scheibe.',
+           3, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Beschreibe Suchzeit und Zugriffsverzögerung durch Umdrehung.');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wie berechnet man die Kapazität einer Scheibe?',
+           'Zylinder × Sektoren pro Spur (spt) × 512 Bytes',
+           'Multipliziere die Zylinderzahl mit den Sektoren pro Spur und 512 Bytes.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wie berechnet man die Kapazität einer Scheibe?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wie berechnet man die Größe einer Spur?',
+           'Sektoren pro Spur (spt) × 512 Bytes',
+           'Eine Spur enthält eine bestimmte Anzahl von Sektoren.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wie berechnet man die Größe einer Spur?');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wie berechnet man die Gesamtkapazität einer Festplatte?',
+           'Zylinder × Köpfe × Sektoren pro Spur (spt) × 512 Bytes',
+           'Berücksichtige zusätzlich zur Zylinderzahl die Anzahl der Köpfe.',
+           2, 'text'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='BS' AND t.name='Festplatten'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wie berechnet man die Gesamtkapazität einer Festplatte?');
+
+    UPDATE questions
+    SET question_text='Benutze die Variablen "ZAHL" und "Resultat". Ausgabe: Bitte eine Zahl eingeben: 10; Die Quadratzahl von 10 lautet 100.',
+        answer='{"expected_output":["Bitte eine Zahl eingeben: 10","Die Quadratzahl von 10 lautet 100","Drücken Sie eine beliebige Taste . . ."],"inputs":["10"],"solution":"@echo off\\nset /p ZAHL= Bitte eine Zahl eingeben:\\nset /a Resultat=%ZAHL%*%ZAHL%\\necho Die Quadratzahl von %ZAHL% lautet %Resultat%\\npause"}'
+    WHERE question_text='Lies eine Zahl ein und gib ihr Quadrat aus. Beispiel-Eingabe: 10.'
+      AND question_type='batch';
+
+    UPDATE questions
+    SET question_text='Benutze die Variable "OK". Ausgabe bei Eingabe j: Eingabe richtig? [j/n]: j; Alles ist richtig weiter so.',
+        answer='{"expected_output":["Eingabe richtig? [j/n]: j","","Alles ist richtig weiter so","Drücken Sie eine beliebige Taste . . ."],"inputs":["j"],"solution":"@echo off\\nset /p OK= Eingabe richtig? [j/n]:\\necho.\\nIF /I \\"%OK%\\" == \\"j\\" (echo Alles ist richtig weiter so)\\necho.\\npause"}'
+    WHERE question_text='Frage nach OK. Bei der Eingabe „j“ soll „Alles ist richtig weiter so“ erscheinen.'
+      AND question_type='batch';
+
+    UPDATE questions
+    SET answer='{"nodes":[{"id":1,"type":"Start/End","text":"Start des Bootvorgangs"},{"id":2,"type":"Process","text":"PC einschalten"},{"id":3,"type":"Process","text":"BIOS laden"},{"id":4,"type":"Process","text":"Selbsttest (POST)"},{"id":5,"type":"Decision","text":"Hardware OK?"},{"id":6,"type":"Process","text":"CMOS lesen"},{"id":7,"type":"Process","text":"Grundkonfiguration der Komponenten"},{"id":8,"type":"Decision","text":"Betriebssystem vorhanden?"},{"id":9,"type":"Process","text":"Betriebssystem starten"},{"id":10,"type":"Start/End","text":"Betriebssystem geladen"},{"id":11,"type":"Process","text":"Fehlermeldung"},{"id":12,"type":"Process","text":"Fehlerbeseitigung"},{"id":13,"type":"Process","text":"PC ausschalten"}],"edges":[{"from":1,"to":2,"label":"Normal"},{"from":2,"to":3,"label":"Normal"},{"from":3,"to":4,"label":"Normal"},{"from":4,"to":5,"label":"Normal"},{"from":5,"to":6,"label":"Ja"},{"from":5,"to":11,"label":"Nein"},{"from":6,"to":7,"label":"Normal"},{"from":7,"to":8,"label":"Normal"},{"from":8,"to":9,"label":"Ja"},{"from":8,"to":11,"label":"Nein"},{"from":9,"to":10,"label":"Normal"},{"from":11,"to":12,"label":"Normal"},{"from":12,"to":13,"label":"Normal"}]}'
+    WHERE question_type='pap'
+      AND question_text='Erstelle einen PAP für den Bootvorgang. Verwende Start/Ende-, Verarbeitungs- und Entscheidungsblöcke und verbinde sie mit den passenden Ja-/Nein-Zweigen.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='Bootvorgang');
+    """,
+
     11: """
     INSERT OR IGNORE INTO topics(subject_id, name)
     SELECT id, 'BIOS update' FROM subjects WHERE name = 'BS';
