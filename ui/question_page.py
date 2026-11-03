@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QRegularExpression
 from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QTextCursor
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget, QFrame)
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -548,11 +548,19 @@ class QuestionPage(QWidget):
         for row_index, row in enumerate(rows):
             separator = binary_layout and row and row[0] == "__SEPARATOR__"
             if separator:
-                item = QTableWidgetItem("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                table.setItem(row_index, 0, item)
-                table.setSpan(row_index, 0, 1, len(headers))
+                for column_index in range(len(headers)):
+                    item = QTableWidgetItem("")
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    if column_index == 0:
+                        item.setData(Qt.ItemDataRole.UserRole, "__SEPARATOR__")
+                    table.setItem(row_index, column_index, item)
+
+                    divider = QFrame()
+                    divider.setFrameShape(QFrame.Shape.HLine)
+                    divider.setFrameShadow(QFrame.Shadow.Plain)
+                    divider.setLineWidth(2)
+                    divider.setMidLineWidth(0)
+                    table.setCellWidget(row_index, column_index, divider)
                 continue
             for column_index, value in enumerate(row):
                 item = QTableWidgetItem(str(value or ""))
@@ -599,7 +607,11 @@ class QuestionPage(QWidget):
         rows = []
         for row in range(table.rowCount()):
             first = table.item(row, 0)
-            if binary_layout and first and first.text().startswith("━"):
+            if (
+                binary_layout
+                and first
+                and first.data(Qt.ItemDataRole.UserRole) == "__SEPARATOR__"
+            ):
                 rows.append(["__SEPARATOR__", *[""] * (table.columnCount() - 1)])
                 continue
             rows.append([
