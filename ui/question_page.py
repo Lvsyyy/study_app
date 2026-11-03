@@ -6,6 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal, QRegularExpression
 from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QTextCursor
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget, QFrame)
+from ui.interactive_questions import InteractiveQuestion
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -209,6 +210,10 @@ class QuestionPage(QWidget):
         self.calculation_table_container.hide()
         self.root.addWidget(self.calculation_table_container)
 
+        self.interactive_question = InteractiveQuestion()
+        self.interactive_question.hide()
+        self.root.addWidget(self.interactive_question)
+
         meta = QHBoxLayout()
         self.number_label = muted_label("")
         meta.addWidget(self.number_label)
@@ -269,7 +274,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -292,6 +297,7 @@ class QuestionPage(QWidget):
         self.calculation_answer.hide()
         self._clear_calculation_tables()
         self.calculation_table_container.hide()
+        self.interactive_question.hide()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -333,6 +339,7 @@ class QuestionPage(QWidget):
         set_state(self.feedback, None)
         template = question["answer_template"] if "answer_template" in question.keys() else None
         self.calculation_table_container.hide()
+        self.interactive_question.hide()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         question_text = question["question_text"]
@@ -367,6 +374,14 @@ class QuestionPage(QWidget):
             self.code_editor_container.show()
             self.code_editor.setEnabled(True)
             self.code_editor.setFocus()
+        elif question_type in ("multi_select", "ordering", "matching"):
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            self.answer.hide()
+            self.calculation_answer.hide()
+            self.interactive_question.load(question_type, question["answer"])
+            self.interactive_question.show()
+            self.interactive_question.setEnabled(True)
         elif template:
             self.question_text.setText(question_text)
             self.question_text.show()
@@ -623,6 +638,8 @@ class QuestionPage(QWidget):
     def _input_text(self):
         if self._code_mode:
             return self.code_editor.toPlainText()
+        if not self.interactive_question.isHidden():
+            return self.interactive_question.get_answer()
         if not self.calculation_table_container.isHidden():
             tables = [self._table_input_data(table) for table in self.calculation_tables]
             if len(tables) > 1:
@@ -677,6 +694,7 @@ class QuestionPage(QWidget):
             return
         alternatives = self.questions.alternatives(self.current)
         correct = (
+            self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
             if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
         )
@@ -691,6 +709,7 @@ class QuestionPage(QWidget):
             self.code_editor.setEnabled(False)
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
+            self.interactive_question.setEnabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -708,7 +727,10 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text().strip(), False)
         self._solved = True
-        if self._code_mode:
+        if not self.interactive_question.isHidden():
+            self.interactive_question.reveal_solution()
+            self.feedback.setText("Correct solution shown.")
+        elif self._code_mode:
             self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
             self.feedback.setText("Correct solution shown in the code editor.")
         elif not self.calculation_table_container.isHidden():
@@ -731,6 +753,7 @@ class QuestionPage(QWidget):
         self.code_editor.setEnabled(False)
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
+        self.interactive_question.setEnabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
