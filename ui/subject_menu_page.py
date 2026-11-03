@@ -7,6 +7,7 @@ from ui.widgets import action_button, card, clear_layout, muted_label, section_t
 class SubjectMenuPage(QWidget):
     back_requested = Signal()
     topic_requested = Signal(str, object)
+    exam_practice_requested = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -36,7 +37,7 @@ class SubjectMenuPage(QWidget):
         scroll.setWidget(content_widget)
         root.addWidget(scroll, 1)
 
-    def set_subject(self, subject, topics, groups=None):
+    def set_subject(self, subject, topics, groups=None, exam_available=False):
         self.title.setText(subject)
         clear_layout(self.content)
         self.content.addStretch()
@@ -46,6 +47,7 @@ class SubjectMenuPage(QWidget):
             "Mixed practice",
             "Questions from every topic in this subject",
             None,
+            exam_available=exam_available,
         )
 
         if groups:
@@ -82,7 +84,7 @@ class SubjectMenuPage(QWidget):
                 muted_label("No topics available yet."),
             )
 
-    def _add_mix_card(self, subject, heading, description, selected_topics):
+    def _add_mix_card(self, subject, heading, description, selected_topics, exam_available=False):
         mix_frame, mix_layout = card(padding=18)
         mix_layout.addWidget(section_title(heading))
         mix_layout.addWidget(muted_label(description))
@@ -92,7 +94,22 @@ class SubjectMenuPage(QWidget):
             lambda _checked=False, name=subject, selected=selected_topics:
                 self.topic_requested.emit(name, selected)
         )
-        mix_layout.addWidget(mix_button)
+        if exam_available:
+            buttons = QGridLayout()
+            buttons.setSpacing(10)
+            buttons.addWidget(mix_button, 0, 0)
+            exam_button = action_button("Study for exam")
+            exam_button.setMinimumHeight(44)
+            exam_button.clicked.connect(
+                lambda _checked=False, name=subject:
+                    self.exam_practice_requested.emit(name)
+            )
+            buttons.addWidget(exam_button, 0, 1)
+            buttons.setColumnStretch(0, 1)
+            buttons.setColumnStretch(1, 1)
+            mix_layout.addLayout(buttons)
+        else:
+            mix_layout.addWidget(mix_button)
         self.content.insertWidget(self.content.count() - 1, mix_frame)
 
     def _add_topic_grid(self, layout, subject, topics, columns=2):
