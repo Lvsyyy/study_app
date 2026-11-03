@@ -1,7 +1,7 @@
 import calendar
 from datetime import date, datetime
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -22,6 +22,8 @@ WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 
 class Dashboard(QWidget):
+    study_exam_requested = Signal(str)
+
     def __init__(self, statistics, attempts, theme_name="Rose Pine"):
         super().__init__()
         self.statistics = statistics
@@ -338,7 +340,7 @@ class Dashboard(QWidget):
         self.timetable_layout.addStretch()
 
     def _show_exam(self, exam):
-        from PySide6.QtWidgets import QMessageBox
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox
 
         start = datetime.fromisoformat(exam["start"]).astimezone()
         details = [
@@ -351,7 +353,23 @@ class Dashboard(QWidget):
         ]
         if exam.get("description"):
             details.append(exam["description"])
-        QMessageBox.information(self, "Exam details", "\n".join(details))
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Exam details")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("\n".join(details)))
+        buttons = QDialogButtonBox()
+        study_button = buttons.addButton(
+            "Study for exam", QDialogButtonBox.ButtonRole.ActionRole
+        )
+        close_button = buttons.addButton(QDialogButtonBox.StandardButton.Close)
+        study_button.clicked.connect(
+            lambda: (dialog.accept(), self.study_exam_requested.emit(
+                exam.get("subject_short") or exam["subject"]
+            ))
+        )
+        close_button.clicked.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
 
     def showEvent(self, event):
         super().showEvent(event)
