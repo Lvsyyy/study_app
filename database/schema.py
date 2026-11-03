@@ -1,9 +1,54 @@
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
-MIGRATIONS = {
+MIGRATIONS = {\n
+    13: """
+    UPDATE questions
+    SET alt_answers = '["System Information (A7)","MsInfo32 (A2)","Aufkleber (A3)","Webseite des Herstellers (A4)","Handbuch (A5)","Tools (A6)"]'
+    WHERE question_text='Welche Möglichkeiten gibt es, die installierte BIOS-Version zu ermitteln? Wähle alle passenden Antworten.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='BIOS update');
+
+    UPDATE questions
+    SET alt_answers = '["Wichtige Dateien"]'
+    WHERE question_text='Welche Daten sollten vor einem BIOS-Update gesichert werden?'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='BIOS update');
+
+    UPDATE questions
+    SET answer='Mit einem Backup ist sofortiger Zugriff auf die Festplatte möglich.',
+        alt_answers='["Mit einem Backup ist sofortiger Zugriff auf wichtige Dateien möglich.","Mit einem Backup hat man sofortigen Zugriff auf die gesicherten Daten."]'
+    WHERE question_text='Warum kann ein Backup trotz eines BIOS-Update-Fehlers, bei dem normalerweise keine Daten verloren gehen, sinnvoll sein?'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='BIOS update');
+
+    UPDATE questions
+    SET question_text='Ordne die acht Schritte eines BIOS-Updates den Nummern 1–8 zu.',
+        answer='{"items":["Mainboard und BIOS/UEFI-Version identifizieren","Update-Dateien finden und herunterladen","Backup wichtiger Dateien erstellen","Update-Methode wählen: Windows, UEFI-Flash-Menü oder bei alten Hauptplatinen DOS","BIOS vorbereiten: Schreibschutz prüfen und Einstellungen speichern","BIOS-Update durchführen","BIOS aufräumen: CMOS löschen und Strom entfernen","Bei Problemen das alte BIOS wiederherstellen"]}'
+    WHERE question_text LIKE '%Schritte%BIOS-Update%'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='BIOS update')
+      AND question_type='ordering';
+
+    UPDATE questions
+    SET question_text='Ordne die Schritte des POST in die richtige Reihenfolge.',
+        answer='{"items":["Funktionsfähigkeit der CPU prüfen","CPU-nahe Bausteine prüfen","CMOS-RAM prüfen","CPU-nahen Cache-Speicher prüfen","Erste 64 Kilobyte des Arbeitsspeichers prüfen","Grafikspeicher und Grafikausgabe prüfen"]}'
+    WHERE question_text LIKE '%POST%Reihenfolge%'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name LIKE 'Bootvorgang%')
+      AND question_type='ordering';
+
+    UPDATE questions
+    SET answer='{"nodes":[{"id":1,"type":"Start/End","text":"Start des Bootvorgangs"},{"id":2,"type":"Process","text":"PC einschalten"},{"id":3,"type":"Process","text":"BIOS laden"},{"id":4,"type":"Process","text":"Selbsttest (POST)"},{"id":5,"type":"Decision","text":"Hardware OK?"},{"id":6,"type":"Process","text":"CMOS lesen"},{"id":7,"type":"Process","text":"Grundkonfiguration der Komponenten"},{"id":8,"type":"Decision","text":"Betriebssystem vorhanden?"},{"id":9,"type":"Process","text":"Betriebssystem starten"},{"id":10,"type":"Start/End","text":"Betriebssystem geladen"},{"id":11,"type":"Process","text":"Fehlermeldung"},{"id":12,"type":"Process","text":"Fehlerbeseitigung"},{"id":13,"type":"Process","text":"PC ausschalten"}],"edges":[{"from":1,"to":2,"label":"Normal"},{"from":2,"to":3,"label":"Normal"},{"from":3,"to":4,"label":"Normal"},{"from":4,"to":5,"label":"Normal"},{"from":5,"to":6,"label":"Ja"},{"from":5,"to":11,"label":"Nein"},{"from":6,"to":7,"label":"Normal"},{"from":7,"to":8,"label":"Normal"},{"from":8,"to":9,"label":"Ja"},{"from":8,"to":11,"label":"Nein"},{"from":9,"to":10,"label":"Normal"},{"from":11,"to":12,"label":"Normal"},{"from":12,"to":13,"label":"Normal"},{"from":13,"to":1,"label":"Normal"}]}'
+    WHERE question_type='pap'
+      AND question_text LIKE 'Erstelle einen PAP für den Bootvorgang%'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name LIKE 'Bootvorgang%');
+
+    UPDATE questions
+    SET answer='{"expected_output":["Pfad>Das ist eine Ausgabe"],"inputs":[],"solution":"echo Das ist eine Ausgabe"}'
+    WHERE question_text LIKE '%Pfad%Das ist eine Ausgabe%'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='BS' AND t.name='Batch')
+      AND question_type='batch';
+
+    """,
+
 
     12: """
     INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
