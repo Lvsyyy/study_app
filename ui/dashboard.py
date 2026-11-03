@@ -31,6 +31,8 @@ class Dashboard(QWidget):
         self.month_offset = 0
         self.exams = []
         self.exam_error = ""
+        self.timetable = []
+        self.timetable_error = ""
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(30, 26, 30, 26)
         self.root.setSpacing(18)
@@ -95,6 +97,7 @@ class Dashboard(QWidget):
         activity_layout.addLayout(self.legend)
         row.addWidget(activity_frame, 1)
         self.root.addLayout(row)
+        self._build_timetable()
         self.root.addStretch()
 
     def _build_exams(self):
@@ -119,6 +122,30 @@ class Dashboard(QWidget):
         self.exam_scroll.setMinimumHeight(160)
         self.exam_scroll.setMaximumHeight(280)
         self.root.addWidget(self.exam_scroll)
+
+    def _build_timetable(self):
+        heading = QHBoxLayout()
+        heading.addWidget(section_title("School schedule"))
+        heading.addStretch()
+        self.timetable_count = muted_label("Loading…")
+        heading.addWidget(self.timetable_count)
+        self.root.addLayout(heading)
+        self.timetable_scroll = QScrollArea()
+        self.timetable_scroll.setWidgetResizable(True)
+        self.timetable_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.timetable_container = QWidget()
+        self.timetable_layout = QVBoxLayout(self.timetable_container)
+        self.timetable_layout.setContentsMargins(0, 0, 8, 0)
+        self.timetable_layout.setSpacing(8)
+        self.timetable_scroll.setWidget(self.timetable_container)
+        self.timetable_scroll.setMinimumHeight(260)
+        self.timetable_scroll.setMaximumHeight(420)
+        self.root.addWidget(self.timetable_scroll)
+
+    def set_timetable(self, entries, error=""):
+        self.timetable = entries
+        self.timetable_error = error
+        self._render_timetable()
 
     def set_exams(self, exams, error=""):
         self.exams = exams
@@ -161,11 +188,12 @@ class Dashboard(QWidget):
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
             card_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             card_button.setMinimumHeight(132)
+            palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
-                "QPushButton { text-align: left; padding: 12px; "
-                "background: palette(base); border: 1px solid palette(mid); "
+                f"QPushButton {{ text-align: left; padding: 12px; color: {palette['text']}; "
+                f"background: {palette['panel']}; border: 1px solid {palette['border']}; "
                 "border-radius: 10px; } "
-                "QPushButton:hover { border: 1px solid palette(highlight); }"
+                f"QPushButton:hover {{ border: 1px solid {palette['accent']}; }}"
             )
             card_layout = QVBoxLayout(card_button)
             card_layout.setContentsMargins(4, 4, 4, 4)
@@ -175,8 +203,8 @@ class Dashboard(QWidget):
             if exam.get("is_new"):
                 new_label = QLabel("NEW")
                 new_label.setStyleSheet(
-                    "font-size: 10px; font-weight: 700; padding: 3px 6px; "
-                    "border-radius: 5px; background: palette(highlight); color: palette(highlighted-text);"
+                    f"font-size: 10px; font-weight: 700; padding: 3px 6px; "
+                    f"border-radius: 5px; background: {palette['accent']}; color: {palette['bg']};"
                 )
                 top.addWidget(new_label)
             card_layout.addLayout(top)
@@ -187,6 +215,63 @@ class Dashboard(QWidget):
             card_layout.addStretch()
             card_button.clicked.connect(lambda _checked=False, item=exam: self._show_exam(item))
             self.exam_row.addWidget(card_button)
+
+
+    def _render_timetable(self):
+        clear_layout(self.timetable_layout)
+        if self.timetable_error:
+            self.timetable_count.setText("Unavailable")
+            self.timetable_layout.addWidget(
+                muted_label(f"Could not load school schedule: {self.timetable_error}")
+            )
+            return
+        entries = sorted(self.timetable, key=lambda item: item["start"])
+        self.timetable_count.setText(f"{len(entries)} lessons")
+        if not entries:
+            self.timetable_layout.addWidget(muted_label("No schedule entries found."))
+            return
+        palette = ThemeManager.palette(self.theme_name)
+        grouped = {}
+        for entry in entries:
+            start = datetime.fromisoformat(entry["start"]).astimezone()
+            grouped.setdefault(start.date(), []).append((entry, start))
+        for day, day_entries in grouped.items():
+            day_title = QLabel(day.strftime("%A, %d %B %Y"))
+            day_title.setStyleSheet(
+                f"font-weight: 700; color: {palette['text']}; padding: 8px 2px 2px;"
+            )
+            self.timetable_layout.addWidget(day_title)
+            for entry, start in day_entries:
+                end_text = ""
+                if entry.get("end"):
+                    end_text = datetime.fromisoformat(entry["end"]).astimezone().strftime("–%H:%M")
+                time_label = QLabel(start.strftime("%H:%M") + end_text)
+                time_label.setFixedWidth(112)
+                time_label.setStyleSheet(f"color: {palette['accent']}; font-weight: 700;")
+                subject_label = QLabel(entry.get("subject") or "Unspecified")
+                subject_label.setStyleSheet(f"color: {palette['text']}; font-weight: 600;")
+                details = [value for value in (
+                    entry.get("room"), entry.get("teacher"), entry.get("description")
+                ) if value]
+                detail_label = QLabel(" · ".join(details) if details else entry.get("type", ""))
+                detail_label.setWordWrap(True)
+                detail_label.setStyleSheet(f"color: {palette['muted']}; font-size: 11px;")
+                text_layout = QVBoxLayout()
+                text_layout.setSpacing(2)
+                text_layout.addWidget(subject_label)
+                text_layout.addWidget(detail_label)
+                line = QHBoxLayout()
+                line.setContentsMargins(10, 7, 10, 7)
+                line.addWidget(time_label)
+                line.addLayout(text_layout, 1)
+                frame = QFrame()
+                frame.setStyleSheet(
+                    f"QFrame {{ background: {palette['panel']}; "
+                    f"border: 1px solid {palette['border']}; border-radius: 8px; }}"
+                )
+                frame.setLayout(line)
+                self.timetable_layout.addWidget(frame)
+        self.timetable_layout.addStretch()
 
     def _show_exam(self, exam):
         from PySide6.QtWidgets import QMessageBox
@@ -212,6 +297,8 @@ class Dashboard(QWidget):
         self.theme_name = name
         self._render_legend()
         self._render_heatmap()
+        self._render_exams()
+        self._render_timetable()
 
     def refresh(self):
         totals = self.attempts.totals()
@@ -242,6 +329,7 @@ class Dashboard(QWidget):
         self._render_legend()
         self._render_heatmap()
         self._render_exams()
+        self._render_timetable()
 
     def shift_month(self, amount):
         self.month_offset += amount
