@@ -1,4 +1,5 @@
 import json
+import random
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
@@ -10,22 +11,30 @@ from PySide6.QtWidgets import (
 
 
 class ConnectionPort(QGraphicsEllipseItem):
-    def __init__(self, node, output):
+    def __init__(self, node, side):
         super().__init__(-6, -6, 12, 12, node)
         self.node = node
-        self.output = output
+        self.side = side
         self.setBrush(QBrush(QColor("#54a6e8")))
         self.setPen(QPen(QColor("#dceeff"), 1.5))
         self.setZValue(5)
         self.setCursor(Qt.CursorShape.CrossCursor)
         self.setVisible(False)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.node.editor.handle_port_click(self.node.node_id, self.output)
+            self.node.editor.begin_connection(self.node.node_id, self.side, self.scenePos())
             event.accept()
-            return
-        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        self.node.editor.move_connection(event.scenePos())
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.node.editor.finish_connection(event.scenePos())
+            event.accept()
 
 
 class FlowNode(QGraphicsObject):
@@ -46,10 +55,17 @@ class FlowNode(QGraphicsObject):
         )
         self.setAcceptHoverEvents(True)
         self.setZValue(2)
-        self.input_port = ConnectionPort(self, False)
-        self.output_port = ConnectionPort(self, True)
-        self.input_port.setPos(0, self.HEIGHT / 2)
-        self.output_port.setPos(self.WIDTH, self.HEIGHT / 2)
+        self.ports = {}
+        positions = {
+            "left": QPointF(0, self.HEIGHT / 2),
+            "right": QPointF(self.WIDTH, self.HEIGHT / 2),
+            "top": QPointF(self.WIDTH / 2, 0),
+            "bottom": QPointF(self.WIDTH / 2, self.HEIGHT),
+        }
+        for side, pos in positions.items():
+            port = ConnectionPort(self, side)
+            port.setPos(pos)
+            self.ports[side] = port
 
     def boundingRect(self):
         return QRectF(0, 0, self.WIDTH, self.HEIGHT)
@@ -79,14 +95,17 @@ class FlowNode(QGraphicsObject):
         )
 
     def hoverEnterEvent(self, event):
-        self.input_port.setVisible(True)
-        self.output_port.setVisible(True)
+        for port in self.ports.values():
+            port.setVisible(True)
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.input_port.setVisible(False)
-        self.output_port.setVisible(False)
+        for port in self.ports.values():
+            port.setVisible(False)
         super().hoverLeaveEvent(event)
+
+    def port_scene_pos(self, side):
+        return self.mapToScene(self.ports[side].pos())
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
@@ -110,13 +129,12 @@ class FlowNode(QGraphicsObject):
 class PapView(QGraphicsView):
     def __init__(self, scene, parent=None):
         super().__init__(scene, parent)
-        self.setRenderHints(
-            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
-        )
+        self.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setSceneRect(-100000, -100000, 200000, 200000)
-        self.setMinimumHeight(440)
+        self.setSceneRect(-1200, -800, 2400, 1600)
+        self.setMinimumHeight(300)
+        self.setMaximumHeight(390)
         self.setStyleSheet(
             "QGraphicsView { background: #141c29; border: 1px solid #465366; border-radius: 8px; }"
         )
@@ -126,7 +144,7 @@ class PapView(QGraphicsView):
 
     def wheelEvent(self, event):
         factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
-        target = max(0.25, min(2.5, self._zoom * factor))
+        target = max(0.3, min(2.2, self._zoom * factor))
         self.scale(target / self._zoom, target / self._zoom)
         self._zoom = target
 
@@ -169,13 +187,14 @@ class PapEditor(QWidget):
         self.nodes = []
         self.edges = []
         self._next_id = 1
-        self._connect_source = None
         self._graphics_nodes = {}
         self._graphics_edges = {}
+        self._preview_line = None
+        self._connection_source = None
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(8)
+        root.setSpacing(6)
         tools = QHBoxLayout()
         self.type_box = QComboBox()
         self.type_box.addItems(self.TYPES)
@@ -192,7 +211,7 @@ class PapEditor(QWidget):
         tools.addStretch()
         root.addLayout(tools)
         self.status = QLabel(
-            "Blöcke ziehen · Mausrad: Zoom · Mittlere/rechte Maustaste: Arbeitsfläche bewegen · Kreise anklicken: verbinden"
+            "Blöcke ziehen · Mausrad: Zoom · Mittlere/rechte Maustaste: Arbeitsfläche bewegen · Verbindung: Kreis ziehen"
         )
         root.addWidget(self.status)
         self.scene = QGraphicsScene(self)
@@ -200,24 +219,31 @@ class PapEditor(QWidget):
         root.addWidget(self.view, 1)
         self.setStyleSheet("QPushButton, QComboBox { padding: 6px 9px; }")
 
-    def _ensure_positions(self):
-        for i, node in enumerate(self.nodes):
-            node.setdefault("x", (i % 4) * 250)
-            node.setdefault("y", (i // 4) * 150)
+    def _scatter_positions(self, count):
+        slots = [(x * 240, y * 150) for y in range(3) for x in range(4)]
+        random.Random(41).shuffle(slots)
+        return slots[:count]
 
-    def load_config(self, config):
+    def load_config(self, config, show_solution=False):
         self.nodes = [dict(n) for n in config.get("nodes", [])]
-        self.edges = [dict(e) for e in config.get("edges", [])]
         self._next_id = max([n["id"] for n in self.nodes] + [0]) + 1
-        self._connect_source = None
-        self._ensure_positions()
+        if show_solution:
+            self.edges = [dict(e) for e in config.get("edges", [])]
+            for i, node in enumerate(self.nodes):
+                node.setdefault("x", (i % 4) * 240)
+                node.setdefault("y", (i // 4) * 150)
+        else:
+            self.edges = []
+            for node, (x, y) in zip(self.nodes, self._scatter_positions(len(self.nodes))):
+                node["x"], node["y"] = x, y
+        self._connection_source = None
         self.refresh()
 
     def reset(self):
         self.nodes.clear()
         self.edges.clear()
         self._next_id = 1
-        self._connect_source = None
+        self._connection_source = None
         self.refresh()
 
     def add_node(self):
@@ -226,8 +252,7 @@ class PapEditor(QWidget):
             return
         center = self.view.mapToScene(self.view.viewport().rect().center())
         self.nodes.append({
-            "id": self._next_id,
-            "type": self.type_box.currentText(),
+            "id": self._next_id, "type": self.type_box.currentText(),
             "text": text.strip(),
             "x": round(center.x() / self.GRID) * self.GRID,
             "y": round(center.y() / self.GRID) * self.GRID,
@@ -242,6 +267,54 @@ class PapEditor(QWidget):
         if item and data:
             data["text"] = item.label
 
+    def begin_connection(self, node_id, side, pos):
+        self._connection_source = (node_id, side)
+        self._preview_line = QGraphicsLineItem(pos.x(), pos.y(), pos.x(), pos.y())
+        self._preview_line.setPen(QPen(QColor(110, 190, 255, 145), 3, Qt.PenStyle.DashLine))
+        self._preview_line.setZValue(8)
+        self.scene.addItem(self._preview_line)
+        self.status.setText("Verbindung ziehen und auf einem anderen Kreis loslassen.")
+
+    def move_connection(self, pos):
+        if self._preview_line:
+            line = self._preview_line.line()
+            self._preview_line.setLine(line.x1(), line.y1(), pos.x(), pos.y())
+
+    def _nearest_port(self, pos, radius=22):
+        best = None
+        best_distance = radius
+        for node_id, node in self._graphics_nodes.items():
+            for side in ("left", "right", "top", "bottom"):
+                point = node.port_scene_pos(side)
+                distance = (point - pos).manhattanLength()
+                if distance <= best_distance:
+                    best, best_distance = (node_id, side), distance
+        return best
+
+    def finish_connection(self, pos):
+        target = self._nearest_port(pos)
+        source = self._connection_source
+        if self._preview_line:
+            self.scene.removeItem(self._preview_line)
+            self._preview_line = None
+        self._connection_source = None
+        if not source or not target or source[0] == target[0]:
+            self.status.setText("Keine Verbindung erstellt.")
+            return
+        edge = {
+            "from": source[0], "from_port": source[1],
+            "to": target[0], "to_port": target[1],
+            "label": self.edge_label.currentText(),
+        }
+        self.edges = [
+            e for e in self.edges
+            if not (e["from"] == edge["from"] and e.get("from_port", "right") == edge["from_port"]
+                    and e.get("label", "Normal") == edge["label"])
+        ]
+        self.edges.append(edge)
+        self.refresh()
+        self.status.setText("Verbindung erstellt.")
+
     def update_connections(self):
         for edge in self.edges:
             key = (edge["from"], edge["to"], edge.get("label", "Normal"))
@@ -249,34 +322,12 @@ class PapEditor(QWidget):
             source = self._graphics_nodes.get(edge["from"])
             target = self._graphics_nodes.get(edge["to"])
             if line and source and target:
-                a = source.mapToScene(QPointF(source.WIDTH, source.HEIGHT / 2))
-                b = target.mapToScene(QPointF(0, target.HEIGHT / 2))
+                a = source.port_scene_pos(edge.get("from_port", "right"))
+                b = target.port_scene_pos(edge.get("to_port", "left"))
                 line.setLine(a.x(), a.y(), b.x(), b.y())
                 label = self._graphics_edges.get(("label",) + key)
                 if label:
                     label.setPos((a.x() + b.x()) / 2, (a.y() + b.y()) / 2 - 20)
-
-    def handle_port_click(self, node_id, output):
-        if output:
-            self._connect_source = node_id
-            self.status.setText("Jetzt den Eingabekreis des Zielblocks anklicken.")
-            return
-        if self._connect_source is None:
-            self.status.setText("Zuerst den Ausgabekreis des Startblocks anklicken.")
-            return
-        source = self._connect_source
-        self._connect_source = None
-        if source == node_id:
-            self.status.setText("Ein Block kann nicht mit sich selbst verbunden werden.")
-            return
-        label = self.edge_label.currentText()
-        self.edges = [
-            e for e in self.edges
-            if not (e["from"] == source and e.get("label", "Normal") == label)
-        ]
-        self.edges.append({"from": source, "to": node_id, "label": label})
-        self.refresh()
-        self.status.setText("Verbindung erstellt.")
 
     def delete_selected(self):
         selected = next((n for n in self._graphics_nodes.values() if n.isSelected()), None)
@@ -285,21 +336,20 @@ class PapEditor(QWidget):
         node_id = selected.node_id
         self.nodes = [n for n in self.nodes if n["id"] != node_id]
         self.edges = [e for e in self.edges if e["from"] != node_id and e["to"] != node_id]
-        self._connect_source = None
+        self._connection_source = None
         self.refresh()
 
     def refresh(self):
         self.scene.clear()
         self._graphics_nodes.clear()
         self._graphics_edges.clear()
+        self._preview_line = None
         for node in self.nodes:
             item = FlowNode(self, node)
             self.scene.addItem(item)
             self._graphics_nodes[node["id"]] = item
         for edge in self.edges:
-            source = self._graphics_nodes.get(edge["from"])
-            target = self._graphics_nodes.get(edge["to"])
-            if not source or not target:
+            if edge["from"] not in self._graphics_nodes or edge["to"] not in self._graphics_nodes:
                 continue
             key = (edge["from"], edge["to"], edge.get("label", "Normal"))
             line = QGraphicsLineItem()
@@ -318,8 +368,7 @@ class PapEditor(QWidget):
         for node in self.nodes:
             item = self._graphics_nodes.get(node["id"])
             if item:
-                node["x"] = round(item.pos().x() / self.GRID) * self.GRID
-                node["y"] = round(item.pos().y() / self.GRID) * self.GRID
+                node["x"], node["y"] = item.pos().x(), item.pos().y()
                 node["text"] = item.label
         return json.dumps({"nodes": self.nodes, "edges": self.edges}, ensure_ascii=False)
 
@@ -341,8 +390,7 @@ class PapEditor(QWidget):
             }
             actual_edges = sorted(
                 (actual_ids[e["from"]], actual_ids[e["to"]], e.get("label", "Normal").casefold())
-                for e in actual["edges"]
-                if e["from"] in actual_ids and e["to"] in actual_ids
+                for e in actual["edges"] if e["from"] in actual_ids and e["to"] in actual_ids
             )
             expected_edges = sorted(
                 (expected_ids[e["from"]], expected_ids[e["to"]], e.get("label", "Normal").casefold())
