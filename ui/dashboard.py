@@ -4,7 +4,6 @@ from datetime import date, datetime
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -89,8 +88,9 @@ class Dashboard(QWidget):
         top.addWidget(previous)
         top.addWidget(next_button)
         activity_layout.addLayout(top)
-        activity_layout.addWidget(muted_label("Each square is one day. Brighter means more study."))
+        activity_layout.addWidget(muted_label("Each cell is one day. Brighter means more study."))
         self.heat_grid = QVBoxLayout()
+        self.heat_grid.setContentsMargins(0, 2, 0, 2)
         self.heat_grid.setSpacing(8)
         activity_layout.addLayout(self.heat_grid)
         self.legend = QHBoxLayout()
@@ -118,11 +118,11 @@ class Dashboard(QWidget):
             QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
         )
         self.exam_row = QHBoxLayout(self.exam_container)
-        self.exam_row.setContentsMargins(0, 0, 8, 12)
+        self.exam_row.setContentsMargins(0, 0, 8, 0)
         self.exam_row.setSpacing(10)
         self.exam_row.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
         self.exam_scroll.setWidget(self.exam_container)
-        self.exam_scroll.setFixedHeight(230)
+        self.exam_scroll.setFixedHeight(132)
         self.root.addWidget(self.exam_scroll)
 
     def _build_timetable(self):
@@ -385,7 +385,10 @@ class Dashboard(QWidget):
 
         weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
         for week in weeks:
-            week_layout = QHBoxLayout()
+            week_widget = QWidget()
+            week_widget.setFixedHeight(22)
+            week_layout = QHBoxLayout(week_widget)
+            week_layout.setContentsMargins(0, 0, 0, 0)
             week_layout.setSpacing(5)
             for day in week:
                 cell = QLabel()
@@ -414,4 +417,4 @@ class Dashboard(QWidget):
                 else:
                     cell.setStyleSheet("background: transparent; border: none;")
                 week_layout.addWidget(cell, 1)
-            self.heat_grid.addLayout(week_layout)
+            self.heat_grid.addWidget(week_widget)
