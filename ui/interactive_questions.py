@@ -110,6 +110,7 @@ class InteractiveQuestion(QWidget):
             self.layout.addWidget(QLabel("Drag the items into the correct order:"))
             self.order_list = QListWidget()
             self.order_list.setAlternatingRowColors(True)
+            values = list(self.data.get("items", []))
             item_count = len(values)
             self.order_list.setMinimumHeight(min(560, max(280, item_count * 58 + 20)))
             self.order_list.setMaximumHeight(560)
@@ -118,7 +119,6 @@ class InteractiveQuestion(QWidget):
             self.order_list.setDragEnabled(True)
             self.order_list.setAcceptDrops(True)
             self.order_list.setDropIndicatorShown(True)
-            values = list(self.data.get("items", []))
             random.shuffle(values)
             for value in values:
                 self.order_list.addItem(str(value))
