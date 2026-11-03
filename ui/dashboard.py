@@ -2,7 +2,7 @@ import calendar
 from datetime import date, datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from core.formatting import format_duration, format_percent
 from core.theme_manager import ThemeManager
@@ -99,7 +99,7 @@ class Dashboard(QWidget):
         self.exam_scroll.setWidgetResizable(True)
         self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.exam_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.exam_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.exam_container = QWidget()
         self.exam_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         self.exam_row = QHBoxLayout(self.exam_container)
@@ -132,9 +132,12 @@ class Dashboard(QWidget):
             days_left = (exam_day - today).days
             date_label = QLabel(start.strftime("%d.%m"))
             date_label.setStyleSheet("font-size: 22px; font-weight: 700;")
-            countdown = QLabel("Today" if days_left == 0 else
-                               f"In {days_left} days" if days_left > 0 else
-                               f"{abs(days_left)} days ago")
+            countdown_text = (
+                "Today" if days_left == 0
+                else f"In {days_left} days" if days_left > 0
+                else f"{abs(days_left)} days ago"
+            )
+            countdown = QLabel(countdown_text)
             subject = QLabel(exam["subject"])
             subject.setWordWrap(True)
             time_text = start.strftime("%H:%M")
