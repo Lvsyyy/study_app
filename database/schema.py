@@ -1,9 +1,23 @@
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    8: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Batch' FROM subjects WHERE name = 'BS';
+
+    UPDATE topics
+    SET subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+    WHERE name = 'Batch'
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'CS_P')
+      AND NOT EXISTS (
+          SELECT 1 FROM topics target
+          WHERE target.name = 'Batch'
+            AND target.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      );
+    """,
 
     7: """
     INSERT OR IGNORE INTO topics(subject_id, name)
