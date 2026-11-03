@@ -802,7 +802,7 @@ class QuestionPage(QWidget):
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
             self.interactive_question.set_answer_locked(True)
-            self.pap_editor.setEnabled(False)
+            self.pap_editor.set_editing_enabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -904,7 +904,7 @@ class QuestionPage(QWidget):
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
         self.interactive_question.set_answer_locked(True)
-        self.pap_editor.setEnabled(False)
+        self.pap_editor.set_editing_enabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
