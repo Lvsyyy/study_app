@@ -270,6 +270,7 @@ class MainWindow(QMainWindow):
             self.dashboard.apply_theme(self.settings.theme)
 
     def closeEvent(self, event):
+        self.webuntis.shutdown()
         self.session.stop()
         self.settings.set_window_geometry(self.saveGeometry())
         if self._owns_db:
