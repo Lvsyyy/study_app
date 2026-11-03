@@ -182,7 +182,7 @@ class QuestionRepository:
         return _decode_alternatives(question)
 
     def get_study_queue(self, subject_name):
-        """Question ids for a practice round: never-seen first, then weakest, then oldest."""
+        """Return question ids in a fresh random order for each practice round."""
         rows = self.db.fetch_all(
             """SELECT q.id
                FROM questions q
@@ -197,14 +197,7 @@ class QuestionRepository:
                    GROUP BY question_id
                ) a ON a.question_id = q.id
                WHERE s.name = ?
-               ORDER BY
-                   (a.n IS NOT NULL),
-                   CASE
-                       WHEN a.n IS NULL THEN 0
-                       ELSE 1.0 * a.c / a.n
-                   END ASC,
-                   a.last ASC,
-                   RANDOM()""",
+               ORDER BY RANDOM()""",
             (subject_name,),
         )
 
@@ -239,7 +232,7 @@ class QuestionRepository:
         return row["id"] if row else None
 
     def get_topic_study_queue(self, subject_name, topic_name):
-        """Question ids for one topic, ordered by weakest performance first."""
+        """Return one topic's question ids in a fresh random order."""
         rows = self.db.fetch_all(
             """SELECT q.id
                FROM questions q
@@ -254,20 +247,13 @@ class QuestionRepository:
                    GROUP BY question_id
                ) a ON a.question_id = q.id
                WHERE s.name = ? AND t.name = ?
-               ORDER BY
-                   (a.n IS NOT NULL),
-                   CASE
-                       WHEN a.n IS NULL THEN 0
-                       ELSE 1.0 * a.c / a.n
-                   END ASC,
-                   a.last ASC,
-                   RANDOM()""",
+               ORDER BY RANDOM()""",
             (subject_name, topic_name),
         )
         return [row["id"] for row in rows]
 
     def get_topics_study_queue(self, subject_name, topic_names):
-        """Question ids for a selected set of topics, ordered by weakest performance first."""
+        """Return selected topics' question ids in a fresh random order."""
         topic_names = tuple(topic_names)
         if not topic_names:
             return []
@@ -287,14 +273,7 @@ class QuestionRepository:
                     GROUP BY question_id
                 ) a ON a.question_id = q.id
                 WHERE s.name = ? AND t.name IN ({placeholders})
-                ORDER BY
-                    (a.n IS NOT NULL),
-                    CASE
-                        WHEN a.n IS NULL THEN 0
-                        ELSE 1.0 * a.c / a.n
-                    END ASC,
-                    a.last ASC,
-                    RANDOM()""",
+                ORDER BY RANDOM()""",
             (subject_name, *topic_names),
         )
         return [row["id"] for row in rows]
