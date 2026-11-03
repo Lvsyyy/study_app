@@ -32,9 +32,20 @@ class Dashboard(QWidget):
         self.exam_error = ""
         self.timetable = []
         self.timetable_error = ""
-        self.root = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        self.page_scroll = QScrollArea()
+        self.page_scroll.setWidgetResizable(True)
+        self.page_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.page_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.page_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.page_content = QWidget()
+        self.root = QVBoxLayout(self.page_content)
         self.root.setContentsMargins(30, 26, 30, 26)
         self.root.setSpacing(18)
+        self.root.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
+        self.page_scroll.setWidget(self.page_content)
+        outer_layout.addWidget(self.page_scroll)
         self._build()
         self.refresh()
 
