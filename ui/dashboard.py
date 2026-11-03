@@ -1,7 +1,7 @@
 import calendar
 from datetime import date, datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -98,8 +98,7 @@ class Dashboard(QWidget):
         row.addWidget(activity_frame, 1)
         self.root.addLayout(row)
         self._build_timetable()
-        self.root.addStretch()
-
+ 
     def _build_exams(self):
         heading = QHBoxLayout()
         heading.addWidget(section_title("Upcoming Exams"))
@@ -140,9 +139,11 @@ class Dashboard(QWidget):
         self.timetable_layout.setContentsMargins(0, 0, 8, 0)
         self.timetable_layout.setSpacing(8)
         self.timetable_scroll.setWidget(self.timetable_container)
-        self.timetable_scroll.setMinimumHeight(260)
-        self.timetable_scroll.setMaximumHeight(420)
-        self.root.addWidget(self.timetable_scroll)
+        self.timetable_scroll.setMinimumHeight(180)
+        self.timetable_scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.root.addWidget(self.timetable_scroll, 1)
 
     def set_timetable(self, entries, error=""):
         self.timetable = entries
@@ -191,9 +192,17 @@ class Dashboard(QWidget):
             )
             subject.setWordWrap(True)
             subject.setFixedWidth(190)
-            subject_height = subject.heightForWidth(subject.width())
-            if subject_height > 0:
-                subject.setMinimumHeight(subject_height)
+            subject.ensurePolished()
+            subject_height = subject.fontMetrics().boundingRect(
+                QRect(0, 0, subject.width(), 10000),
+                Qt.TextFlag.TextWordWrap,
+                subject.text(),
+            ).height()
+            subject.setMinimumHeight(subject_height)
+            subject.setMaximumHeight(subject_height)
+            subject.setSizePolicy(
+                QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+            )
             time_text = start.strftime("%H:%M")
             if exam.get("end"):
                 end = datetime.fromisoformat(exam["end"]).astimezone()
@@ -210,8 +219,9 @@ class Dashboard(QWidget):
                 f"QPushButton:hover {{ border: 1px solid {palette['accent']}; }}"
             )
             card_layout = QVBoxLayout(card_button)
-            card_layout.setContentsMargins(12, 7, 12, 7)
-            card_layout.setSpacing(2)
+            card_layout.setContentsMargins(12, 9, 12, 9)
+            card_layout.setSpacing(4)
+            card_layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
             top = QHBoxLayout()
             top.addWidget(date_label)
             top.addStretch()
@@ -237,13 +247,14 @@ class Dashboard(QWidget):
             exam_card.ensurePolished()
             exam_card.layout().activate()
         tallest_height = max(
-            exam_card.sizeHint().height() for exam_card in exam_cards
+            exam_card.layout().sizeHint().height() + 6
+            for exam_card in exam_cards
         )
         for exam_card in exam_cards:
             exam_card.setFixedHeight(tallest_height)
 
         scrollbar_height = self.exam_scroll.horizontalScrollBar().sizeHint().height()
-        self.exam_scroll.setFixedHeight(tallest_height + scrollbar_height + 4)
+        self.exam_scroll.setFixedHeight(tallest_height + scrollbar_height + 8)
 
 
     def _render_timetable(self):
