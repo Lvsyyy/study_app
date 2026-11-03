@@ -89,6 +89,7 @@ class QuestionPage(QWidget):
         self._round_correct = 0
         self._round_answered = 0
         self._code_mode = False
+        self._review_subject = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -241,6 +242,9 @@ class QuestionPage(QWidget):
         self.root.addStretch()
         self._show_empty("Choose a subject from the sidebar to start practising.")
 
+    def apply_theme(self, theme):
+        self.interactive_question.apply_theme(theme)
+
     def set_subject(self, subject):
         self.set_queue(
             subject,
@@ -261,6 +265,7 @@ class QuestionPage(QWidget):
 
     def set_queue(self, heading, ids, rebuild=None):
         self._generator = None
+        self._review_subject = heading.split(" · ", 1)[0] if " · " in heading else None
         self.heading = heading
         self._rebuild = rebuild
         self.subject_label.setText(heading)
@@ -317,6 +322,13 @@ class QuestionPage(QWidget):
     def _load_current(self):
         if self._generator is not None and self.index >= len(self.queue):
             self.queue.append(self._generator())
+        elif self._generator is None and self.index >= len(self.queue) and self._review_subject:
+            previous_id = self.current["id"] if self.current is not None else None
+            review_id = self.questions.get_review_question(self._review_subject, previous_id)
+            if review_id is None:
+                review_id = self.questions.get_review_question(self._review_subject)
+            if review_id is not None:
+                self.queue.append(review_id)
         question = None
         while self.index < len(self.queue) and question is None:
             question = self.questions.get_question(self.queue[self.index])
