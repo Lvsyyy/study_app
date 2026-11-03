@@ -866,7 +866,7 @@ class QuestionPage(QWidget):
             self.feedback.setText("Correct solution shown.")
         elif self._pap_mode:
             try:
-                self.pap_editor.load_config(json.loads(self.current["answer"]))
+                self.pap_editor.load_config(json.loads(self.current["answer"]), show_solution=True)
             except (json.JSONDecodeError, TypeError):
                 pass
             self.feedback.setText("Correct flowchart shown.")
