@@ -1,274 +1,898 @@
-SCHEMA_VERSION = 8
+import json
+import re
+import time
+from pathlib import Path
 
-DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
+from PySide6.QtCore import Qt, Signal, QRegularExpression
+from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QTextCursor
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget, QFrame)
+from ui.interactive_questions import InteractiveQuestion
 
-# Version 1 is the base schema. Migrations are applied in ascending order.
-MIGRATIONS = {
-    8: """
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'Batch' FROM subjects WHERE name = 'BS';
+from core.answer_checker import is_correct
+from core.formatting import format_duration
+from ui.widgets import action_button, card, muted_label, set_state, title_label
 
-    UPDATE questions
-    SET topic_id = (
-        SELECT target.id FROM topics target
-        WHERE target.name = 'Batch'
-          AND target.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
-    )
-    WHERE topic_id = (
-        SELECT source.id FROM topics source
-        WHERE source.name = 'Batch'
-          AND source.subject_id = (SELECT id FROM subjects WHERE name = 'CS_P')
-    );
 
-    DELETE FROM topics
-    WHERE name = 'Batch'
-      AND subject_id = (SELECT id FROM subjects WHERE name = 'CS_P');
-    """,
+class AutoIndentCodeEditor(QPlainTextEdit):
+    """Code editor that keeps method-body indentation consistent."""
 
-    7: """
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'Batch' FROM subjects WHERE name = 'CS_P';
+    def keyPressEvent(self, event):
+        if getattr(self, "auto_indent", True) and event.key() == Qt.Key.Key_Return and not event.modifiers() & (
+            Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
+        ):
+            line = self.textCursor().block().text()
+            indent = re.match(r"[ \t]*", line).group()
+            stripped = line.strip()
+            if stripped.endswith("{"):
+                indent += "    "
+            elif stripped.startswith("}") and len(indent) >= 4:
+                indent = indent[:-4]
+            super().keyPressEvent(event)
+            self.textCursor().insertText(indent)
+            return
+        super().keyPressEvent(event)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Gib die Ausgabe „Das ist eine Ausgabe“ aus.',
-           '{"expected_output":["Das ist eine Ausgabe"],"inputs":[],"solution":"echo Das ist eine Ausgabe"}',
-           'Verwende den Befehl echo.',
-           1, 'batch'
-    FROM topics t JOIN subjects s ON s.id=t.subject_id
-    WHERE s.name='CS_P' AND t.name='Batch'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Gib die Ausgabe „Das ist eine Ausgabe“ aus.');
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Gib „Das ist eine Ausgabe“ aus, ändere die Konsolenfarbe und halte das Fenster anschließend an.',
-           '{"expected_output":["Das ist eine Ausgabe","Drücken Sie eine beliebige Taste . . ."],"inputs":[],"solution":"@echo off\\ncolor 2F\\necho Das ist eine Ausgabe\\npause"}',
-           'Nutze echo, color und pause.',
-           2, 'batch'
-    FROM topics t JOIN subjects s ON s.id=t.subject_id
-    WHERE s.name='CS_P' AND t.name='Batch'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Gib „Das ist eine Ausgabe“ aus, ändere die Konsolenfarbe und halte das Fenster anschließend an.');
+class CSharpHighlighter(QSyntaxHighlighter):
+    """Small C# syntax highlighter for the embedded practice editor."""
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Frage den Benutzer nach seinem Namen und gib anschließend „Hallo [Name]“ aus.',
-           '{"expected_output":["Wie ist dein Name? Cooler Name","","Hallo Cooler Name","Drücken Sie eine beliebige Taste . . ."],"inputs":["Cooler Name"],"solution":"@echo off\\nset /p NAME=Wie ist dein Name? \\necho.\\necho Hallo %NAME%\\npause"}',
-           'Verwende set /p, eine Variable und echo.',
-           2, 'batch'
-    FROM topics t JOIN subjects s ON s.id=t.subject_id
-    WHERE s.name='CS_P' AND t.name='Batch'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Frage den Benutzer nach seinem Namen und gib anschließend „Hallo [Name]“ aus.');
+    def __init__(self, document):
+        super().__init__(document)
+        self.rules = []
+        for word in (
+            "using", "namespace", "class", "public", "private", "protected",
+            "static", "void", "int", "string", "bool", "var", "new", "return",
+            "if", "else", "for", "foreach", "while", "true", "false", "null",
+        ):
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor("#569CD6"))
+            fmt.setFontWeight(QFont.Weight.Bold)
+            self.rules.append((QRegularExpression(r"\b" + word + r"\b"), fmt))
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Lies eine Zahl ein und gib ihr Quadrat aus. Beispiel-Eingabe: 10.',
-           '{"expected_output":["Zahl eingeben: 10","Das Quadrat ist 100","Drücken Sie eine beliebige Taste . . ."],"inputs":["10"],"solution":"@echo off\\nset /p ZAHL=Zahl eingeben: \\nset /a Resultat=%ZAHL%*%ZAHL%\\necho Das Quadrat ist %Resultat%\\npause"}',
-           'Berechne das Quadrat mit set /a.',
-           3, 'batch'
-    FROM topics t JOIN subjects s ON s.id=t.subject_id
-    WHERE s.name='CS_P' AND t.name='Batch'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Lies eine Zahl ein und gib ihr Quadrat aus. Beispiel-Eingabe: 10.');
+        for pattern, color in (
+            (r'"[^"\\]*(?:\.[^"\\]*)*"', "#CE9178"),
+            (r"//[^\n]*", "#6A9955"),
+            (r"\b\d+\b", "#B5CEA8"),
+            (r"\bConsole\b", "#4EC9B0"),
+            (r"\b(WriteLine|ReadLine|Write)\b", "#DCDCAA"),
+        ):
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor(color))
+            self.rules.append((QRegularExpression(pattern), fmt))
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Frage nach OK. Bei der Eingabe „j“ soll „Alles ist richtig weiter so“ erscheinen.',
-           '{"expected_output":["j","Alles ist richtig weiter so","Drücken Sie eine beliebige Taste . . ."],"inputs":["j"],"solution":"@echo off\\nset /p OK=\\nIF /I \\"%OK%\\" == \\"j\\" (echo Alles ist richtig weiter so)\\npause"}',
-           'Verwende IF /I für einen Vergleich ohne Beachtung der Groß-/Kleinschreibung.',
-           3, 'batch'
-    FROM topics t JOIN subjects s ON s.id=t.subject_id
-    WHERE s.name='CS_P' AND t.name='Batch'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Frage nach OK. Bei der Eingabe „j“ soll „Alles ist richtig weiter so“ erscheinen.');
-    """,
-    2: """
-    ALTER TABLE questions ADD COLUMN alt_answers TEXT;
-    CREATE INDEX IF NOT EXISTS idx_attempts_created_q
-        ON attempts(question_id, created_at);
-    """,
-    3: """
-    ALTER TABLE questions ADD COLUMN answer_template TEXT;
-    """,
+    def highlightBlock(self, text):
+        for expression, fmt in self.rules:
+            matches = expression.globalMatch(text)
+            while matches.hasNext():
+                match = matches.next()
+                self.setFormat(match.capturedStart(), match.capturedLength(), fmt)
 
-    6: """
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'BIOS und UEFI' FROM subjects WHERE name = 'BS';
 
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'Bootvorgang und POST' FROM subjects WHERE name = 'BS';
+class QuestionPage(QWidget):
+    back_requested = Signal()
+    answered = Signal(bool)
 
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'Festplatten' FROM subjects WHERE name = 'BS';
+    def __init__(self, question_repository, attempt_repository):
+        super().__init__()
+        self.questions = question_repository
+        self.attempts = attempt_repository
+        self.heading = "Practice"
+        self.queue = []
+        self.index = 0
+        self.current = None
+        self._started = time.monotonic()
+        self._attempted = False
+        self._solved = False
+        self._finished = False
+        self._rebuild = None
+        self._generator = None
+        self._round_correct = 0
+        self._round_answered = 0
+        self._code_mode = False
+        self._review_subject = None
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Ordne die Schritte eines BIOS-Updates in die richtige Reihenfolge.',
-           '{"items":["Mainboard und BIOS/UEFI-Version identifizieren","Update-Dateien finden und herunterladen","Backup wichtiger Dateien erstellen","Update-Methode auswählen: Windows, BIOS-Flash-Menü oder DOS","BIOS vorbereiten: Schreibschutz prüfen und Einstellungen speichern","BIOS-Update durchführen","BIOS aufräumen: CMOS löschen und Stromversorgung trennen","Bei Problemen das alte BIOS wiederherstellen"]}',
-           'Beginne mit der Identifikation des Mainboards.',
-           3, 'ordering'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'BIOS und UEFI'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Ordne die Schritte eines BIOS-Updates in die richtige Reihenfolge.');
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        content = QWidget()
+        self.root = QVBoxLayout(content)
+        self.root.setContentsMargins(34, 30, 34, 30)
+        self.root.setSpacing(18)
+        self.scroll_area.setWidget(content)
+        outer.addWidget(self.scroll_area)
+        self._build()
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Welche Möglichkeiten gibt es, die installierte BIOS-Version zu ermitteln? Wähle alle passenden Antworten.',
-           '{"options":["Systeminformation / MsInfo32","Aufkleber am Gerät oder Mainboard","Hersteller-Webseite","Handbuch","Hersteller-Tools","Nur über den Geräte-Manager","Nur durch Öffnen des Netzteils"],"correct":[0,1,2,3,4]}',
-           'Es gibt mehrere Informationsquellen: Windows, Gerät und Hersteller.',
-           2, 'multi_select'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'BIOS und UEFI'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Möglichkeiten gibt es, die installierte BIOS-Version zu ermitteln? Wähle alle passenden Antworten.');
+    def _build(self):
+        header = QHBoxLayout()
+        back = action_button("←  Back")
+        back.clicked.connect(self.back_requested)
+        header.addWidget(back)
+        header.addStretch()
+        self.subject_label = muted_label("")
+        header.addWidget(self.subject_label)
+        self.root.addLayout(header)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Welche drei Methoden können für ein BIOS-Update verwendet werden? Wähle alle drei.',
-           '{"options":["Update unter Windows","Update über das BIOS-/UEFI-Flash-Menü","Update über DOS","Update über den Geräte-Manager","Update über den Task-Manager"],"correct":[0,1,2]}',
-           'Eine Methode läuft direkt in Windows, eine im Firmware-Menü und eine in DOS.',
-           2, 'multi_select'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'BIOS und UEFI'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche drei Methoden können für ein BIOS-Update verwendet werden? Wähle alle drei.');
+        self.title = title_label("Practice")
+        self.root.addWidget(self.title)
+        self.topic = muted_label("")
+        self.root.addWidget(self.topic)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Ordne die Schritte des POST-Selbsttests in die angegebene Reihenfolge.',
-           '{"items":["Funktionsfähigkeit der CPU prüfen","CPU-nahe Bausteine prüfen","CMOS-RAM prüfen","CPU-nahen Cache-Speicher prüfen","Erste 64 Kilobyte des Arbeitsspeichers prüfen","Grafikspeicher und Grafikausgabe prüfen"]}',
-           'Der Test beginnt mit der CPU und arbeitet sich zu Speicher und Grafik vor.',
-           3, 'ordering'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'Bootvorgang und POST'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Ordne die Schritte des POST-Selbsttests in die angegebene Reihenfolge.');
+        frame, box = card(padding=24)
+        self.question_text = QLabel()
+        self.question_text.setProperty("role", "question")
+        self.question_text.setWordWrap(True)
+        box.addWidget(self.question_text)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Wie kann das BIOS/UEFI Fehler während des POST melden? Wähle alle passenden Antworten.',
-           '{"options":["Auf dem Bildschirm","Akustische Signale (Beep-Codes)","Visuelle Signale / Statusanzeigen","Per E-Mail","Über Lautsprecher mit gesprochenem Text"],"correct":[0,1,2]}',
-           'Fehler werden visuell oder akustisch am Gerät signalisiert.',
-           2, 'multi_select'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'Bootvorgang und POST'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Wie kann das BIOS/UEFI Fehler während des POST melden? Wähle alle passenden Antworten.');
+        self.code_editor_container = QWidget()
+        self.code_editor_container.setObjectName("CodeEditorFrame")
+        code_layout = QVBoxLayout(self.code_editor_container)
+        code_layout.setContentsMargins(0, 0, 0, 0)
+        code_layout.setSpacing(0)
+        self.code_editor_header = QLabel("  C#   |   Program.cs")
+        self.code_editor_header.setObjectName("CodeEditorHeader")
+        self.code_editor_header.setFixedHeight(34)
+        code_layout.addWidget(self.code_editor_header)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Welche Aufgaben übernimmt das BIOS/UEFI während des Bootvorgangs? Wähle alle passenden Antworten.',
-           '{"options":["POST / Selbsttest durchführen","Hardware initialisieren","Systemkonfiguration auslesen","Bootloader bzw. Betriebssystemstart einleiten","Benutzerprogramme starten","Dateien des Benutzers sortieren"],"correct":[0,1,2,3]}',
-           'Es prüft und initialisiert die Hardware und leitet den Start des Betriebssystems ein.',
-           3, 'multi_select'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'Bootvorgang und POST'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Aufgaben übernimmt das BIOS/UEFI während des Bootvorgangs? Wähle alle passenden Antworten.');
+        code_font = QFont("Cascadia Code")
+        code_font.setStyleHint(QFont.StyleHint.Monospace)
+        code_font.setPointSize(11)
+        self.code_prefix = QLabel()
+        self.code_prefix.setTextFormat(Qt.TextFormat.PlainText)
+        self.code_prefix.setFont(code_font)
+        self.code_prefix.setStyleSheet("color: #d4d4d4; padding: 10px 12px 0 12px;")
+        code_layout.addWidget(self.code_prefix)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Welche Vorteile bietet UEFI gegenüber klassischem BIOS? Wähle alle passenden Antworten.',
-           '{"options":["Secure Boot","Verbesserte Sicherheitsfunktionen","Schnellere Bootzeiten","Unterstützung moderner Hardware und größerer Datenträger","Kompatibilität mit modernen Systemen","Garantiert doppelte CPU-Leistung"],"correct":[0,1,2,3,4]}',
-           'UEFI erweitert Firmware-Funktionen und unterstützt moderne Sicherheits- und Hardwarestandards.',
-           3, 'multi_select'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'Bootvorgang und POST'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Welche Vorteile bietet UEFI gegenüber klassischem BIOS? Wähle alle passenden Antworten.');
+        self.code_editor = AutoIndentCodeEditor()
+        self.code_editor.auto_indent = True
+        self.code_editor.setObjectName("CodeEditor")
+        self.code_editor.setPlaceholderText("// Write your code here")
+        self.code_editor.setMinimumHeight(210)
+        self.code_editor.setMaximumHeight(340)
+        self.code_editor.setFont(code_font)
+        self.code_editor.setTabStopDistance(
+            self.code_editor.fontMetrics().horizontalAdvance(" ") * 4
+        )
+        self.code_editor.setStyleSheet(
+            "QPlainTextEdit#CodeEditor { background: #1e1e1e; color: #d4d4d4; "
+            "border: none; border-radius: 0; padding: 12px; selection-background-color: #264f78; }"
+        )
+        self.code_highlighter = CSharpHighlighter(self.code_editor.document())
+        code_layout.addWidget(self.code_editor)
 
-    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT t.id,
-           'Ordne jedem Begriff die passende Beschreibung zu.',
-           '{"pairs":[{"left":"Sektoren","right":"Abschnitte einer Spur; kleinste adressierbare Einheiten bzw. Blöcke"},{"left":"Spuren","right":"Ringförmige Bereiche auf einer Plattenoberfläche"},{"left":"Zylinder","right":"Spuren mit gleicher Nummer auf allen Plattenoberflächen"},{"left":"Cluster","right":"Zusammenfassung mehrerer Sektoren; kleinste vom Dateisystem verwaltete Speichereinheit"}]}',
-           'Unterscheide die physische Einteilung der Platte von der Verwaltung durch das Dateisystem.',
-           3, 'matching'
-    FROM topics t JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'BS' AND t.name = 'Festplatten'
-      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Ordne jedem Begriff die passende Beschreibung zu.');
-    """,
-    5: """
-    UPDATE questions
-    SET answer = 'Console.WriteLine("Hallo Welt");'
-    WHERE topic_id IN (
-        SELECT t.id
-        FROM topics t
-        JOIN subjects s ON s.id = t.subject_id
-        WHERE s.name = 'AE' AND t.name = 'Ausgabe'
-    )
-      AND question_text LIKE 'Gebe "Hallo Welt" aus%';
-    """,
-    4: """
-    INSERT OR IGNORE INTO topics(subject_id, name)
-    SELECT id, 'Ausgabe' FROM subjects WHERE name = 'AE';
+        self.code_suffix = QLabel()
+        self.code_suffix.setTextFormat(Qt.TextFormat.PlainText)
+        self.code_suffix.setFont(code_font)
+        self.code_suffix.setStyleSheet("color: #d4d4d4; padding: 0 12px 10px 12px;")
+        code_layout.addWidget(self.code_suffix)
 
-    INSERT INTO questions
-        (topic_id, question_text, answer, hint, difficulty, question_type)
-    SELECT
-        t.id,
-        'Gebe "Hallo Welt" aus' || char(10) ||
-        '    static void Main(string[] args)' || char(10) ||
-        '    {' || char(10) ||
-        '        ' || char(10) ||
-        '    }',
-        'Console.WriteLine("Hallo Welt")',
-        'Console. benutzen',
-        1,
-        'code'
-    FROM topics t
-    JOIN subjects s ON s.id = t.subject_id
-    WHERE s.name = 'AE'
-      AND t.name = 'Ausgabe'
-      AND NOT EXISTS (
-          SELECT 1 FROM questions q
-          WHERE q.topic_id = t.id
-            AND q.question_text LIKE 'Gebe "Hallo Welt" aus%'
-      );
-    """,
-}
+        self.code_editor_container.setStyleSheet(
+            "QWidget#CodeEditorFrame { background: #1e1e1e; "
+            "border: 1px solid #3c3c3c; border-radius: 7px; } "
+            "QLabel#CodeEditorHeader { background: #252526; color: #cccccc; "
+            "border: none; border-bottom: 1px solid #3c3c3c; "
+            "font-size: 11px; font-weight: 600; }"
+        )
+        self.code_editor_container.hide()
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS subjects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    icon TEXT
-);
+        self.batch_workspace = QWidget()
+        batch_layout = QHBoxLayout(self.batch_workspace)
+        batch_layout.setContentsMargins(0, 0, 0, 0)
+        batch_layout.setSpacing(12)
+        batch_layout.addWidget(self.code_editor_container, 1)
 
-CREATE TABLE IF NOT EXISTS topics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    UNIQUE(subject_id, name)
-);
+        self.batch_console_container = QWidget()
+        self.batch_console_container.setObjectName("BatchConsoleFrame")
+        console_layout = QVBoxLayout(self.batch_console_container)
+        console_layout.setContentsMargins(0, 0, 0, 0)
+        console_layout.setSpacing(0)
+        console_header = QHBoxLayout()
+        console_title = QLabel("  CMD   |   Vorgegebene Ausgabe")
+        console_title.setObjectName("BatchConsoleHeader")
+        console_title.setFixedHeight(34)
+        console_header.addWidget(console_title, 1)
+        self.batch_run_button = action_button("Run")
+        self.batch_run_button.clicked.connect(self.run_batch)
+        console_header.addWidget(self.batch_run_button)
+        console_layout.addLayout(console_header)
+        self.batch_output = QPlainTextEdit()
+        self.batch_output.setReadOnly(True)
+        self.batch_output.setMinimumHeight(210)
+        self.batch_output.setMaximumHeight(340)
+        self.batch_output.setFont(code_font)
+        self.batch_output.setStyleSheet(
+            "QPlainTextEdit { background: #101010; color: #d4d4d4; "
+            "border: none; border-radius: 0; padding: 12px; }"
+        )
+        console_layout.addWidget(self.batch_output)
+        self.batch_console_container.setStyleSheet(
+            "QWidget#BatchConsoleFrame { background: #101010; "
+            "border: 1px solid #3c3c3c; border-radius: 7px; } "
+            "QLabel#BatchConsoleHeader { background: #252526; color: #cccccc; "
+            "border: none; border-bottom: 1px solid #3c3c3c; "
+            "font-size: 11px; font-weight: 600; }"
+        )
+        batch_layout.addWidget(self.batch_console_container, 1)
+        self.batch_workspace.hide()
+        box.addWidget(self.batch_workspace)
 
-CREATE TABLE IF NOT EXISTS questions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-    question_text TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    hint TEXT,
-    question_image TEXT,
-    difficulty INTEGER NOT NULL DEFAULT 1 CHECK(difficulty BETWEEN 1 AND 5),
-    question_type TEXT NOT NULL DEFAULT 'text',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setMaximumHeight(300)
+        box.addWidget(self.image_label)
+        self.hint_text = muted_label("")
+        self.hint_text.setWordWrap(True)
+        box.addWidget(self.hint_text)
+        self.feedback = QLabel()
+        self.feedback.setWordWrap(True)
+        box.addWidget(self.feedback)
+        self.root.addWidget(frame)
 
-CREATE TABLE IF NOT EXISTS attempts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-    user_answer TEXT NOT NULL,
-    is_correct INTEGER NOT NULL CHECK(is_correct IN (0, 1)),
-    time_taken REAL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+        self.answer = QLineEdit()
+        self.answer.setPlaceholderText("Type your answer…")
+        self.answer.returnPressed.connect(self._primary_action)
+        self.root.addWidget(self.answer)
 
-CREATE TABLE IF NOT EXISTS study_sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at TEXT NOT NULL,
-    ended_at TEXT,
-    duration INTEGER NOT NULL DEFAULT 0,
-    questions_completed INTEGER NOT NULL DEFAULT 0
-);
+        self.calculation_answer = QPlainTextEdit()
+        self.calculation_answer.setPlaceholderText("Complete the calculation…")
+        self.calculation_answer.setMinimumHeight(150)
+        self.calculation_answer.setMaximumHeight(230)
+        self.calculation_answer.hide()
+        self.root.addWidget(self.calculation_answer)
 
-CREATE TABLE IF NOT EXISTS saved_questions (
-    question_id INTEGER PRIMARY KEY REFERENCES questions(id) ON DELETE CASCADE,
-    saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+        self.calculation_table_container = QWidget()
+        self.calculation_tables_layout = QVBoxLayout(self.calculation_table_container)
+        self.calculation_tables_layout.setContentsMargins(0, 0, 0, 0)
+        self.calculation_tables_layout.setSpacing(14)
+        self.calculation_tables = []
+        self.calculation_table_titles = []
+        self.calculation_table = None
+        self.calculation_table_container.hide()
+        self.root.addWidget(self.calculation_table_container)
 
-CREATE INDEX IF NOT EXISTS idx_topics_subject ON topics(subject_id);
-CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic_id);
-CREATE INDEX IF NOT EXISTS idx_attempts_question ON attempts(question_id);
-CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(created_at);
-CREATE INDEX IF NOT EXISTS idx_sessions_started ON study_sessions(started_at);
-"""
+        self.interactive_question = InteractiveQuestion()
+        self.interactive_question.hide()
+        self.root.addWidget(self.interactive_question)
+
+        meta = QHBoxLayout()
+        self.number_label = muted_label("")
+        meta.addWidget(self.number_label)
+        meta.addStretch()
+        self.accuracy_label = muted_label("")
+        meta.addWidget(self.accuracy_label)
+        self.root.addLayout(meta)
+
+        buttons = QHBoxLayout()
+        self.skip_button = action_button("Skip")
+        self.hint_button = action_button("Hint")
+        self.reveal_button = action_button("Show answer")
+        self.save_button = action_button("☆  Save")
+        self.primary_button = action_button("Check answer", primary=True)
+        self.skip_button.clicked.connect(self.next_question)
+        self.hint_button.clicked.connect(self.show_hint)
+        self.reveal_button.clicked.connect(self.reveal_answer)
+        self.save_button.clicked.connect(self.toggle_saved)
+        self.primary_button.clicked.connect(self._primary_action)
+        for button in (self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+            buttons.addWidget(button)
+        buttons.addStretch()
+        buttons.addWidget(self.primary_button)
+        self.root.addLayout(buttons)
+        self.root.addStretch()
+        self._show_empty("Choose a subject from the sidebar to start practising.")
+
+    def apply_theme(self, theme):
+        self.interactive_question.apply_theme(theme)
+
+    def set_subject(self, subject):
+        self.set_queue(
+            subject,
+            self.questions.get_study_queue(subject),
+            rebuild=lambda: self.questions.get_study_queue(subject),
+        )
+
+    def set_generator(self, heading, generator):
+        self.heading = heading
+        self._rebuild = None
+        self._generator = generator
+        self.subject_label.setText(heading)
+        self.queue = []
+        self.index = 0
+        self._round_correct = 0
+        self._round_answered = 0
+        self._load_current()
+
+    def set_queue(self, heading, ids, rebuild=None):
+        self._generator = None
+        self._review_subject = heading.split(" · ", 1)[0] if " · " in heading else None
+        self.heading = heading
+        self._rebuild = rebuild
+        self.subject_label.setText(heading)
+        self.queue = list(ids)
+        self.index = 0
+        self._round_correct = 0
+        self._round_answered = 0
+        if self.queue:
+            self._load_current()
+        else:
+            self._show_empty(f"No questions for {heading} yet.")
+
+    def _controls_enabled(self, enabled):
+        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.batch_run_button, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+            widget.setEnabled(enabled)
+
+    def _show_empty(self, message):
+        self.current = None
+        self._finished = False
+        self.topic.setText("")
+        self.question_text.setText(message)
+        self.image_label.clear()
+        self.image_label.hide()
+        self.hint_text.clear()
+        self.feedback.clear()
+        self.number_label.clear()
+        self.accuracy_label.clear()
+        self.answer.clear()
+        self.code_editor.clear()
+        self.code_editor_container.hide()
+        self.batch_workspace.hide()
+        self.batch_output.clear()
+        self._code_mode = False
+        self.question_text.show()
+        self.calculation_answer.clear()
+        self.calculation_answer.hide()
+        self._clear_calculation_tables()
+        self.calculation_table_container.hide()
+        self.interactive_question.hide()
+        self.answer.show()
+        self._controls_enabled(False)
+        self.primary_button.setEnabled(False)
+        self.primary_button.setText("Check answer")
+
+    def _show_finished(self):
+        self._show_empty("Round complete")
+        self.topic.setText(self.heading)
+        self.feedback.setText(
+            f"You answered {self._round_answered} question(s): {self._round_correct} correct."
+        )
+        set_state(self.feedback, None)
+        self.primary_button.setEnabled(True)
+        self.primary_button.setText("Practice again")
+        self._finished = True
+
+    def _load_current(self):
+        if self._generator is not None and self.index >= len(self.queue):
+            self.queue.append(self._generator())
+        elif self._generator is None and self.index >= len(self.queue) and self._review_subject:
+            previous_id = self.current["id"] if self.current is not None else None
+            review_id = self.questions.get_review_question(self._review_subject, previous_id)
+            if review_id is None:
+                review_id = self.questions.get_review_question(self._review_subject)
+            if review_id is not None:
+                self.queue.append(review_id)
+        question = None
+        while self.index < len(self.queue) and question is None:
+            question = self.questions.get_question(self.queue[self.index])
+            if question is None:
+                self.index += 1
+        if question is None:
+            self._show_finished()
+            return
+
+        self.current = question
+        self._finished = False
+        self._attempted = False
+        self._solved = False
+        self._started = time.monotonic()
+        self._controls_enabled(True)
+        self.primary_button.setEnabled(True)
+        self.primary_button.setText("Check answer")
+        self.hint_text.clear()
+        self.feedback.clear()
+        set_state(self.feedback, None)
+        template = question["answer_template"] if "answer_template" in question.keys() else None
+        self.calculation_table_container.hide()
+        self.interactive_question.hide()
+        self.interactive_question.set_answer_locked(False)
+        self.calculation_answer.hide()
+        self.code_editor_container.hide()
+        question_text = question["question_text"]
+        question_type = question["question_type"] if "question_type" in question.keys() else "text"
+        self._batch_mode = question_type == "batch"
+        self._batch_result = None
+        self.batch_output.clear()
+        self.batch_run_button.setEnabled(True)
+        if self._batch_mode:
+            try:
+                batch_config = json.loads(question["answer"])
+                self.batch_output.setPlainText("\n".join(batch_config.get("expected_output", [])))
+            except (json.JSONDecodeError, TypeError):
+                self.batch_output.setPlainText("Keine Zielausgabe hinterlegt.")
+        self._code_mode = question_type in ("code", "batch") or (
+            question["subject_name"] == "AE"
+            and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
+        )
+        if self._code_mode:
+            if self._batch_mode:
+                prompt = question_text
+                code_prefix = r"C:\Users\Supercoolerbenutzer>"
+                editable_body = ""
+                code_suffix = ""
+                self.code_editor_header.setText("  Batch   |   Eingabeaufforderung")
+                self.code_editor.auto_indent = False
+            else:
+                prompt, code_prefix, editable_body, code_suffix = self._split_code_question(question_text)
+                self.code_editor_header.setText("  C#   |   Program.cs")
+                self.code_editor.auto_indent = True
+            self.question_text.setText(prompt)
+            self.question_text.setVisible(bool(prompt))
+            self.answer.hide()
+            self.calculation_answer.hide()
+            self.code_prefix.setText(code_prefix)
+            self.code_suffix.setText(code_suffix)
+            self.code_editor.setPlainText(editable_body)
+            cursor = self.code_editor.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            self.code_editor.setTextCursor(cursor)
+            if self._batch_mode:
+                self.code_editor_container.show()
+                self.batch_workspace.show()
+            else:
+                self.code_editor_container.show()
+            self.code_editor.setEnabled(True)
+            self.code_editor.setFocus()
+        elif question_type in ("multi_select", "ordering", "matching"):
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            self.answer.hide()
+            self.calculation_answer.hide()
+            self.interactive_question.load(question_type, question["answer"])
+            self.interactive_question.show()
+            self.interactive_question.setEnabled(True)
+        elif template:
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            try:
+                table = json.loads(template)
+                if isinstance(table, dict) and (
+                    ("headers" in table and "rows" in table)
+                    or isinstance(table.get("tables"), list)
+                ):
+                    self._show_calculation_table(table)
+                    self.answer.hide()
+                    self.calculation_answer.hide()
+                    self.calculation_table_container.show()
+                    self.calculation_tables[0].setFocus()
+                else:
+                    self.answer.hide()
+                    self.calculation_answer.show()
+                    self.calculation_answer.setPlainText(template)
+                    self.calculation_answer.setFocus()
+            except (json.JSONDecodeError, TypeError):
+                self.answer.hide()
+                self.calculation_answer.show()
+                self.calculation_answer.setPlainText(template)
+                self.calculation_answer.setFocus()
+        else:
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            self.code_editor_container.hide()
+            self.answer.show()
+            self.answer.clear()
+            self.answer.setFocus()
+        self.hint_button.setEnabled(bool(question["hint"]))
+        difficulty = question["difficulty"]
+        self.topic.setText(
+            f"{question['subject_name']} / {question['topic_name']} · "
+            f"difficulty {'●' * difficulty}{'○' * (5 - difficulty)}"
+        )
+        self.number_label.setText(
+            f"Question {self.index + 1}" if self._generator is not None
+            else f"Question {self.index + 1} of {len(self.queue)}"
+        )
+        self._set_saved_button(self.questions.is_saved(question["id"]))
+        stats = self.attempts.topic_accuracy(question["topic_id"])
+        self.accuracy_label.setText(
+            f"Topic accuracy: {stats['accuracy']}% over {stats['attempts']} attempts"
+            if stats else "No attempts in this topic yet"
+        )
+        self._load_image(question["question_image"])
+
+    @staticmethod
+    def _split_code_question(question_text):
+        """Separate the fixed Main method shell from its editable body."""
+        lines = question_text.splitlines()
+        main_index = next(
+            (
+                index for index, line in enumerate(lines)
+                if re.search(r"\bstatic\s+void\s+Main\s*\(", line)
+            ),
+            None,
+        )
+        if main_index is None:
+            return question_text.strip(), "", "", ""
+
+        prompt = "\n".join(lines[:main_index]).strip()
+        signature = lines[main_index].strip()
+        opening_index = next(
+            (index for index in range(main_index + 1, len(lines)) if "{" in lines[index]),
+            None,
+        )
+        if opening_index is None:
+            return prompt, signature, "", ""
+
+        prefix = signature + "\n" + lines[opening_index].strip()
+        depth = lines[opening_index].count("{") - lines[opening_index].count("}")
+        closing_index = None
+        for index in range(opening_index + 1, len(lines)):
+            depth += lines[index].count("{") - lines[index].count("}")
+            if depth <= 0:
+                closing_index = index
+                break
+
+        if closing_index is None:
+            body_lines = lines[opening_index + 1:]
+            suffix = ""
+        else:
+            body_lines = lines[opening_index + 1:closing_index]
+            suffix = lines[closing_index].strip()
+
+        body = "\n".join(body_lines).strip("\n")
+        return prompt, prefix, body, suffix
+
+    @staticmethod
+    def _format_code_body(code):
+        """Indent a solution as a body inside the fixed Main method."""
+        import textwrap
+
+        body = textwrap.dedent((code or "").strip("\n"))
+        if not body:
+            return ""
+        return "\n".join(
+            ("        " + line if line.strip() else "")
+            for line in body.splitlines()
+        )
+
+    @staticmethod
+    def _code_answer_matches(entered, expected, alternatives=()):
+        """Compare code while ignoring indentation differences."""
+        import textwrap
+
+        submitted = textwrap.dedent(
+            (entered or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+        ).rstrip()
+        if not submitted:
+            return False
+
+        for candidate in (expected, *alternatives):
+            target = textwrap.dedent(
+                QuestionPage._format_code_body(candidate)
+            ).rstrip()
+            if target and submitted == target:
+                return True
+        return False
+
+    def _load_image(self, path):
+        self.image_label.clear()
+        if path and Path(path).is_file():
+            pixmap = QPixmap(path)
+            if not pixmap.isNull():
+                self.image_label.setPixmap(
+                    pixmap.scaled(
+                        640, 280, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+                self.image_label.show()
+                return
+        if path:
+            self.feedback.setText("The question image could not be loaded.")
+        self.image_label.hide()
+
+    def _clear_calculation_tables(self):
+        while self.calculation_tables_layout.count():
+            item = self.calculation_tables_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.calculation_tables = []
+        self.calculation_table_titles = []
+        self.calculation_table = None
+
+    def _populate_calculation_table(self, table, data, show_answer=False):
+        headers, rows = data["headers"], data["rows"]
+        binary_layout = bool(headers and headers[0] == "__binary_layout__")
+        table.setProperty("binary_layout", binary_layout)
+        if binary_layout:
+            headers = headers[1:]
+            table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            for column in range(1, len(headers)):
+                table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
+        else:
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        if not show_answer and headers == ["Rechnung", "R", "GQ"]:
+            rows = [["", "", ""] for _ in rows]
+
+        table.clear()
+        table.setColumnCount(len(headers))
+        table.setRowCount(len(rows))
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setVisible(not binary_layout)
+        table.verticalHeader().setVisible(False)
+        table.setAlternatingRowColors(True)
+        table.setShowGrid(True)
+        table.setStyleSheet(
+            "QLineEdit { background: transparent; border: none; "
+            "border-radius: 0; padding: 0; margin: 0; }"
+        )
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        for row_index, row in enumerate(rows):
+            separator = binary_layout and row and row[0] == "__SEPARATOR__"
+            if separator:
+                for column_index in range(len(headers)):
+                    item = QTableWidgetItem("")
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    if column_index == 0:
+                        item.setData(Qt.ItemDataRole.UserRole, "__SEPARATOR__")
+                    table.setItem(row_index, column_index, item)
+
+                    divider = QFrame()
+                    divider.setFrameShape(QFrame.Shape.HLine)
+                    divider.setFrameShadow(QFrame.Shadow.Plain)
+                    divider.setLineWidth(2)
+                    divider.setMidLineWidth(0)
+                    table.setCellWidget(row_index, column_index, divider)
+                continue
+            for column_index, value in enumerate(row):
+                item = QTableWidgetItem(str(value or ""))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if value not in (None, "") and "____" not in str(value):
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                table.setItem(row_index, column_index, item)
+        table.resizeRowsToContents()
+        table_height = (
+            table.horizontalHeader().height()
+            + sum(table.rowHeight(row) for row in range(table.rowCount()))
+            + table.frameWidth() * 2
+            + 4
+        )
+        table.setFixedHeight(max(170, table_height))
+
+    def _show_calculation_table(self, data, show_answer=False):
+        self._clear_calculation_tables()
+        tables = data.get("tables") if isinstance(data, dict) else None
+        multi_table = isinstance(tables, list)
+        entries = tables if multi_table else [data]
+        for entry in entries:
+            self.calculation_table_titles.append(entry.get("title", ""))
+            if entry.get("title"):
+                heading = QLabel(entry["title"])
+                heading.setWordWrap(True)
+                heading.setProperty("role", "question")
+                self.calculation_tables_layout.addWidget(heading)
+            table = QTableWidget()
+            self._populate_calculation_table(table, entry, show_answer)
+            self.calculation_tables.append(table)
+            self.calculation_tables_layout.addWidget(table)
+        if self.calculation_tables:
+            self.calculation_table = self.calculation_tables[0]
+
+    def _table_input_data(self, table):
+        headers = [
+            table.horizontalHeaderItem(i).text()
+            for i in range(table.columnCount())
+        ]
+        binary_layout = bool(table.property("binary_layout"))
+        if binary_layout:
+            headers.insert(0, "__binary_layout__")
+        rows = []
+        for row in range(table.rowCount()):
+            first = table.item(row, 0)
+            if (
+                binary_layout
+                and first
+                and first.data(Qt.ItemDataRole.UserRole) == "__SEPARATOR__"
+            ):
+                rows.append(["__SEPARATOR__", *[""] * (table.columnCount() - 1)])
+                continue
+            rows.append([
+                table.item(row, column).text() if table.item(row, column) else ""
+                for column in range(table.columnCount())
+            ])
+        return {"headers": headers, "rows": rows}
+
+    def _input_text(self):
+        if self._code_mode:
+            return self.code_editor.toPlainText()
+        if not self.interactive_question.isHidden():
+            return self.interactive_question.get_answer()
+        if not self.calculation_table_container.isHidden():
+            tables = [self._table_input_data(table) for table in self.calculation_tables]
+            if len(tables) > 1:
+                titles = self.calculation_table_titles
+                return json.dumps({
+                    "tables": [
+                        {"title": title, **table}
+                        for title, table in zip(titles, tables)
+                    ]
+                }, ensure_ascii=False)
+            return json.dumps(tables[0], ensure_ascii=False)
+        if not self.calculation_answer.isHidden():
+            return self.calculation_answer.toPlainText()
+        return self.answer.text()
+
+    def _primary_action(self):
+        if self.current is None:
+            if self._finished:
+                if self._generator is not None:
+                    self.queue = []
+                    self.index = 0
+                    self._round_correct = 0
+                    self._round_answered = 0
+                    self._load_current()
+                else:
+                    ids = self._rebuild() if self._rebuild else self.queue
+                    self.set_queue(self.heading, ids, self._rebuild)
+            return
+        if self._solved:
+            self.next_question()
+        else:
+            self.check_answer()
+
+    def _record_first_attempt(self, text, correct):
+        if self._attempted:
+            return None
+        self._attempted = True
+        elapsed = time.monotonic() - self._started
+        self.attempts.record(self.current["id"], text, correct, elapsed)
+        self._round_answered += 1
+        self._round_correct += int(correct)
+        self.answered.emit(bool(correct))
+        return elapsed
+
+    def check_answer(self):
+        if self.current is None or self._solved:
+            return
+        entered = self._input_text().strip()
+        if not entered:
+            self.feedback.setText("Enter an answer first.")
+            set_state(self.feedback, None)
+            return
+        alternatives = self.questions.alternatives(self.current)
+        correct = (
+            self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
+            self._batch_answer_matches() if self._batch_mode else
+            self._code_answer_matches(entered, self.current["answer"], alternatives)
+            if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
+        )
+        first = not self._attempted
+        elapsed = self._record_first_attempt(entered, correct)
+        if correct:
+            self._solved = True
+            took = f" · {format_duration(round(elapsed))}" if first and elapsed is not None else ""
+            self.feedback.setText(f"Correct ✓{took}" if first else "Correct ✓ (first try counted)")
+            set_state(self.feedback, "good")
+            self.answer.setEnabled(False)
+            self.code_editor.setEnabled(False)
+            self.batch_run_button.setEnabled(False)
+            self.calculation_answer.setEnabled(False)
+            self.calculation_table_container.setEnabled(False)
+            self.interactive_question.set_answer_locked(True)
+            self.primary_button.setText("Next  →")
+        else:
+            note = "Only your first attempt counts. " if first else ""
+            self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
+            set_state(self.feedback, "bad")
+            if self._code_mode:
+                self.code_editor.selectAll()
+            elif not self.calculation_answer.isHidden():
+                self.calculation_answer.selectAll()
+            else:
+                self.answer.selectAll()
+
+    def run_batch(self):
+        if not self._batch_mode or self.current is None:
+            return
+        from core.batch_simulator import simulate_batch, BatchSimulationError
+
+        try:
+            config = json.loads(self.current["answer"])
+            inputs = config.get("inputs", [])
+            result = simulate_batch(self.code_editor.toPlainText(), inputs)
+            self._batch_result = result
+            expected = "\n".join(config.get("expected_output", []))
+            normalize = lambda value: "\n".join(
+                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
+            )
+            matches = normalize(result["output"]) == normalize(expected)
+            self.feedback.setText(
+                "Ausgabe stimmt mit der Vorgabe überein." if matches
+                else "Die Ausgabe stimmt noch nicht mit der Vorgabe überein."
+            )
+            set_state(self.feedback, "good" if matches else None)
+        except (json.JSONDecodeError, BatchSimulationError, TypeError, ValueError, SyntaxError) as exc:
+            self._batch_result = None
+            self.feedback.setText(f"Batch-Fehler: {exc}")
+            set_state(self.feedback, "bad")
+
+    def _batch_answer_matches(self):
+        if self._batch_result is None:
+            self.run_batch()
+        if self._batch_result is None:
+            return False
+        try:
+            config = json.loads(self.current["answer"])
+            expected = "\n".join(config.get("expected_output", []))
+            actual = self._batch_result["output"]
+            normalize = lambda value: "\n".join(
+                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
+            )
+            return normalize(actual) == normalize(expected)
+        except (json.JSONDecodeError, TypeError):
+            return False
+
+    def reveal_answer(self):
+        if self.current is None or self._solved:
+            return
+        self._record_first_attempt(self._input_text().strip(), False)
+        self._solved = True
+        if not self.interactive_question.isHidden():
+            self.interactive_question.reveal_solution()
+            self.feedback.setText("Correct solution shown.")
+        elif self._code_mode:
+            if self._batch_mode:
+                try:
+                    config = json.loads(self.current["answer"])
+                    self.code_editor.setPlainText(config.get("solution", ""))
+                    self.run_batch()
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                self.feedback.setText("Correct solution shown in the code editor.")
+            else:
+                self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
+                self.feedback.setText("Correct solution shown in the code editor.")
+        elif not self.calculation_table_container.isHidden():
+            try:
+                answer_data = json.loads(self.current["answer"])
+                if isinstance(answer_data, dict) and (
+                    ("headers" in answer_data and "rows" in answer_data)
+                    or isinstance(answer_data.get("tables"), list)
+                ):
+                    self._show_calculation_table(answer_data, show_answer=True)
+                    self.feedback.setText("Correct solution shown in the table.")
+                else:
+                    self.feedback.setText(f"Answer: {self.current['answer']}")
+            except (json.JSONDecodeError, TypeError):
+                self.feedback.setText(f"Answer: {self.current['answer']}")
+        else:
+            self.feedback.setText(f"Answer: {self.current['answer']}")
+        set_state(self.feedback, "bad")
+        self.answer.setEnabled(False)
+        self.code_editor.setEnabled(False)
+        self.batch_run_button.setEnabled(False)
+        self.calculation_answer.setEnabled(False)
+        self.calculation_table_container.setEnabled(False)
+        self.interactive_question.set_answer_locked(True)
+        self.primary_button.setText("Next  →")
+
+    def next_question(self):
+        if self.current is None:
+            return
+        self.index += 1
+        self._load_current()
+
+    def show_hint(self):
+        if self.current is not None and self.current["hint"]:
+            self.hint_text.setText(f"Hint: {self.current['hint']}")
+
+    def toggle_saved(self):
+        if self.current is None:
+            return
+        saved = not self.questions.is_saved(self.current["id"])
+        self.questions.set_saved(self.current["id"], saved)
+        self._set_saved_button(saved)
+
+    def _set_saved_button(self, saved):
+        self.save_button.setText("★  Saved" if saved else "☆  Save")
