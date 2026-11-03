@@ -5,9 +5,10 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QSettings  # noqa: E402
+from PySide6.QtCore import QSettings, Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from core.math_question_generator import binary_arithmetic_table  # noqa: E402
 from core.settings_store import SettingsStore  # noqa: E402
 from core.theme_manager import ThemeManager  # noqa: E402
 from database.database import Database  # noqa: E402
@@ -150,3 +151,23 @@ def test_pug_subject_includes_arbeitsvertrag(window):
     window.show_page("PuG")
     assert "Arbeitsvertrag" in window.question_repository.list_topics("PuG")
     assert window.subject_menu_page.title.text() == "PuG"
+
+
+
+def test_binary_dividers_fit_each_table_cell(window):
+    _, template = binary_arithmetic_table("10101", "00110", "+")
+    page = window.question_page
+    page._show_calculation_table(__import__("json").loads(template))
+    table = page.calculation_tables[0]
+
+    separator_rows = [
+        row for row in range(table.rowCount())
+        if table.item(row, 0).data(Qt.ItemDataRole.UserRole) == "__SEPARATOR__"
+    ]
+    assert separator_rows
+
+    for row in separator_rows:
+        assert table.columnSpan(row, 0) == 1
+        assert all(table.cellWidget(row, column) is not None
+                   for column in range(table.columnCount()))
+        assert page._table_input_data(table)["rows"][row][0] == "__SEPARATOR__"
