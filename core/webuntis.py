@@ -2,9 +2,7 @@
 import hashlib
 import json
 import ssl
-import sys
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -122,19 +120,22 @@ class WebUntisExamManager(QObject):
         super().__init__(parent)
         self.worker = None
         self._new_until = {}
+        self._known_ids = set()
         self._load_state()
 
     def _load_state(self):
         try:
             data = json.loads(EXAM_STATE.read_text(encoding="utf-8"))
             self._new_until = data.get("new_until", {})
+            self._known_ids = set(data.get("known_ids", []))
         except (OSError, ValueError, TypeError):
             self._new_until = {}
+            self._known_ids = set()
 
     def _save_state(self):
         EXAM_STATE.parent.mkdir(parents=True, exist_ok=True)
         EXAM_STATE.write_text(
-            json.dumps({"new_until": self._new_until}, indent=2),
+            json.dumps({"new_until": self._new_until, "known_ids": sorted(self._known_ids)}, indent=2),
             encoding="utf-8",
         )
 
@@ -151,13 +152,13 @@ class WebUntisExamManager(QObject):
             return
 
         now = datetime.now().astimezone()
-        today = date.today()
         incoming_ids = {exam["id"] for exam in exams}
         for exam in exams:
-            if exam["id"] not in self._new_until:
+            if exam["id"] not in self._known_ids:
                 self._new_until[exam["id"]] = (now + timedelta(days=2)).isoformat()
 
-        # Expire badges after two days and discard old exams from tracking.
+        self._known_ids = incoming_ids
+        # Expire badges after two days and discard exams no longer upcoming.
         self._new_until = {
             exam_id: expiry
             for exam_id, expiry in self._new_until.items()
