@@ -135,7 +135,7 @@ class Dashboard(QWidget):
         self.exam_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.exam_container = QWidget()
         self.exam_container.setSizePolicy(
-            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.exam_row = QHBoxLayout(self.exam_container)
         self.exam_row.setContentsMargins(0, 0, 8, 0)
@@ -212,10 +212,10 @@ class Dashboard(QWidget):
                 f"color: {ThemeManager.palette(self.theme_name)['text']}; font-weight: 600;"
             )
             subject.setWordWrap(True)
-            subject.setFixedWidth(190)
+            subject.setMinimumWidth(0)
             subject.ensurePolished()
             subject_height = subject.fontMetrics().boundingRect(
-                QRect(0, 0, subject.width(), 10000),
+                QRect(0, 0, 190, 10000),
                 Qt.TextFlag.TextWordWrap,
                 subject.text(),
             ).height()
@@ -231,7 +231,10 @@ class Dashboard(QWidget):
             time_label = muted_label(time_text)
             card_button = QPushButton()
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            card_button.setFixedWidth(230)
+            card_button.setMinimumWidth(230)
+            card_button.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+            )
             palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
                 f"QPushButton {{ text-align: left; padding: 3px; color: {palette['text']}; "
@@ -259,7 +262,7 @@ class Dashboard(QWidget):
             card_layout.addWidget(subject)
             card_layout.addWidget(time_label)
             card_button.clicked.connect(lambda _checked=False, item=exam: self._show_exam(item))
-            self.exam_row.addWidget(card_button)
+            self.exam_row.addWidget(card_button, 1)
             exam_cards.append(card_button)
 
         # Measure cards after their subjects have been wrapped to the card width.
