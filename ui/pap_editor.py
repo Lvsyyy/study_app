@@ -66,6 +66,7 @@ class FlowNode(QGraphicsObject):
         super().__init__()
         self.editor = editor
         self.node_id = data["id"]
+        self.data = data
         self.kind = data.get("type", "Process")
         self.label = data.get("text", "")
         self.setPos(float(data.get("x", 0)), float(data.get("y", 0)))
@@ -96,7 +97,7 @@ class FlowNode(QGraphicsObject):
         painter.setPen(QPen(QColor("#70b7f0") if self.isSelected() else QColor("#718096"), 2))
         painter.setBrush(QBrush(QColor("#263449")))
         rect = self.boundingRect().adjusted(1, 1, -1, -1)
-        if self.kind == "Start/End":
+        if self.editor.is_endpoint_node(self.node_id):
             painter.drawRoundedRect(rect, 38, 38)
         elif self.kind == "Decision":
             path = QPainterPath()
@@ -133,6 +134,7 @@ class FlowNode(QGraphicsObject):
             grid = self.editor.GRID
             return QPointF(round(value.x() / grid) * grid, round(value.y() / grid) * grid)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            self.data["x"], self.data["y"] = value.x(), value.y()
             self.editor.update_connections()
         return super().itemChange(change, value)
 
@@ -238,9 +240,23 @@ class PapEditor(QWidget):
         self.setStyleSheet("QPushButton, QComboBox { padding: 6px 9px; }")
 
     def _scatter_positions(self, count):
-        slots = [(x * 240, y * 150) for y in range(3) for x in range(4)]
-        random.Random(41).shuffle(slots)
+        # Keep the exercise in a compact, consistent grid while shuffling
+        # positions on every load. Slot spacing exceeds the block dimensions.
+        columns = 4
+        rows = (count + columns - 1) // columns
+        slots = [
+            (x * 240, y * 132)
+            for y in range(rows)
+            for x in range(columns)
+        ]
+        random.shuffle(slots)
         return slots[:count]
+
+    def is_endpoint_node(self, node_id):
+        # The first and last configured blocks are the only Start/End shapes.
+        if len(self.nodes) < 2:
+            return len(self.nodes) == 1 and self.nodes[0]["id"] == node_id
+        return node_id in (self.nodes[0]["id"], self.nodes[-1]["id"])
 
     def load_config(self, config, show_solution=False):
         self.nodes = [dict(n) for n in config.get("nodes", [])]
@@ -400,6 +416,8 @@ class PapEditor(QWidget):
         self.refresh()
 
     def refresh(self):
+        # FlowNode writes positions back to its model while being dragged, so
+        # rebuilding the scene never restores stale coordinates.
         self.scene.clear()
         self._graphics_nodes.clear()
         self._graphics_edges.clear()
