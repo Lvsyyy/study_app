@@ -92,6 +92,8 @@ class Dashboard(QWidget):
         activity_layout.addWidget(muted_label("Each square is one day. Brighter means more study."))
         self.heat_grid = QGridLayout()
         self.heat_grid.setSpacing(5)
+        for column in range(7):
+            self.heat_grid.setColumnStretch(column, 1)
         activity_layout.addLayout(self.heat_grid)
         self.legend = QHBoxLayout()
         activity_layout.addLayout(self.legend)
@@ -114,13 +116,15 @@ class Dashboard(QWidget):
         self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.exam_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.exam_container = QWidget()
-        self.exam_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.exam_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
         self.exam_row = QVBoxLayout(self.exam_container)
         self.exam_row.setContentsMargins(0, 0, 8, 0)
         self.exam_row.setSpacing(10)
+        self.exam_row.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
         self.exam_scroll.setWidget(self.exam_container)
-        self.exam_scroll.setMinimumHeight(160)
-        self.exam_scroll.setMaximumHeight(280)
+        self.exam_scroll.setFixedHeight(230)
         self.root.addWidget(self.exam_scroll)
 
     def _build_timetable(self):
@@ -204,7 +208,7 @@ class Dashboard(QWidget):
                 f"QPushButton:hover {{ border: 1px solid {palette['accent']}; }}"
             )
             card_layout = QVBoxLayout(card_button)
-            card_layout.setContentsMargins(4, 4, 4, 4)
+            card_layout.setContentsMargins(18, 14, 18, 14)
             top = QHBoxLayout()
             top.addWidget(date_label)
             top.addStretch()
@@ -374,13 +378,19 @@ class Dashboard(QWidget):
         for column, weekday in enumerate(WEEKDAYS):
             label = muted_label(weekday)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setMinimumWidth(0)
             self.heat_grid.addWidget(label, 0, column)
 
         weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
         for week_row, week in enumerate(weeks, start=1):
             for column, day in enumerate(week):
                 square = QLabel()
-                square.setFixedSize(24, 24)
+                square.setMinimumSize(8, 24)
+                square.setMaximumWidth(24)
+                square.setSizePolicy(
+                    QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+                )
+                square.setFixedHeight(24)
                 if day.month != month:
                     self.heat_grid.addWidget(square, week_row, column)
                     continue
