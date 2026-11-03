@@ -86,6 +86,7 @@ def simulate_batch(source, inputs=()):
                 entered = str(next(input_values))
             except StopIteration:
                 raise BatchSimulationError(f"Input required for variable {name}.")
+            variables[name.upper()] = entered
             output.append(expand(prompt) + entered)
             continue
         if upper.startswith("SET /A "):
