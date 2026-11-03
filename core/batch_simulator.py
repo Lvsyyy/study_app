@@ -82,11 +82,11 @@ def simulate_batch(source, inputs=()):
             if not match:
                 raise BatchSimulationError("Invalid SET /P syntax.")
             name, prompt = match.groups()
-            output.append(expand(prompt))
             try:
-                variables[name.upper()] = str(next(input_values))
+                entered = str(next(input_values))
             except StopIteration:
                 raise BatchSimulationError(f"Input required for variable {name}.")
+            output.append(expand(prompt) + entered)
             continue
         if upper.startswith("SET /A "):
             expression = raw[7:].strip()
