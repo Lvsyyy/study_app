@@ -8,15 +8,21 @@ MIGRATIONS = {
     INSERT OR IGNORE INTO topics(subject_id, name)
     SELECT id, 'Batch' FROM subjects WHERE name = 'BS';
 
-    UPDATE topics
-    SET subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+    UPDATE questions
+    SET topic_id = (
+        SELECT target.id FROM topics target
+        WHERE target.name = 'Batch'
+          AND target.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+    )
+    WHERE topic_id = (
+        SELECT source.id FROM topics source
+        WHERE source.name = 'Batch'
+          AND source.subject_id = (SELECT id FROM subjects WHERE name = 'CS_P')
+    );
+
+    DELETE FROM topics
     WHERE name = 'Batch'
-      AND subject_id = (SELECT id FROM subjects WHERE name = 'CS_P')
-      AND NOT EXISTS (
-          SELECT 1 FROM topics target
-          WHERE target.name = 'Batch'
-            AND target.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
-      );
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'CS_P');
     """,
 
     7: """
