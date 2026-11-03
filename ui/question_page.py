@@ -175,7 +175,47 @@ class QuestionPage(QWidget):
             "font-size: 11px; font-weight: 600; }"
         )
         self.code_editor_container.hide()
-        box.addWidget(self.code_editor_container)
+
+        self.batch_workspace = QWidget()
+        batch_layout = QHBoxLayout(self.batch_workspace)
+        batch_layout.setContentsMargins(0, 0, 0, 0)
+        batch_layout.setSpacing(12)
+        batch_layout.addWidget(self.code_editor_container, 1)
+
+        self.batch_console_container = QWidget()
+        self.batch_console_container.setObjectName("BatchConsoleFrame")
+        console_layout = QVBoxLayout(self.batch_console_container)
+        console_layout.setContentsMargins(0, 0, 0, 0)
+        console_layout.setSpacing(0)
+        console_header = QHBoxLayout()
+        console_title = QLabel("  CMD   |   Ausgabe")
+        console_title.setObjectName("BatchConsoleHeader")
+        console_title.setFixedHeight(34)
+        console_header.addWidget(console_title, 1)
+        self.batch_run_button = action_button("Run")
+        self.batch_run_button.clicked.connect(self.run_batch)
+        console_header.addWidget(self.batch_run_button)
+        console_layout.addLayout(console_header)
+        self.batch_output = QPlainTextEdit()
+        self.batch_output.setReadOnly(True)
+        self.batch_output.setMinimumHeight(210)
+        self.batch_output.setMaximumHeight(340)
+        self.batch_output.setFont(code_font)
+        self.batch_output.setStyleSheet(
+            "QPlainTextEdit { background: #101010; color: #d4d4d4; "
+            "border: none; border-radius: 0; padding: 12px; }"
+        )
+        console_layout.addWidget(self.batch_output)
+        self.batch_console_container.setStyleSheet(
+            "QWidget#BatchConsoleFrame { background: #101010; "
+            "border: 1px solid #3c3c3c; border-radius: 7px; } "
+            "QLabel#BatchConsoleHeader { background: #252526; color: #cccccc; "
+            "border: none; border-bottom: 1px solid #3c3c3c; "
+            "font-size: 11px; font-weight: 600; }"
+        )
+        batch_layout.addWidget(self.batch_console_container, 1)
+        self.batch_workspace.hide()
+        box.addWidget(self.batch_workspace)
 
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -734,6 +774,42 @@ class QuestionPage(QWidget):
                 self.calculation_answer.selectAll()
             else:
                 self.answer.selectAll()
+
+    def run_batch(self):
+        if not self._batch_mode or self.current is None:
+            return
+        from core.batch_simulator import simulate_batch, BatchSimulationError
+
+        try:
+            config = json.loads(self.current["answer"])
+            inputs = config.get("inputs", [])
+            result = simulate_batch(self.code_editor.toPlainText(), inputs)
+            self._batch_result = result
+            self.batch_output.setPlainText(result["output"])
+            if result.get("color"):
+                self.batch_output.setStyleSheet(
+                    f"QPlainTextEdit {{ background: #101010; color: #{result['color']} ; "
+                    "border: none; border-radius: 0; padding: 12px; }"
+                )
+        except (json.JSONDecodeError, BatchSimulationError, TypeError, ValueError) as exc:
+            self._batch_result = None
+            self.batch_output.setPlainText(f"Fehler: {exc}")
+
+    def _batch_answer_matches(self):
+        if self._batch_result is None:
+            self.run_batch()
+        if self._batch_result is None:
+            return False
+        try:
+            config = json.loads(self.current["answer"])
+            expected = "\\n".join(config.get("expected_output", []))
+            actual = self._batch_result["output"]
+            normalize = lambda value: "\\n".join(
+                line.rstrip() for line in value.replace("\\r", "").strip().splitlines()
+            )
+            return normalize(actual) == normalize(expected)
+        except (json.JSONDecodeError, TypeError):
+            return False
 
     def reveal_answer(self):
         if self.current is None or self._solved:
