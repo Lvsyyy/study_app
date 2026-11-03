@@ -69,6 +69,10 @@ class Dashboard(QWidget):
         self.weak_rows = QVBoxLayout()
         weak_layout.addLayout(self.weak_rows)
         weak_layout.addStretch()
+        weak_frame.setMinimumHeight(260)
+        weak_frame.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
         row.addWidget(weak_frame, 1)
 
         activity_frame, activity_layout = card()
@@ -95,7 +99,12 @@ class Dashboard(QWidget):
         activity_layout.addLayout(self.heat_grid)
         self.legend = QHBoxLayout()
         activity_layout.addLayout(self.legend)
+        activity_frame.setMinimumHeight(260)
+        activity_frame.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
         row.addWidget(activity_frame, 1)
+        row.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
         self.root.addLayout(row)
         self._build_timetable()
  
