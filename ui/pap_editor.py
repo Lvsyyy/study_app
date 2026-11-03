@@ -130,7 +130,8 @@ class PapEditor(QWidget):
     def refresh(self):
         self.node_list.clear()
         for node in self.nodes:
-            item = QListWidgetItem(f'{node["type"]}: {node["text"]}')
+            symbol = {"Start/End": "⬭", "Process": "▭", "Decision": "◇"}.get(node["type"], "□")
+            item = QListWidgetItem(f'{symbol}  {node["type"]}: {node["text"]}')
             item.setData(Qt.ItemDataRole.UserRole, node["id"])
             self.node_list.addItem(item)
         self.edge_list.clear()
