@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,37 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 API_URL = "https://api.github.com/repos/Lvsyyy/study_app/commits/main"
 ARCHIVE_URL = "https://github.com/Lvsyyy/study_app/archive/{commit}.zip"
+
+
+def _https_context():
+    """Build a verified TLS context using certifi or macOS system roots."""
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        if sys.platform == "darwin":
+            result = subprocess.run(
+                [
+                    "/usr/bin/security",
+                    "find-certificate",
+                    "-a",
+                    "-p",
+                    "/System/Library/Keychains/SystemRootCertificates.keychain",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            if result.stdout.strip():
+                return ssl.create_default_context(cadata=result.stdout)
+        return ssl.create_default_context()
+
+
+def _open_url(request, timeout):
+    from urllib.request import urlopen
+
+    return urlopen(request, timeout=timeout, context=_https_context())
 
 HELPER = r"""
 import json
@@ -71,11 +103,11 @@ class UpdateWorker(QThread):
 
     def run(self):
         try:
-            from urllib.request import Request, urlopen
+            from urllib.request import Request
 
             headers = {"User-Agent": "Study-App-Updater"}
             request = Request(API_URL, headers=headers)
-            with urlopen(request, timeout=20) as response:
+            with _open_url(request, timeout=20) as response:
                 commit = json.loads(response.read())["sha"]
 
             app_root = Path(__file__).resolve().parent.parent
@@ -87,7 +119,7 @@ class UpdateWorker(QThread):
             folder = Path(tempfile.mkdtemp(prefix="study-app-update-"))
             archive = folder / "update.zip"
             request = Request(ARCHIVE_URL.format(commit=commit), headers=headers)
-            with urlopen(request, timeout=60) as response, archive.open("wb") as output:
+            with _open_url(request, timeout=60) as response, archive.open("wb") as output:
                 shutil.copyfileobj(response, output)
             self.completed.emit(str(archive), commit, "")
         except Exception as error:
