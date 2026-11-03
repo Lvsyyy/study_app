@@ -808,10 +808,10 @@ class QuestionPage(QWidget):
             return False
         try:
             config = json.loads(self.current["answer"])
-            expected = "\\n".join(config.get("expected_output", []))
+            expected = "\n".join(config.get("expected_output", []))
             actual = self._batch_result["output"]
-            normalize = lambda value: "\\n".join(
-                line.rstrip() for line in value.replace("\\r", "").strip().splitlines()
+            normalize = lambda value: "\n".join(
+                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
             )
             return normalize(actual) == normalize(expected)
         except (json.JSONDecodeError, TypeError):
@@ -826,8 +826,17 @@ class QuestionPage(QWidget):
             self.interactive_question.reveal_solution()
             self.feedback.setText("Correct solution shown.")
         elif self._code_mode:
-            self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
-            self.feedback.setText("Correct solution shown in the code editor.")
+            if self._batch_mode:
+                try:
+                    config = json.loads(self.current["answer"])
+                    self.code_editor.setPlainText(config.get("solution", ""))
+                    self.run_batch()
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                self.feedback.setText("Correct solution shown in the code editor.")
+            else:
+                self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
+                self.feedback.setText("Correct solution shown in the code editor.")
         elif not self.calculation_table_container.isHidden():
             try:
                 answer_data = json.loads(self.current["answer"])
