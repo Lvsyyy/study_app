@@ -265,10 +265,11 @@ class PapEditor(QWidget):
         ]
 
     def is_endpoint_node(self, node_id):
-        # The first and last configured blocks are the only Start/End shapes.
-        if len(self.nodes) < 2:
-            return len(self.nodes) == 1 and self.nodes[0]["id"] == node_id
-        return node_id in (self.nodes[0]["id"], self.nodes[-1]["id"])
+        node = next((n for n in self.nodes if n["id"] == node_id), None)
+        if not node:
+            return False
+        label = " ".join(node.get("text", "").casefold().split())
+        return label.startswith("start des bootvorgangs") or label == "betriebssystem geladen"
 
     def set_editing_enabled(self, enabled):
         """Lock editing without disabling canvas navigation (zoom and pan)."""
@@ -332,7 +333,16 @@ class PapEditor(QWidget):
             if source in by_id and target in by_id:
                 outgoing[source].append(edge)
                 incoming[target] += 1
-        starts = [n["id"] for n in self.nodes if n.get("type") == "Start/End" and incoming[n["id"]] == 0]
+        starts = [
+            n["id"] for n in self.nodes
+            if incoming[n["id"]] == 0
+            and " ".join(n.get("text", "").casefold().split()).startswith("start des bootvorgangs")
+        ]
+        if not starts:
+            starts = [
+                n["id"] for n in self.nodes
+                if n.get("type") == "Start/End" and incoming[n["id"]] == 0
+            ]
         start = starts[0] if starts else self.nodes[0]["id"]
         main, branches, seen = [], [], set()
         current = start
