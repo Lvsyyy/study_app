@@ -1,8 +1,8 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
-from core.session_tracker import SessionTracker
 from core.math_question_generator import MathQuestionGenerator
+from core.session_tracker import SessionTracker
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
 from core.webuntis import WebUntisExamManager
