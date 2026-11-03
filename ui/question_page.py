@@ -352,6 +352,7 @@ class QuestionPage(QWidget):
         template = question["answer_template"] if "answer_template" in question.keys() else None
         self.calculation_table_container.hide()
         self.interactive_question.hide()
+        self.interactive_question.set_answer_locked(False)
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         question_text = question["question_text"]
@@ -721,7 +722,7 @@ class QuestionPage(QWidget):
             self.code_editor.setEnabled(False)
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
-            self.interactive_question.setEnabled(False)
+            self.interactive_question.set_answer_locked(True)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -765,7 +766,7 @@ class QuestionPage(QWidget):
         self.code_editor.setEnabled(False)
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
-        self.interactive_question.setEnabled(False)
+        self.interactive_question.set_answer_locked(True)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
