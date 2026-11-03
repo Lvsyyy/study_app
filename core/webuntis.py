@@ -59,7 +59,14 @@ def _fetch_chunk(start: date, end: date) -> dict:
         raise RuntimeError(f"Could not reach WebUntis: {exc.reason}") from exc
 
 
-def fetch_exams(weeks: int = 6) -> list[dict]:
+def _resource_name(value):
+    if isinstance(value, dict):
+        current = value.get("current") or value
+        return current.get("longName") or current.get("shortName") or current.get("name") or ""
+    return str(value) if value is not None else ""
+
+
+def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
     start = date.today()
     end = start + timedelta(weeks=max(3, weeks))
     days = []
@@ -70,54 +77,59 @@ def fetch_exams(weeks: int = 6) -> list[dict]:
         days.extend(payload.get("days", []))
         chunk_start = chunk_end + timedelta(days=1)
 
+    entries = {}
     exams = {}
     for day in days:
         for entry in day.get("gridEntries", []):
-            if entry.get("type") != "EXAM":
-                continue
             duration = entry.get("duration") or {}
             start_value = duration.get("start")
             end_value = duration.get("end")
             if not start_value:
                 continue
-            subject_data = (entry.get("position1") or [{}])[0].get("current") or {}
-            subject = (
-                subject_data.get("longName")
-                or subject_data.get("shortName")
-                or "Unknown subject"
-            )
+            positions = entry.get("positions") or []
+            subject_data = (entry.get("position1") or [{}])[0]
+            subject = _resource_name(subject_data) or "Unspecified"
+            room = _resource_name((entry.get("position3") or [{}])[0])
+            teacher = _resource_name((entry.get("position2") or [{}])[0])
             description = entry.get("lessonInfo") or next(
-                (
-                    item.get("text", "")
-                    for item in entry.get("texts", [])
-                    if item.get("type") == "LESSON_INFO"
-                ),
+                (item.get("text", "") for item in entry.get("texts", [])
+                 if item.get("type") == "LESSON_INFO"),
                 "",
             )
-            identity = "|".join((start_value, end_value or "", subject, description))
-            exam_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
-            exams[exam_id] = {
-                "id": exam_id,
-                "start": start_value,
-                "end": end_value or "",
-                "subject": subject,
-                "description": description,
+            entry_type = entry.get("type") or "LESSON"
+            identity = "|".join((start_value, end_value or "", subject, entry_type, description))
+            entry_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+            item = {
+                "id": entry_id, "start": start_value, "end": end_value or "",
+                "subject": subject, "room": room, "teacher": teacher,
+                "description": description, "type": entry_type,
             }
-    return sorted(exams.values(), key=lambda item: item["start"])
+            entries[entry_id] = item
+            if entry_type == "EXAM":
+                exams[entry_id] = item.copy()
+    ordered_entries = sorted(entries.values(), key=lambda item: item["start"])
+    ordered_exams = sorted(exams.values(), key=lambda item: item["start"])
+    return ordered_entries, ordered_exams
+
+
+def fetch_exams(weeks: int = 6) -> list[dict]:
+    return fetch_timetable(weeks)[1]
 
 
 class _ExamWorker(QThread):
-    finished_with_result = Signal(list, str)
+    finished_with_result = Signal(list, list, str)
 
     def run(self):
         try:
-            self.finished_with_result.emit(fetch_exams(), "")
+            timetable, exams = fetch_timetable()
+            self.finished_with_result.emit(exams, timetable, "")
         except Exception as error:
-            self.finished_with_result.emit([], str(error))
+            self.finished_with_result.emit([], [], str(error))
 
 
 class WebUntisExamManager(QObject):
     exams_updated = Signal(list, str)
+    timetable_updated = Signal(list, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -154,12 +166,16 @@ class WebUntisExamManager(QObject):
         if self.worker is not None and self.worker.isRunning():
             return
         self.worker = _ExamWorker(self)
-        self.worker.finished_with_result.connect(self._handle_result)
+        self.worker.finished_with_result.connect(self._handle_results)
         self.worker.start()
 
     def _handle_result(self, exams, error):
+        self._handle_results(exams, [], error)
+
+    def _handle_results(self, exams, timetable, error):
         if error:
             self.exams_updated.emit([], error)
+            self.timetable_updated.emit([], error)
             return
 
         now = datetime.now().astimezone()
@@ -182,3 +198,4 @@ class WebUntisExamManager(QObject):
             exam["is_new"] = bool(expiry and datetime.fromisoformat(expiry) > now)
             exam["date"] = datetime.fromisoformat(exam["start"]).astimezone().date().isoformat()
         self.exams_updated.emit(exams, "")
+        self.timetable_updated.emit(timetable, "")
