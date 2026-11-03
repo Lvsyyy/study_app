@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, Signal, QRegularExpression
 from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QTextCursor
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget, QFrame)
 from ui.interactive_questions import InteractiveQuestion
+from ui.pap_editor import PapEditor
 
 from core.answer_checker import is_correct
 from core.formatting import format_duration
@@ -255,6 +256,10 @@ class QuestionPage(QWidget):
         self.interactive_question.hide()
         self.root.addWidget(self.interactive_question)
 
+        self.pap_editor = PapEditor()
+        self.pap_editor.hide()
+        self.root.addWidget(self.pap_editor)
+
         meta = QHBoxLayout()
         self.number_label = muted_label("")
         meta.addWidget(self.number_label)
@@ -319,7 +324,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.batch_run_button, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.pap_editor, self.batch_run_button, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -345,6 +350,8 @@ class QuestionPage(QWidget):
         self._clear_calculation_tables()
         self.calculation_table_container.hide()
         self.interactive_question.hide()
+        self.pap_editor.hide()
+        self.pap_editor.reset()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -395,11 +402,14 @@ class QuestionPage(QWidget):
         self.calculation_table_container.hide()
         self.interactive_question.hide()
         self.interactive_question.set_answer_locked(False)
+        self.pap_editor.hide()
+        self.pap_editor.reset()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._batch_mode = question_type == "batch"
+        self._pap_mode = question_type == "pap"
         self._batch_result = None
         self.batch_output.clear()
         self.batch_run_button.setEnabled(True)
@@ -413,7 +423,22 @@ class QuestionPage(QWidget):
             question["subject_name"] == "AE"
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
         )
-        if self._code_mode:
+        if self._pap_mode:
+            self.question_text.setText(question_text)
+            self.question_text.show()
+            self.answer.hide()
+            try:
+                self.pap_editor.load_config(json.loads(question["answer"]))
+            except (json.JSONDecodeError, TypeError):
+                self.pap_editor.reset()
+            self.pap_editor.show()
+        elif self._pap_mode:
+            try:
+                self.pap_editor.load_config(json.loads(self.current["answer"]))
+            except (json.JSONDecodeError, TypeError):
+                pass
+            self.feedback.setText("Correct flowchart shown.")
+        elif self._code_mode:
             if self._batch_mode:
                 prompt = question_text
                 code_prefix = r"C:\Users\Supercoolerbenutzer>"
@@ -704,6 +729,8 @@ class QuestionPage(QWidget):
         return {"headers": headers, "rows": rows}
 
     def _input_text(self):
+        if self._pap_mode:
+            return self.pap_editor.get_answer()
         if self._code_mode:
             return self.code_editor.toPlainText()
         if not self.interactive_question.isHidden():
@@ -762,6 +789,7 @@ class QuestionPage(QWidget):
             return
         alternatives = self.questions.alternatives(self.current)
         correct = (
+            self.pap_editor.is_correct(self.current["answer"]) if self._pap_mode else
             self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
             self._batch_answer_matches() if self._batch_mode else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
@@ -780,6 +808,7 @@ class QuestionPage(QWidget):
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
             self.interactive_question.set_answer_locked(True)
+            self.pap_editor.setEnabled(False)
             self.primary_button.setText("Next  →")
         else:
             note = "Only your first attempt counts. " if first else ""
@@ -875,6 +904,7 @@ class QuestionPage(QWidget):
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
         self.interactive_question.set_answer_locked(True)
+        self.pap_editor.setEnabled(False)
         self.primary_button.setText("Next  →")
 
     def next_question(self):
