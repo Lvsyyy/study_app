@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
         )
         self.webuntis = WebUntisExamManager(self)
         self.webuntis.exams_updated.connect(self.dashboard.set_exams)
+        self.webuntis.timetable_updated.connect(self.dashboard.set_timetable)
         self.subjects_page = SubjectsPage(self.statistics_repository)
         self.statistics_page = StatisticsPage(
             self.statistics_repository, self.attempt_repository
