@@ -89,6 +89,11 @@ def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
             positions = entry.get("positions") or []
             subject_data = (entry.get("position1") or [{}])[0]
             subject = _resource_name(subject_data) or "Unspecified"
+            subject_current = (
+                (subject_data.get("current") or subject_data)
+                if isinstance(subject_data, dict) else {}
+            )
+            subject_short = subject_current.get("shortName") or ""
             room = _resource_name((entry.get("position3") or [{}])[0])
             teacher = _resource_name((entry.get("position2") or [{}])[0])
             description = entry.get("lessonInfo") or next(
@@ -101,7 +106,8 @@ def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
             entry_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
             item = {
                 "id": entry_id, "start": start_value, "end": end_value or "",
-                "subject": subject, "room": room, "teacher": teacher,
+                "subject": subject, "subject_short": subject_short,
+                "room": room, "teacher": teacher,
                 "description": description, "type": entry_type,
             }
             entries[entry_id] = item
