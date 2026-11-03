@@ -375,8 +375,6 @@ class Dashboard(QWidget):
 
         peak = max((score(record) for record in activity.values()), default=0)
 
-        # Use separate horizontal layouts for each row. QGridLayout was allowing
-        # row geometry to collapse in narrow dashboard layouts.
         header = QHBoxLayout()
         header.setSpacing(5)
         for weekday in WEEKDAYS:
@@ -411,23 +409,9 @@ class Dashboard(QWidget):
                     minutes = int((record["duration"] or 0) // 60) if record else 0
                     questions = int(record["questions"] or 0) if record else 0
                     cell.setToolTip(
-                        f"{day:%A, %d %B %Y}\\nStudy time: {minutes} min\\nQuestions: {questions}"
+                        f"{day:%A, %d %B %Y}\nStudy time: {minutes} min\nQuestions: {questions}"
                     )
                 else:
                     cell.setStyleSheet("background: transparent; border: none;")
                 week_layout.addWidget(cell, 1)
             self.heat_grid.addLayout(week_layout)
-                    continue
-                record = activity.get(day)
-                value = score(record) if record else 0
-                level = 0 if value == 0 or peak == 0 else min(4, max(1, round(value / peak * 4)))
-                edge = palette["accent"] if day == today else palette["border"]
-                cell.setStyleSheet(
-                    f"background: {palette['heat'][level]}; border: 1px solid {edge}; border-radius: 4px;"
-                )
-                minutes = int((record["duration"] or 0) // 60) if record else 0
-                questions = int(record["questions"] or 0) if record else 0
-                cell.setToolTip(
-                    f"{day:%A, %d %B %Y}\nStudy time: {minutes} min\nQuestions: {questions}"
-                )
-                self.heat_grid.addWidget(cell, week_row, column)
