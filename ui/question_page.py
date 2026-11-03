@@ -188,7 +188,7 @@ class QuestionPage(QWidget):
         console_layout.setContentsMargins(0, 0, 0, 0)
         console_layout.setSpacing(0)
         console_header = QHBoxLayout()
-        console_title = QLabel("  CMD   |   Ausgabe")
+        console_title = QLabel("  CMD   |   Vorgegebene Ausgabe")
         console_title.setObjectName("BatchConsoleHeader")
         console_title.setFixedHeight(34)
         console_header.addWidget(console_title, 1)
@@ -403,6 +403,12 @@ class QuestionPage(QWidget):
         self._batch_result = None
         self.batch_output.clear()
         self.batch_run_button.setEnabled(True)
+        if self._batch_mode:
+            try:
+                batch_config = json.loads(question["answer"])
+                self.batch_output.setPlainText("\n".join(batch_config.get("expected_output", [])))
+            except (json.JSONDecodeError, TypeError):
+                self.batch_output.setPlainText("Keine Zielausgabe hinterlegt.")
         self._code_mode = question_type in ("code", "batch") or (
             question["subject_name"] == "AE"
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
@@ -796,10 +802,20 @@ class QuestionPage(QWidget):
             inputs = config.get("inputs", [])
             result = simulate_batch(self.code_editor.toPlainText(), inputs)
             self._batch_result = result
-            self.batch_output.setPlainText(result["output"])
-        except (json.JSONDecodeError, BatchSimulationError, TypeError, ValueError) as exc:
+            expected = "\n".join(config.get("expected_output", []))
+            normalize = lambda value: "\n".join(
+                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
+            )
+            matches = normalize(result["output"]) == normalize(expected)
+            self.feedback.setText(
+                "Ausgabe stimmt mit der Vorgabe überein." if matches
+                else "Die Ausgabe stimmt noch nicht mit der Vorgabe überein."
+            )
+            set_state(self.feedback, "good" if matches else None)
+        except (json.JSONDecodeError, BatchSimulationError, TypeError, ValueError, SyntaxError) as exc:
             self._batch_result = None
-            self.batch_output.setPlainText(f"Fehler: {exc}")
+            self.feedback.setText(f"Batch-Fehler: {exc}")
+            set_state(self.feedback, "bad")
 
     def _batch_answer_matches(self):
         if self._batch_result is None:
