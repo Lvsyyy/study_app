@@ -1,8 +1,8 @@
 import calendar
-from datetime import date
+from datetime import date, datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from core.formatting import format_duration, format_percent
 from core.theme_manager import ThemeManager
@@ -19,6 +19,8 @@ class Dashboard(QWidget):
         self.attempts = attempts
         self.theme_name = theme_name
         self.month_offset = 0
+        self.exams = []
+        self.exam_error = ""
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(30, 26, 30, 26)
         self.root.setSpacing(18)
@@ -47,6 +49,7 @@ class Dashboard(QWidget):
             self.stat_details[key] = detail_label
             stats.addWidget(frame)
         self.root.addLayout(stats)
+        self._build_exams()
 
         row = QHBoxLayout()
         weak_frame, weak_layout = card()
@@ -83,6 +86,104 @@ class Dashboard(QWidget):
         row.addWidget(activity_frame, 1)
         self.root.addLayout(row)
         self.root.addStretch()
+
+    def _build_exams(self):
+        heading = QHBoxLayout()
+        heading.addWidget(section_title("Upcoming Exams"))
+        heading.addStretch()
+        self.exam_count = muted_label("Loading…")
+        heading.addWidget(self.exam_count)
+        self.root.addLayout(heading)
+
+        self.exam_scroll = QScrollArea()
+        self.exam_scroll.setWidgetResizable(True)
+        self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.exam_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.exam_container = QWidget()
+        self.exam_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.exam_row = QHBoxLayout(self.exam_container)
+        self.exam_row.setContentsMargins(0, 0, 0, 0)
+        self.exam_row.setSpacing(12)
+        self.exam_scroll.setWidget(self.exam_container)
+        self.exam_scroll.setFixedHeight(150)
+        self.root.addWidget(self.exam_scroll)
+
+    def set_exams(self, exams, error=""):
+        self.exams = exams
+        self.exam_error = error
+        self._render_exams()
+
+    def _render_exams(self):
+        clear_layout(self.exam_row)
+        if self.exam_error:
+            self.exam_count.setText("Unavailable")
+            self.exam_row.addWidget(muted_label(f"Could not load exams: {self.exam_error}"))
+            return
+        self.exam_count.setText(str(len(self.exams)))
+        if not self.exams:
+            self.exam_row.addWidget(muted_label("No upcoming exams found."))
+            return
+
+        today = date.today()
+        for exam in self.exams:
+            start = datetime.fromisoformat(exam["start"]).astimezone()
+            exam_day = start.date()
+            days_left = (exam_day - today).days
+            date_label = QLabel(start.strftime("%d.%m"))
+            date_label.setStyleSheet("font-size: 22px; font-weight: 700;")
+            countdown = QLabel("Today" if days_left == 0 else
+                               f"In {days_left} days" if days_left > 0 else
+                               f"{abs(days_left)} days ago")
+            subject = QLabel(exam["subject"])
+            subject.setWordWrap(True)
+            time_text = start.strftime("%H:%M")
+            if exam.get("end"):
+                end = datetime.fromisoformat(exam["end"]).astimezone()
+                time_text += f"–{end:%H:%M}"
+            time_label = muted_label(time_text)
+            card_button = QPushButton()
+            card_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            card_button.setFixedSize(218, 126)
+            card_button.setStyleSheet(
+                "QPushButton { text-align: left; padding: 10px; border: 1px solid palette(mid); "
+                "border-radius: 10px; } QPushButton:hover { border: 1px solid palette(highlight); }"
+            )
+            card_layout = QVBoxLayout(card_button)
+            card_layout.setContentsMargins(2, 2, 2, 2)
+            top = QHBoxLayout()
+            top.addWidget(date_label)
+            top.addStretch()
+            if exam.get("is_new"):
+                new_label = QLabel("NEW")
+                new_label.setStyleSheet(
+                    "font-size: 10px; font-weight: 700; padding: 3px 6px; "
+                    "border-radius: 5px; background: palette(highlight); color: palette(highlighted-text);"
+                )
+                top.addWidget(new_label)
+            card_layout.addLayout(top)
+            card_layout.addWidget(countdown)
+            card_layout.addWidget(subject)
+            card_layout.addWidget(time_label)
+            card_layout.addStretch()
+            card_button.clicked.connect(lambda _checked=False, item=exam: self._show_exam(item))
+            self.exam_row.addWidget(card_button)
+
+    def _show_exam(self, exam):
+        from PySide6.QtWidgets import QMessageBox
+
+        start = datetime.fromisoformat(exam["start"]).astimezone()
+        details = [
+            exam["subject"],
+            start.strftime("%A, %d %B %Y"),
+            start.strftime("%H:%M") + (
+                "–" + datetime.fromisoformat(exam["end"]).astimezone().strftime("%H:%M")
+                if exam.get("end") else ""
+            ),
+        ]
+        if exam.get("description"):
+            details.append(exam["description"])
+        QMessageBox.information(self, "Exam details", "\n".join(details))
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -121,6 +222,7 @@ class Dashboard(QWidget):
                 self.weak_rows.addLayout(line)
         self._render_legend()
         self._render_heatmap()
+        self._render_exams()
 
     def shift_month(self, amount):
         self.month_offset += amount
