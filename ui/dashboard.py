@@ -166,6 +166,7 @@ class Dashboard(QWidget):
             return
 
         today = date.today()
+        exam_cards = []
         for exam in self.exams:
             start = datetime.fromisoformat(exam["start"]).astimezone()
             exam_day = start.date()
@@ -189,6 +190,10 @@ class Dashboard(QWidget):
                 f"color: {ThemeManager.palette(self.theme_name)['text']}; font-weight: 600;"
             )
             subject.setWordWrap(True)
+            subject.setFixedWidth(190)
+            subject_height = subject.heightForWidth(subject.width())
+            if subject_height > 0:
+                subject.setMinimumHeight(subject_height)
             time_text = start.strftime("%H:%M")
             if exam.get("end"):
                 end = datetime.fromisoformat(exam["end"]).astimezone()
@@ -197,7 +202,6 @@ class Dashboard(QWidget):
             card_button = QPushButton()
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
             card_button.setFixedWidth(230)
-            card_button.setFixedHeight(112)
             palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
                 f"QPushButton {{ text-align: left; padding: 3px; color: {palette['text']}; "
@@ -223,9 +227,23 @@ class Dashboard(QWidget):
             card_layout.addWidget(countdown)
             card_layout.addWidget(subject)
             card_layout.addWidget(time_label)
-            card_layout.addStretch()
             card_button.clicked.connect(lambda _checked=False, item=exam: self._show_exam(item))
             self.exam_row.addWidget(card_button)
+            exam_cards.append(card_button)
+
+        # Measure cards after their subjects have been wrapped to the card width.
+        # Give every card the tallest required height so their bottoms align.
+        for exam_card in exam_cards:
+            exam_card.ensurePolished()
+            exam_card.layout().activate()
+        tallest_height = max(
+            exam_card.sizeHint().height() for exam_card in exam_cards
+        )
+        for exam_card in exam_cards:
+            exam_card.setFixedHeight(tallest_height)
+
+        scrollbar_height = self.exam_scroll.horizontalScrollBar().sizeHint().height()
+        self.exam_scroll.setFixedHeight(tallest_height + scrollbar_height + 4)
 
 
     def _render_timetable(self):
