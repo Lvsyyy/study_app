@@ -64,7 +64,8 @@ class MainWindow(QMainWindow):
             self.statistics_repository, self.attempt_repository, settings.theme
         )
         self.webuntis = WebUntisExamManager(self)
-        self.webuntis.exams_updated.connect(self.dashboard.set_exams)
+        self.webuntis.exams_updated.connect(self._set_exams)
+        self.dashboard.study_exam_requested.connect(self.start_exam_practice)
         self.webuntis.timetable_updated.connect(self.dashboard.set_timetable)
         self.subjects_page = SubjectsPage(self.statistics_repository)
         self.statistics_page = StatisticsPage(
@@ -95,6 +96,7 @@ class MainWindow(QMainWindow):
         self.math_menu_page.question_type_requested.connect(self.start_math_practice)
         self.subject_menu_page.back_requested.connect(lambda: self.show_page("Subjects"))
         self.subject_menu_page.topic_requested.connect(self.start_subject_practice)
+        self.subject_menu_page.exam_practice_requested.connect(self.start_exam_practice)
         self.subnetting_page.back_requested.connect(lambda: self.show_page("SubjectMenu"))
         self.saved_page.practice_requested.connect(self.practice_saved)
         self.question_page.back_requested.connect(lambda: self.show_page(self._return_page))
@@ -216,9 +218,53 @@ class MainWindow(QMainWindow):
                 ),
             )
             topics = self.question_repository.list_topics(subject)
-        self.subject_menu_page.set_subject(subject, topics, groups=groups)
+        self.subject_menu_page.set_subject(
+            subject, topics, groups=groups,
+            exam_available=subject in self._subjects_with_upcoming_exams(),
+        )
         self.stack.setCurrentWidget(self.subject_menu_page)
         self.sidebar.set_active(subject)
+
+    @staticmethod
+    def _exam_subject_code(exam):
+        aliases = {
+            "netzwerktechnik": "NT",
+            "betriebssysteme": "BS",
+            "computersystem": "CS",
+            "computersystem praxis": "CS_P",
+        }
+        for value in (exam.get("subject_short"), exam.get("subject")):
+            normalized = " ".join(str(value or "").strip().casefold().split())
+            if normalized in {"nt", "bs", "cs", "cs_p"}:
+                return normalized.upper()
+            if normalized in aliases:
+                return aliases[normalized]
+        return None
+
+    def _set_exams(self, exams, error=""):
+        self.dashboard.set_exams(exams, error)
+        if hasattr(self, "_active_subject") and self.stack.currentWidget() is self.subject_menu_page:
+            self.show_subject_menu(self._active_subject)
+
+    def _subjects_with_upcoming_exams(self):
+        return {
+            code for exam in self.dashboard.exams
+            if (code := self._exam_subject_code(exam)) is not None
+        }
+
+    def start_exam_practice(self, subject_or_code):
+        code = self._exam_subject_code({
+            "subject_short": subject_or_code,
+            "subject": subject_or_code,
+        })
+        if code not in {"NT", "BS", "CS", "CS_P"}:
+            return
+        ids = self.question_repository.get_study_queue(code)
+        rebuild = lambda: self.question_repository.get_study_queue(code)
+        self._return_page = "SubjectMenu"
+        self.question_page.set_queue(f"{code} · Exam practice", ids, rebuild=rebuild)
+        self.stack.setCurrentWidget(self.question_page)
+        self.sidebar.set_active(code)
 
     def start_subject_practice(self, subject, topic):
         if subject == "NT" and topic == "Subnetting":
