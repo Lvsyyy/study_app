@@ -319,7 +319,7 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.batch_run_button, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
             widget.setEnabled(enabled)
 
     def _show_empty(self, message):
@@ -797,11 +797,6 @@ class QuestionPage(QWidget):
             result = simulate_batch(self.code_editor.toPlainText(), inputs)
             self._batch_result = result
             self.batch_output.setPlainText(result["output"])
-            if result.get("color"):
-                self.batch_output.setStyleSheet(
-                    f"QPlainTextEdit {{ background: #101010; color: #{result['color']} ; "
-                    "border: none; border-radius: 0; padding: 12px; }"
-                )
         except (json.JSONDecodeError, BatchSimulationError, TypeError, ValueError) as exc:
             self._batch_result = None
             self.batch_output.setPlainText(f"Fehler: {exc}")
