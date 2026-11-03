@@ -1,9 +1,30 @@
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    11: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'BIOS update' FROM subjects WHERE name = 'BS';
+
+    UPDATE questions
+    SET topic_id = (
+        SELECT target.id FROM topics target
+        JOIN subjects subject ON subject.id = target.subject_id
+        WHERE subject.name = 'BS' AND target.name = 'BIOS update'
+    )
+    WHERE topic_id IN (
+        SELECT source.id FROM topics source
+        JOIN subjects subject ON subject.id = source.subject_id
+        WHERE subject.name = 'BS' AND source.name = 'BIOS und UEFI'
+    );
+
+    DELETE FROM topics
+    WHERE subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      AND name = 'BIOS und UEFI';
+    """,
+
     10: """
     INSERT OR IGNORE INTO topics(subject_id, name)
     SELECT id, 'Bootvorgang' FROM subjects WHERE name = 'BS';
