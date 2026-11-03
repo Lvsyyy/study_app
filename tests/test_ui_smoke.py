@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -157,7 +158,7 @@ def test_pug_subject_includes_arbeitsvertrag(window):
 def test_binary_dividers_fit_each_table_cell(window):
     _, template = binary_arithmetic_table("10101", "00110", "+")
     page = window.question_page
-    page._show_calculation_table(__import__("json").loads(template))
+    page._show_calculation_table(json.loads(template))
     table = page.calculation_tables[0]
 
     separator_rows = [
