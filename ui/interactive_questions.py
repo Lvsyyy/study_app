@@ -4,15 +4,11 @@ import random
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QCheckBox, QComboBox, QLabel, QListWidget, QWidget, QVBoxLayout
 
+from core.theme_manager import ThemeManager
+
 
 class InteractiveQuestion(QWidget):
-    """Multi-select, drag ordering and term-to-definition matching.
-
-    JSON answer formats:
-      multi_select: {"options": [...], "correct": [0, 2]}
-      ordering: {"items": [...]}
-      matching: {"pairs": [{"left": "...", "right": "..."}, ...]}
-    """
+    """Multi-select, drag ordering and term-to-definition matching."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
@@ -23,6 +19,69 @@ class InteractiveQuestion(QWidget):
         self.controls = []
         self.order_list = None
         self.match_options = []
+        self.apply_theme("Rose Pine")
+
+    def apply_theme(self, theme):
+        p = ThemeManager.palette(theme)
+        self.setStyleSheet(f"""
+            QCheckBox {{
+                background: {p['card']};
+                color: {p['text']};
+                border: 1px solid {p['border']};
+                border-radius: 8px;
+                padding: 11px 12px;
+                spacing: 10px;
+            }}
+            QCheckBox:hover {{ border-color: {p['accent']}; }}
+            QCheckBox::indicator {{
+                width: 18px; height: 18px;
+                border: 1px solid {p['muted']};
+                border-radius: 4px;
+                background: {p['panel']};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {p['accent']};
+                border-color: {p['accent']};
+            }}
+            QListWidget {{
+                background: {p['panel']};
+                alternate-background-color: {p['card']};
+                color: {p['text']};
+                border: 1px solid {p['border']};
+                border-radius: 8px;
+                padding: 6px;
+                outline: 0;
+            }}
+            QListWidget::item {{
+                background: {p['card']};
+                border: 1px solid {p['border']};
+                border-radius: 6px;
+                padding: 10px;
+                margin: 3px;
+            }}
+            QListWidget::item:selected {{
+                background: {p['raised']};
+                color: {p['text']};
+                border-color: {p['accent']};
+            }}
+            QListWidget::item:hover {{ border-color: {p['accent']}; }}
+            QComboBox {{
+                background: {p['panel']};
+                color: {p['text']};
+                border: 1px solid {p['border']};
+                border-radius: 7px;
+                padding: 8px;
+                min-height: 22px;
+            }}
+            QComboBox QAbstractItemView {{
+                background: {p['panel']};
+                color: {p['text']};
+                selection-background-color: {p['raised']};
+                selection-color: {p['text']};
+                border: 1px solid {p['border']};
+            }}
+            QLabel {{ background: transparent; color: {p['text']}; }}
+        """)
 
     def _clear(self):
         while self.layout.count():
@@ -50,6 +109,7 @@ class InteractiveQuestion(QWidget):
         elif kind == "ordering":
             self.layout.addWidget(QLabel("Drag the items into the correct order:"))
             self.order_list = QListWidget()
+            self.order_list.setAlternatingRowColors(True)
             self.order_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
             self.order_list.setDefaultDropAction(Qt.DropAction.MoveAction)
             self.order_list.setDragEnabled(True)
