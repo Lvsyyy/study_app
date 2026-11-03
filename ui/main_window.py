@@ -151,12 +151,8 @@ class MainWindow(QMainWindow):
             self.question_repository.add_topics(subject, ("Arbeitsvertrag",))
             topics = self.question_repository.list_topics(subject)
         if subject == "BS":
-            groups = {
-                "Bootvorgang": {
-                    "Themen": ["Bootvorgang und POST", "PAP"],
-                },
-            }
             self.question_repository.add_topics(subject, (
+                "Bootvorgang",
                 "BIOS update",
                 "Windows Dateisysteme",
                 "Festplatten",
@@ -165,10 +161,7 @@ class MainWindow(QMainWindow):
                 "Batch",
                 "Benutzer",
             ))
-            topics = [
-                topic for topic in self.question_repository.list_topics(subject)
-                if topic not in {"Bootvorgang", "Bootvorgang und POST", "PAP"}
-            ]
+            topics = self.question_repository.list_topics(subject)
         if subject == "CS":
             self.question_repository.add_topics(subject, (
                 "IT-Systeme",
