@@ -37,6 +37,27 @@ class ConnectionPort(QGraphicsEllipseItem):
             event.accept()
 
 
+class ConnectionLine(QGraphicsLineItem):
+    def __init__(self, editor, edge, key):
+        super().__init__()
+        self.editor, self.edge, self.key = editor, edge, key
+        self.setPen(QPen(QColor("#9bb8d4"), 2))
+        self.setZValue(1)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mouseDoubleClickEvent(self, event):
+        choices = ["Normal", "Ja", "Nein"]
+        current = self.edge.get("label", "Normal")
+        selected, ok = QInputDialog.getItem(
+            self.editor, "Verbindung bearbeiten", "Linientyp:", choices,
+            choices.index(current) if current in choices else 0, False,
+        )
+        if ok:
+            self.edge["label"] = selected
+            self.editor.refresh()
+        event.accept()
+
 class FlowNode(QGraphicsObject):
     WIDTH = 190
     HEIGHT = 76
@@ -76,7 +97,7 @@ class FlowNode(QGraphicsObject):
         painter.setBrush(QBrush(QColor("#263449")))
         rect = self.boundingRect().adjusted(1, 1, -1, -1)
         if self.kind == "Start/End":
-            painter.drawRoundedRect(rect, 25, 25)
+            painter.drawRoundedRect(rect, 38, 38)
         elif self.kind == "Decision":
             path = QPainterPath()
             path.moveTo(self.WIDTH / 2, 1)
@@ -202,9 +223,6 @@ class PapEditor(QWidget):
         add = QPushButton("Block hinzufügen")
         add.clicked.connect(self.add_node)
         tools.addWidget(add)
-        self.edge_label = QComboBox()
-        self.edge_label.addItems(["Normal", "Ja", "Nein"])
-        tools.addWidget(self.edge_label)
         delete = QPushButton("Ausgewählten Block löschen")
         delete.clicked.connect(self.delete_selected)
         tools.addWidget(delete)
@@ -229,15 +247,57 @@ class PapEditor(QWidget):
         self._next_id = max([n["id"] for n in self.nodes] + [0]) + 1
         if show_solution:
             self.edges = [dict(e) for e in config.get("edges", [])]
-            for i, node in enumerate(self.nodes):
-                node.setdefault("x", (i % 4) * 240)
-                node.setdefault("y", (i // 4) * 150)
+            self._arrange_solution()
         else:
             self.edges = []
             for node, (x, y) in zip(self.nodes, self._scatter_positions(len(self.nodes))):
                 node["x"], node["y"] = x, y
         self._connection_source = None
         self.refresh()
+
+    def _arrange_solution(self):
+        """Arrange the main path vertically and error branches beside it."""
+        if not self.nodes:
+            return
+        by_id = {node["id"]: node for node in self.nodes}
+        outgoing = {node_id: [] for node_id in by_id}
+        incoming = {node_id: 0 for node_id in by_id}
+        for edge in self.edges:
+            source, target = edge.get("from"), edge.get("to")
+            if source in by_id and target in by_id:
+                outgoing[source].append(edge)
+                incoming[target] += 1
+        starts = [n["id"] for n in self.nodes if n.get("type") == "Start/End" and incoming[n["id"]] == 0]
+        start = starts[0] if starts else self.nodes[0]["id"]
+        main, branches, seen = [], [], set()
+        current = start
+        while current in by_id and current not in seen:
+            seen.add(current)
+            main.append(current)
+            next_edges = [e for e in outgoing[current] if e.get("label", "Normal") != "Nein"]
+            if not next_edges:
+                break
+            current = next_edges[0]["to"]
+        for node_id in main:
+            for edge in outgoing[node_id]:
+                branch_start = edge.get("to")
+                if edge.get("label") != "Nein" or branch_start in seen:
+                    continue
+                branch, cursor = [], branch_start
+                while cursor in by_id and cursor not in seen and cursor not in branch:
+                    branch.append(cursor)
+                    next_edges = [e for e in outgoing[cursor] if e.get("label", "Normal") != "Nein"]
+                    if not next_edges:
+                        break
+                    cursor = next_edges[0]["to"]
+                branches.extend(branch)
+                seen.update(branch)
+        remaining = [n["id"] for n in self.nodes if n["id"] not in seen]
+        main.extend(remaining)
+        for index, node_id in enumerate(main):
+            by_id[node_id]["x"], by_id[node_id]["y"] = 0, index * 132
+        for index, node_id in enumerate(branches):
+            by_id[node_id]["x"], by_id[node_id]["y"] = 300, index * 132
 
     def reset(self):
         self.nodes.clear()
@@ -304,7 +364,7 @@ class PapEditor(QWidget):
         edge = {
             "from": source[0], "from_port": source[1],
             "to": target[0], "to_port": target[1],
-            "label": self.edge_label.currentText(),
+            "label": "Normal",
         }
         self.edges = [
             e for e in self.edges
@@ -352,16 +412,16 @@ class PapEditor(QWidget):
             if edge["from"] not in self._graphics_nodes or edge["to"] not in self._graphics_nodes:
                 continue
             key = (edge["from"], edge["to"], edge.get("label", "Normal"))
-            line = QGraphicsLineItem()
-            line.setPen(QPen(QColor("#9bb8d4"), 2))
-            line.setZValue(1)
+            line = ConnectionLine(self, edge, key)
             self.scene.addItem(line)
             self._graphics_edges[key] = line
-            label = QGraphicsTextItem(edge.get("label", "Normal"))
-            label.setDefaultTextColor(QColor("#e6edf5"))
-            label.setZValue(3)
-            self.scene.addItem(label)
-            self._graphics_edges[("label",) + key] = label
+            edge_type = edge.get("label", "Normal")
+            if edge_type in ("Ja", "Nein"):
+                label = QGraphicsTextItem(edge_type)
+                label.setDefaultTextColor(QColor("#e6edf5"))
+                label.setZValue(3)
+                self.scene.addItem(label)
+                self._graphics_edges[("label",) + key] = label
         self.update_connections()
 
     def get_answer(self):
