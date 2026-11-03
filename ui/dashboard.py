@@ -90,10 +90,8 @@ class Dashboard(QWidget):
         top.addWidget(next_button)
         activity_layout.addLayout(top)
         activity_layout.addWidget(muted_label("Each square is one day. Brighter means more study."))
-        self.heat_grid = QGridLayout()
-        self.heat_grid.setSpacing(5)
-        for column in range(7):
-            self.heat_grid.setColumnStretch(column, 1)
+        self.heat_grid = QVBoxLayout()
+        self.heat_grid.setSpacing(8)
         activity_layout.addLayout(self.heat_grid)
         self.legend = QHBoxLayout()
         activity_layout.addLayout(self.legend)
@@ -174,7 +172,7 @@ class Dashboard(QWidget):
             days_left = (exam_day - today).days
             date_label = QLabel(start.strftime("%d.%m"))
             date_label.setStyleSheet(
-                f"font-size: 22px; font-weight: 700; color: {ThemeManager.palette(self.theme_name)['text']};"
+                f"font-size: 19px; font-weight: 700; color: {ThemeManager.palette(self.theme_name)['text']};"
             )
             weekday_label = muted_label(start.strftime("%A"))
             countdown_text = (
@@ -199,16 +197,17 @@ class Dashboard(QWidget):
             card_button = QPushButton()
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
             card_button.setFixedWidth(230)
-            card_button.setFixedHeight(132)
+            card_button.setFixedHeight(112)
             palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
-                f"QPushButton {{ text-align: left; padding: 12px; color: {palette['text']}; "
+                f"QPushButton {{ text-align: left; padding: 3px; color: {palette['text']}; "
                 f"background: {palette['panel']}; border: 1px solid {palette['border']}; "
                 "border-radius: 10px; } "
                 f"QPushButton:hover {{ border: 1px solid {palette['accent']}; }}"
             )
             card_layout = QVBoxLayout(card_button)
-            card_layout.setContentsMargins(18, 14, 18, 14)
+            card_layout.setContentsMargins(12, 7, 12, 7)
+            card_layout.setSpacing(2)
             top = QHBoxLayout()
             top.addWidget(date_label)
             top.addStretch()
@@ -375,23 +374,49 @@ class Dashboard(QWidget):
             return max(record["duration"] or 0, (record["questions"] or 0) * 20)
 
         peak = max((score(record) for record in activity.values()), default=0)
-        for column, weekday in enumerate(WEEKDAYS):
+
+        # Use separate horizontal layouts for each row. QGridLayout was allowing
+        # row geometry to collapse in narrow dashboard layouts.
+        header = QHBoxLayout()
+        header.setSpacing(5)
+        for weekday in WEEKDAYS:
             label = muted_label(weekday)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setMinimumWidth(0)
-            self.heat_grid.addWidget(label, 0, column)
+            header.addWidget(label, 1)
+        self.heat_grid.addLayout(header)
 
         weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
-        for week_row, week in enumerate(weeks, start=1):
-            for column, day in enumerate(week):
+        for week in weeks:
+            week_layout = QHBoxLayout()
+            week_layout.setSpacing(5)
+            for day in week:
                 cell = QLabel()
-                cell.setMinimumSize(16, 24)
+                cell.setMinimumWidth(0)
+                cell.setFixedHeight(22)
                 cell.setSizePolicy(
                     QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
                 )
-                cell.setFixedHeight(24)
-                if day.month != month:
-                    self.heat_grid.addWidget(cell, week_row, column)
+                if day.month == month:
+                    record = activity.get(day)
+                    value = score(record) if record else 0
+                    level = (
+                        0 if value == 0 or peak == 0
+                        else min(4, max(1, round(value / peak * 4)))
+                    )
+                    edge = palette["accent"] if day == today else palette["border"]
+                    cell.setStyleSheet(
+                        f"background: {palette['heat'][level]}; "
+                        f"border: 1px solid {edge}; border-radius: 4px;"
+                    )
+                    minutes = int((record["duration"] or 0) // 60) if record else 0
+                    questions = int(record["questions"] or 0) if record else 0
+                    cell.setToolTip(
+                        f"{day:%A, %d %B %Y}\\nStudy time: {minutes} min\\nQuestions: {questions}"
+                    )
+                else:
+                    cell.setStyleSheet("background: transparent; border: none;")
+                week_layout.addWidget(cell, 1)
+            self.heat_grid.addLayout(week_layout)
                     continue
                 record = activity.get(day)
                 value = score(record) if record else 0
