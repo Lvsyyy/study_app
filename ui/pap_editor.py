@@ -214,6 +214,7 @@ class PapEditor(QWidget):
         self._graphics_edges = {}
         self._preview_line = None
         self._connection_source = None
+        self._editing_enabled = True
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -221,6 +222,8 @@ class PapEditor(QWidget):
         tools = QHBoxLayout()
         self.type_box = QComboBox()
         self.type_box.addItems(self.TYPES)
+        self.add_button = None
+        self.delete_button = None
         tools.addWidget(self.type_box)
         add = QPushButton("Block hinzufügen")
         add.clicked.connect(self.add_node)
@@ -228,6 +231,8 @@ class PapEditor(QWidget):
         delete = QPushButton("Ausgewählten Block löschen")
         delete.clicked.connect(self.delete_selected)
         tools.addWidget(delete)
+        self.add_button = add
+        self.delete_button = delete
         tools.addStretch()
         root.addLayout(tools)
         self.status = QLabel(
@@ -258,7 +263,30 @@ class PapEditor(QWidget):
             return len(self.nodes) == 1 and self.nodes[0]["id"] == node_id
         return node_id in (self.nodes[0]["id"], self.nodes[-1]["id"])
 
+    def set_editing_enabled(self, enabled):
+        """Lock editing without disabling canvas navigation (zoom and pan)."""
+        self._editing_enabled = bool(enabled)
+        self.type_box.setEnabled(self._editing_enabled)
+        self.add_button.setEnabled(self._editing_enabled)
+        self.delete_button.setEnabled(self._editing_enabled)
+        for node in self._graphics_nodes.values():
+            flags = node.flags()
+            movable = QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+            node.setFlag(movable, self._editing_enabled)
+            for port in node.ports.values():
+                port.setAcceptedMouseButtons(
+                    Qt.MouseButton.LeftButton if self._editing_enabled
+                    else Qt.MouseButton.NoButton
+                )
+        for line in self._graphics_edges.values():
+            if isinstance(line, ConnectionLine):
+                line.setAcceptedMouseButtons(
+                    Qt.MouseButton.LeftButton if self._editing_enabled
+                    else Qt.MouseButton.NoButton
+                )
+
     def load_config(self, config, show_solution=False):
+        self.set_editing_enabled(True)
         self.nodes = [dict(n) for n in config.get("nodes", [])]
         self._next_id = max([n["id"] for n in self.nodes] + [0]) + 1
         if show_solution:
@@ -441,6 +469,7 @@ class PapEditor(QWidget):
                 self.scene.addItem(label)
                 self._graphics_edges[("label",) + key] = label
         self.update_connections()
+        self.set_editing_enabled(self._editing_enabled)
 
     def get_answer(self):
         for node in self.nodes:
