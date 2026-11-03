@@ -102,6 +102,8 @@ class MainWindow(QMainWindow):
         self.question_page.back_requested.connect(lambda: self.show_page(self._return_page))
         self.question_page.answered.connect(lambda _correct: self.session.record_question())
         self.theme_changed.connect(self.dashboard.apply_theme)
+        self.theme_changed.connect(self.question_page.apply_theme)
+        self.question_page.apply_theme(settings.theme)
 
         self.session.start()
         self.show_page("Home")
@@ -315,6 +317,7 @@ class MainWindow(QMainWindow):
             ThemeManager.apply(self.app, self.settings.theme)
             self.sidebar.set_icon_pack(self.settings.icon_pack)
             self.dashboard.apply_theme(self.settings.theme)
+            self.question_page.apply_theme(self.settings.theme)
 
     def closeEvent(self, event):
         self.webuntis.shutdown()
