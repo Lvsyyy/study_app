@@ -89,6 +89,9 @@ class FlowNode(QGraphicsObject):
         super().hoverLeaveEvent(event)
 
     def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
+            grid = self.editor.GRID
+            return QPointF(round(value.x() / grid) * grid, round(value.y() / grid) * grid)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             self.editor.update_connections()
         return super().itemChange(change, value)
