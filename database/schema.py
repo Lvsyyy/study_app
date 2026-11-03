@@ -1,9 +1,64 @@
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+
+    7: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Batch' FROM subjects WHERE name = 'CS_P';
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Gib die Ausgabe „Das ist eine Ausgabe“ aus.',
+           '{"expected_output":["Das ist eine Ausgabe"],"inputs":[],"solution":"echo Das ist eine Ausgabe"}',
+           'Verwende den Befehl echo.',
+           1, 'batch'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='CS_P' AND t.name='Batch'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Gib die Ausgabe „Das ist eine Ausgabe“ aus.');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Gib „Das ist eine Ausgabe“ aus, ändere die Konsolenfarbe und halte das Fenster anschließend an.',
+           '{"expected_output":["Das ist eine Ausgabe","Drücken Sie eine beliebige Taste . . ."],"inputs":[],"solution":"@echo off\\ncolor 2F\\necho Das ist eine Ausgabe\\npause"}',
+           'Nutze echo, color und pause.',
+           2, 'batch'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='CS_P' AND t.name='Batch'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Gib „Das ist eine Ausgabe“ aus, ändere die Konsolenfarbe und halte das Fenster anschließend an.');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Frage den Benutzer nach seinem Namen und gib anschließend „Hallo [Name]“ aus.',
+           '{"expected_output":["Wie ist dein Name? Cooler Name","","Hallo Cooler Name","Drücken Sie eine beliebige Taste . . ."],"inputs":["Cooler Name"],"solution":"@echo off\\nset /p NAME=Wie ist dein Name? \\necho.\\necho Hallo %NAME%\\npause"}',
+           'Verwende set /p, eine Variable und echo.',
+           2, 'batch'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='CS_P' AND t.name='Batch'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Frage den Benutzer nach seinem Namen und gib anschließend „Hallo [Name]“ aus.');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Lies eine Zahl ein und gib ihr Quadrat aus. Beispiel-Eingabe: 10.',
+           '{"expected_output":["Zahl eingeben: 10","Das Quadrat ist 100","Drücken Sie eine beliebige Taste . . ."],"inputs":["10"],"solution":"@echo off\\nset /p ZAHL=Zahl eingeben: \\nset /a Resultat=%ZAHL%*%ZAHL%\\necho Das Quadrat ist %Resultat%\\npause"}',
+           'Berechne das Quadrat mit set /a.',
+           3, 'batch'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='CS_P' AND t.name='Batch'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Lies eine Zahl ein und gib ihr Quadrat aus. Beispiel-Eingabe: 10.');
+
+    INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Frage nach OK. Bei der Eingabe „j“ soll „Alles ist richtig weiter so“ erscheinen.',
+           '{"expected_output":["j","Alles ist richtig weiter so","Drücken Sie eine beliebige Taste . . ."],"inputs":["j"],"solution":"@echo off\\nset /p OK=\\nIF /I \\"%OK%\\" == \\"j\\" (echo Alles ist richtig weiter so)\\npause"}',
+           'Verwende IF /I für einen Vergleich ohne Beachtung der Groß-/Kleinschreibung.',
+           3, 'batch'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='CS_P' AND t.name='Batch'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Frage nach OK. Bei der Eingabe „j“ soll „Alles ist richtig weiter so“ erscheinen.');
+    """,
     2: """
     ALTER TABLE questions ADD COLUMN alt_answers TEXT;
     CREATE INDEX IF NOT EXISTS idx_attempts_created_q
