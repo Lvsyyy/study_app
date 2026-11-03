@@ -432,12 +432,6 @@ class QuestionPage(QWidget):
             except (json.JSONDecodeError, TypeError):
                 self.pap_editor.reset()
             self.pap_editor.show()
-        elif self._pap_mode:
-            try:
-                self.pap_editor.load_config(json.loads(self.current["answer"]))
-            except (json.JSONDecodeError, TypeError):
-                pass
-            self.feedback.setText("Correct flowchart shown.")
         elif self._code_mode:
             if self._batch_mode:
                 prompt = question_text
@@ -870,6 +864,12 @@ class QuestionPage(QWidget):
         if not self.interactive_question.isHidden():
             self.interactive_question.reveal_solution()
             self.feedback.setText("Correct solution shown.")
+        elif self._pap_mode:
+            try:
+                self.pap_editor.load_config(json.loads(self.current["answer"]))
+            except (json.JSONDecodeError, TypeError):
+                pass
+            self.feedback.setText("Correct flowchart shown.")
         elif self._code_mode:
             if self._batch_mode:
                 try:
