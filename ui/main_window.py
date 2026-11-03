@@ -5,6 +5,7 @@ from core.session_tracker import SessionTracker
 from core.math_question_generator import MathQuestionGenerator
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
+from core.webuntis import WebUntisExamManager
 from database.attempt_repository import AttemptRepository
 from database.database import Database
 from database.question_repository import QuestionRepository
@@ -62,6 +63,8 @@ class MainWindow(QMainWindow):
         self.dashboard = Dashboard(
             self.statistics_repository, self.attempt_repository, settings.theme
         )
+        self.webuntis = WebUntisExamManager(self)
+        self.webuntis.exams_updated.connect(self.dashboard.set_exams)
         self.subjects_page = SubjectsPage(self.statistics_repository)
         self.statistics_page = StatisticsPage(
             self.statistics_repository, self.attempt_repository
@@ -99,6 +102,7 @@ class MainWindow(QMainWindow):
 
         self.session.start()
         self.show_page("Home")
+        self.webuntis.check()
 
     def show_page(self, name):
         if name == "Math":
