@@ -110,6 +110,9 @@ class InteractiveQuestion(QWidget):
             self.layout.addWidget(QLabel("Drag the items into the correct order:"))
             self.order_list = QListWidget()
             self.order_list.setAlternatingRowColors(True)
+            item_count = len(values)
+            self.order_list.setMinimumHeight(min(560, max(280, item_count * 58 + 20)))
+            self.order_list.setMaximumHeight(560)
             self.order_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
             self.order_list.setDefaultDropAction(Qt.DropAction.MoveAction)
             self.order_list.setDragEnabled(True)
@@ -137,6 +140,18 @@ class InteractiveQuestion(QWidget):
                 self.match_options.append(combo)
                 self.layout.addWidget(row)
         self.setEnabled(True)
+
+    def set_answer_locked(self, locked):
+        if self.kind == "ordering" and self.order_list:
+            self.order_list.setDragEnabled(not locked)
+            self.order_list.setDragDropMode(
+                QListWidget.DragDropMode.NoDragDrop if locked
+                else QListWidget.DragDropMode.InternalMove
+            )
+        for control in self.controls:
+            control.setEnabled(not locked)
+        for combo in self.match_options:
+            combo.setEnabled(not locked)
 
     def get_answer(self):
         if self.kind == "multi_select":
