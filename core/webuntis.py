@@ -81,7 +81,11 @@ def fetch_exams(weeks: int = 6) -> list[dict]:
             if not start_value:
                 continue
             subject_data = (entry.get("position1") or [{}])[0].get("current") or {}
-            subject = subject_data.get("longName") or subject_data.get("shortName") or "Unknown subject"
+            subject = (
+                subject_data.get("longName")
+                or subject_data.get("shortName")
+                or "Unknown subject"
+            )
             description = entry.get("lessonInfo") or next(
                 (
                     item.get("text", "")
@@ -135,7 +139,10 @@ class WebUntisExamManager(QObject):
     def _save_state(self):
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.state_path.write_text(
-            json.dumps({"new_until": self._new_until, "known_ids": sorted(self._known_ids)}, indent=2),
+            json.dumps(
+                {"new_until": self._new_until, "known_ids": sorted(self._known_ids)},
+                indent=2,
+            ),
             encoding="utf-8",
         )
 
