@@ -34,7 +34,7 @@ class Dashboard(QWidget):
         self.timetable_error = ""
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(30, 26, 30, 26)
-        self.root.setSpacing(18)
+        self.root.setSpacing(24)
         self._build()
         self.refresh()
 
@@ -63,13 +63,14 @@ class Dashboard(QWidget):
         self._build_exams()
 
         row = QHBoxLayout()
+        row.setSpacing(18)
         weak_frame, weak_layout = card()
         weak_layout.addWidget(section_title("Weak points"))
         weak_layout.addWidget(muted_label("Topics with the lowest recorded accuracy"))
         self.weak_rows = QVBoxLayout()
         weak_layout.addLayout(self.weak_rows)
         weak_layout.addStretch()
-        weak_frame.setMinimumHeight(260)
+        weak_frame.setMinimumHeight(300)
         weak_frame.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
@@ -99,7 +100,7 @@ class Dashboard(QWidget):
         activity_layout.addLayout(self.heat_grid)
         self.legend = QHBoxLayout()
         activity_layout.addLayout(self.legend)
-        activity_frame.setMinimumHeight(260)
+        activity_frame.setMinimumHeight(360)
         activity_frame.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
