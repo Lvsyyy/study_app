@@ -336,6 +336,8 @@ class QuestionPage(QWidget):
         self.answer.clear()
         self.code_editor.clear()
         self.code_editor_container.hide()
+        self.batch_workspace.hide()
+        self.batch_output.clear()
         self._code_mode = False
         self.question_text.show()
         self.calculation_answer.clear()
@@ -398,6 +400,9 @@ class QuestionPage(QWidget):
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._batch_mode = question_type == "batch"
+        self._batch_result = None
+        self.batch_output.clear()
+        self.batch_run_button.setEnabled(True)
         self._code_mode = question_type in ("code", "batch") or (
             question["subject_name"] == "AE"
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
@@ -424,7 +429,10 @@ class QuestionPage(QWidget):
             cursor = self.code_editor.textCursor()
             cursor.movePosition(QTextCursor.MoveOperation.End)
             self.code_editor.setTextCursor(cursor)
-            self.code_editor_container.show()
+            if self._batch_mode:
+                self.batch_workspace.show()
+            else:
+                self.code_editor_container.show()
             self.code_editor.setEnabled(True)
             self.code_editor.setFocus()
         elif question_type in ("multi_select", "ordering", "matching"):
@@ -748,6 +756,7 @@ class QuestionPage(QWidget):
         alternatives = self.questions.alternatives(self.current)
         correct = (
             self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
+            self._batch_answer_matches() if self._batch_mode else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
             if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
         )
@@ -760,6 +769,7 @@ class QuestionPage(QWidget):
             set_state(self.feedback, "good")
             self.answer.setEnabled(False)
             self.code_editor.setEnabled(False)
+            self.batch_run_button.setEnabled(False)
             self.calculation_answer.setEnabled(False)
             self.calculation_table_container.setEnabled(False)
             self.interactive_question.set_answer_locked(True)
@@ -840,6 +850,7 @@ class QuestionPage(QWidget):
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.code_editor.setEnabled(False)
+        self.batch_run_button.setEnabled(False)
         self.calculation_answer.setEnabled(False)
         self.calculation_table_container.setEnabled(False)
         self.interactive_question.set_answer_locked(True)
