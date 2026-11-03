@@ -50,6 +50,7 @@ class SubjectMenuPage(QWidget):
             exam_available=exam_available,
         )
 
+        grouped_topics = set()
         if groups:
             for group_name, subgroups in groups.items():
                 group_frame, group_layout = card(padding=18)
@@ -60,6 +61,7 @@ class SubjectMenuPage(QWidget):
                     for subgroup_topics in subgroups.values()
                     for topic in subgroup_topics
                 ]
+                grouped_topics.update(group_topics)
                 mix_button = action_button(f"Mixed {group_name} practice", primary=True)
                 mix_button.setMinimumHeight(44)
                 mix_button.clicked.connect(
@@ -73,12 +75,14 @@ class SubjectMenuPage(QWidget):
                     self._add_topic_grid(group_layout, subject, subgroup_topics, columns=2)
 
                 self.content.insertWidget(self.content.count() - 1, group_frame)
-        elif topics:
+
+        remaining_topics = [topic for topic in topics if topic not in grouped_topics]
+        if remaining_topics:
             topics_frame, topics_layout = card(padding=18)
             topics_layout.addWidget(section_title("Topics"))
-            self._add_topic_grid(topics_layout, subject, topics, columns=2)
+            self._add_topic_grid(topics_layout, subject, remaining_topics, columns=2)
             self.content.insertWidget(self.content.count() - 1, topics_frame)
-        else:
+        elif not groups:
             self.content.insertWidget(
                 self.content.count() - 1,
                 muted_label("No topics available yet."),
