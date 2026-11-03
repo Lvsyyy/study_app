@@ -430,6 +430,7 @@ class QuestionPage(QWidget):
             cursor.movePosition(QTextCursor.MoveOperation.End)
             self.code_editor.setTextCursor(cursor)
             if self._batch_mode:
+                self.code_editor_container.show()
                 self.batch_workspace.show()
             else:
                 self.code_editor_container.show()
