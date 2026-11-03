@@ -112,17 +112,17 @@ class Dashboard(QWidget):
 
         self.exam_scroll = QScrollArea()
         self.exam_scroll.setWidgetResizable(True)
-        self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.exam_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.exam_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.exam_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.exam_container = QWidget()
         self.exam_container.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
         )
-        self.exam_row = QVBoxLayout(self.exam_container)
-        self.exam_row.setContentsMargins(0, 0, 8, 0)
+        self.exam_row = QHBoxLayout(self.exam_container)
+        self.exam_row.setContentsMargins(0, 0, 8, 12)
         self.exam_row.setSpacing(10)
-        self.exam_row.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
+        self.exam_row.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
         self.exam_scroll.setWidget(self.exam_container)
         self.exam_scroll.setFixedHeight(230)
         self.root.addWidget(self.exam_scroll)
@@ -198,8 +198,8 @@ class Dashboard(QWidget):
             time_label = muted_label(time_text)
             card_button = QPushButton()
             card_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            card_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            card_button.setMinimumHeight(132)
+            card_button.setFixedWidth(230)
+            card_button.setFixedHeight(132)
             palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
                 f"QPushButton {{ text-align: left; padding: 12px; color: {palette['text']}; "
@@ -384,26 +384,25 @@ class Dashboard(QWidget):
         weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
         for week_row, week in enumerate(weeks, start=1):
             for column, day in enumerate(week):
-                square = QLabel()
-                square.setMinimumSize(8, 24)
-                square.setMaximumWidth(24)
-                square.setSizePolicy(
+                cell = QLabel()
+                cell.setMinimumSize(16, 24)
+                cell.setSizePolicy(
                     QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
                 )
-                square.setFixedHeight(24)
+                cell.setFixedHeight(24)
                 if day.month != month:
-                    self.heat_grid.addWidget(square, week_row, column)
+                    self.heat_grid.addWidget(cell, week_row, column)
                     continue
                 record = activity.get(day)
                 value = score(record) if record else 0
                 level = 0 if value == 0 or peak == 0 else min(4, max(1, round(value / peak * 4)))
                 edge = palette["accent"] if day == today else palette["border"]
-                square.setStyleSheet(
+                cell.setStyleSheet(
                     f"background: {palette['heat'][level]}; border: 1px solid {edge}; border-radius: 4px;"
                 )
                 minutes = int((record["duration"] or 0) // 60) if record else 0
                 questions = int(record["questions"] or 0) if record else 0
-                square.setToolTip(
+                cell.setToolTip(
                     f"{day:%A, %d %B %Y}\nStudy time: {minutes} min\nQuestions: {questions}"
                 )
-                self.heat_grid.addWidget(square, week_row, column)
+                self.heat_grid.addWidget(cell, week_row, column)
