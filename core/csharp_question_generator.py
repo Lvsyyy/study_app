@@ -39,7 +39,11 @@ def _program(prompt, body, output, hint):
         "Vorgegebene Ausgabe:\n"
         + "\n".join(output.splitlines())
     )
-    return _main(prompt, body, body, hint)
+    return _main(
+        prompt, body,
+        __import__("json").dumps({"solution": body, "output": output}, ensure_ascii=False),
+        hint, question_type="csharp_practice",
+    )
 
 
 def _number_pair():
@@ -174,8 +178,9 @@ def _if_condition():
         f"Ergänze nur die Bedingung. Bei einem Alter ab 18 soll 'Volljaehrig' "
         f"ausgegeben werden. Variable: alter = {age}.",
         "",
-        f"alter >= 18",
-        "Vergleiche alter mit 18."
+        __import__("json").dumps({"solution": "alter >= 18", "output": "Volljaehrig" if age >= 18 else ""}, ensure_ascii=False),
+        "Vergleiche alter mit 18.",
+        question_type="csharp_practice"
     ) | {
         "question_text": (
             f"Ergänze nur die Bedingung. Bei einem Alter ab 18 soll 'Volljaehrig' "
@@ -224,9 +229,9 @@ def _if_else_condition():
             '        Console.WriteLine("Kalt");\n    }\n'
             "    Console.ReadLine();\n}"
         ),
-        "answer": "temperatur >= 20",
+        "answer": __import__("json").dumps({"solution": "temperatur >= 20", "output": "Warm" if temperature >= 20 else "Kalt"}, ensure_ascii=False),
         "hint": "Vergleiche temperatur mit 20.",
-        "difficulty": 1, "question_type": "code",
+        "difficulty": 1, "question_type": "csharp_practice",
     }
 
 
