@@ -1,9 +1,49 @@
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    21: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Alles in einen Programm' FROM subjects WHERE name='AE';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'PAP' FROM subjects WHERE name='AE';
+
+    INSERT INTO questions(topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Was ist ein Algorithmus?', 'Problemlösung aus arithmetischen Einzelschritten',
+           'Ein Algorithmus beschreibt eine schrittweise Lösung eines Problems.', 1, 'matching'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Was ist ein Algorithmus?');
+
+    INSERT INTO questions(topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Bringe die Generationen von Programmiersprachen in die richtige Reihenfolge.',
+           '{"items":["Maschinensprachen (Maschinencode)","Assembler-Sprachen","Prozedurale Sprachen","4GL","Künstliche Intelligenz"]}',
+           'Beginne bei der hardwarenahen Maschinensprache.', 1, 'ordering'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text LIKE 'Bringe die Generationen%');
+
+    INSERT INTO questions(topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id, 'Wodurch unterscheiden sich die Generationen von Programmiersprachen?',
+           '{"options":["Durch Programmiertechniken und Konzepte","Durch die Farbe des Editors","Durch die Marke des Computers","Durch die Anzahl der Tasten einer Tastatur"],"correct":[0]}',
+           'Achte auf die verwendeten Techniken und Konzepte.', 1, 'multi_select'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text LIKE 'Wodurch unterscheiden sich die Generationen%');
+
+    INSERT INTO questions(topic_id, question_text, answer, hint, difficulty, question_type)
+    SELECT t.id,
+           'Ordne jeden C#-Codeausschnitt der passenden Kategorie zu.',
+           '{"categories":["Ausdrücke","Anweisung","Verbundanweisung","Kommentare"],"cards":[{"text":"(3 / 5)","category":"Ausdrücke"},{"text":"x + 10","category":"Ausdrücke"},{"text":"true == false","category":"Ausdrücke"},{"text":"alter >= 18","category":"Ausdrücke"},{"text":"Console.WriteLine(\"Hallo\");","category":"Anweisung"},{"text":"int alter = 16;","category":"Anweisung"},{"text":"Console.ReadLine();","category":"Anweisung"},{"text":"x = x + 1;","category":"Anweisung"},{"text":"if (x > 5) { Console.WriteLine(x); }","category":"Verbundanweisung"},{"text":"while (x < 10) { x++; }","category":"Verbundanweisung"},{"text":"for (int i = 0; i < 3; i++) { Console.WriteLine(i); }","category":"Verbundanweisung"},{"text":"// Das ist ein Kommentar","category":"Kommentare"},{"text":"/* Mehrzeiliger Kommentar */","category":"Kommentare"}]}',
+           'Ein Ausdruck liefert einen Wert. Eine Anweisung führt eine Aktion aus. Eine Verbundanweisung fasst mehrere Anweisungen zusammen.',
+           2, 'table_sort'
+    FROM topics t JOIN subjects s ON s.id=t.subject_id
+    WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Ordne jeden C#-Codeausschnitt der passenden Kategorie zu.');
+    """,
+
     20: """
     UPDATE questions
     SET answer='{"pairs":[{"left":"80","right":"Datenpakete (HTTP)"},{"left":"25","right":"E-Mails (SMTP)"}]}'
