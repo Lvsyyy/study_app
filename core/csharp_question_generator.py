@@ -186,7 +186,7 @@ def _input():
     question = "\n".join(question_lines)
 
     input_output = "\n".join(
-        f'{field["prompt"].rstrip()}{_input_display_value(field)}'
+        f'{field["prompt"]}{_input_display_value(field)}'
         for field in fields
     )
 
@@ -222,9 +222,9 @@ def _input():
     ]
     result_output = (
         " | ".join(result_lines)
-        if selected_layout == "combined" else "\\n".join(result_lines)
+        if selected_layout == "combined" else "\n".join(result_lines)
     )
-    expected_output = f"{input_output}\\n\\n{result_output}"
+    expected_output = f"{input_output}\n\n{result_output}"
     hints = (
         "Verwende Console.Write() für die Eingabeaufforderungen, "
         "Console.ReadLine() zum Einlesen und die angegebenen Datentypen. "
