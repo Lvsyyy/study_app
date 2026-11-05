@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         self._owns_db = db is None
 
         self.question_repository = QuestionRepository(self.db)
+        self._initialized_topic_subjects = set()
         self.math_question_generator = MathQuestionGenerator(self.question_repository)
         self.attempt_repository = AttemptRepository(self.db)
         self.statistics_repository = StatisticsRepository(self.db)
@@ -147,11 +148,14 @@ class MainWindow(QMainWindow):
         self._active_subject = subject
         topics = self.question_repository.list_topics(subject)
         groups = None
+        initialize_topics = subject not in self._initialized_topic_subjects
         if subject == "PuG":
-            self.question_repository.add_topics(subject, ("Arbeitsvertrag",))
+            if initialize_topics:
+                self.question_repository.add_topics(subject, ("Arbeitsvertrag",))
             topics = self.question_repository.list_topics(subject)
         if subject == "BS":
-            self.question_repository.add_topics(subject, (
+            if initialize_topics:
+                self.question_repository.add_topics(subject, (
                 "Bootvorgang",
                 "BIOS update",
                 "Windows Dateisysteme",
@@ -163,7 +167,8 @@ class MainWindow(QMainWindow):
             ))
             topics = self.question_repository.list_topics(subject)
         if subject == "CS":
-            self.question_repository.add_topics(subject, (
+            if initialize_topics:
+                self.question_repository.add_topics(subject, (
                 "IT-Systeme",
                 "Komponenten",
                 "Anschlüsse und Schnittstellen",
@@ -172,7 +177,8 @@ class MainWindow(QMainWindow):
             ))
             topics = self.question_repository.list_topics(subject)
         if subject == "CS_P":
-            self.question_repository.add_topics(subject, (
+            if initialize_topics:
+                self.question_repository.add_topics(subject, (
                 "Strom- Spannungs- Wiederstandsmessung",
                 "Elektrische Grundbasis",
                 "Ohmsches Gesetz",
@@ -182,7 +188,8 @@ class MainWindow(QMainWindow):
             ))
             topics = self.question_repository.list_topics(subject)
         if subject == "NT":
-            self.question_repository.add_topics(subject, (
+            if initialize_topics:
+                self.question_repository.add_topics(subject, (
                 "Grundbasis",
                 "Ausdehnungen",
                 "Topologien",
@@ -210,16 +217,18 @@ class MainWindow(QMainWindow):
                     "Themen": ["HTML", "CSS"],
                 },
             }
-            self.question_repository.add_topics(
-                subject,
-                (
-                    topic_name
-                    for group in groups.values()
-                    for subgroup_topics in group.values()
-                    for topic_name in subgroup_topics
-                ),
-            )
+            if initialize_topics:
+                self.question_repository.add_topics(
+                    subject,
+                    (
+                        topic_name
+                        for group in groups.values()
+                        for subgroup_topics in group.values()
+                        for topic_name in subgroup_topics
+                    ),
+                )
             topics = self.question_repository.list_topics(subject)
+        self._initialized_topic_subjects.add(subject)
         self.subject_menu_page.set_subject(
             subject, topics, groups=groups,
             exam_available=subject in self._subjects_with_upcoming_exams(),
