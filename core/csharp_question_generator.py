@@ -130,13 +130,13 @@ def _input_solution(fields, conversions, output_style, output_layout):
         ))
 
     if output_layout == "combined":
-        labels = " | ".join(
+        labels = "\\n".join(
             f'{field["label"]}: {{{index}}}'
             for index, field in enumerate(fields)
         )
         values = ", ".join(field["variable"] for field in fields)
         if output_style == "interpolation":
-            interpolated = " | ".join(
+            interpolated = "\\n".join(
                 f'{field["label"]}: {{{field["variable"]}}}'
                 for field in fields
             )
@@ -220,10 +220,7 @@ def _input():
         f'{field["label"]}: {_input_display_value(field)}'
         for field in fields
     ]
-    result_output = (
-        " | ".join(result_lines)
-        if selected_layout == "combined" else "\n".join(result_lines)
-    )
+    result_output = "\n".join(result_lines)
     expected_output = f"{input_output}\n\n{result_output}"
     hints = (
         "Verwende Console.Write() für die Eingabeaufforderungen, "
