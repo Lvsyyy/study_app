@@ -271,6 +271,20 @@ class QuestionRepository:
         )
         return [row["id"] for row in rows]
 
+    def get_study_queue_excluding_topics(self, subject_name, excluded_pattern):
+        """Return question ids while excluding topics matching a name pattern."""
+        rows = self.db.fetch_all(
+            """SELECT q.id
+               FROM questions q
+               JOIN topics t ON t.id = q.topic_id
+               JOIN subjects s ON s.id = t.subject_id
+               WHERE s.name = ?
+                 AND LOWER(t.name) NOT LIKE LOWER(?)
+               ORDER BY RANDOM()""",
+            (subject_name, excluded_pattern),
+        )
+        return [row["id"] for row in rows]
+
     def get_topics_study_queue(self, subject_name, topic_names):
         """Return selected topics' question ids in a fresh random order."""
         topic_names = tuple(topic_names)
