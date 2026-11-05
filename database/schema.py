@@ -76,7 +76,7 @@ MIGRATIONS = {
     INSERT INTO questions (topic_id, question_text, answer, hint, difficulty, question_type)
     SELECT t.id, 'Ordne jede Aussage der passenden Kategorie zu.', '{"pairs":[{"left":"Verbindung und Kommunikation zwischen verschiedenen Geräten und Systemen, um Datenaustausch zu ermöglichen","right":"Definition der Vernetzung"},{"left":"Einfache Kommunikation, Erweiterkeit, einfache Verwaltung, Verfügbarkeit","right":"Vorteile eines Netzwerkes"},{"left":"Router, IPS, Computer, Ethernet Kabel, Server, Switch","right":"Was benötigen Sie, um IT-Netzwerke einrichten zu können?"},{"left":"Das man die richtigen IPs vergibt und das die Frequenz des Gerätes unterstüzt ist","right":"Was ist bei der Einrichtung von Netzwerken zu beachten?"},{"left":"Falsche Konfiguration, Signal Störungen, Geräte sind nicht sofot seebar, Kosten","right":"Welche Schwierigkeiten können bei der Einrichtung eines Netzwerkes auftreten?"}]}', '', 2, 'matching' FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='NT' AND t.name='Allgemeine Netzwerktechnik' AND NOT EXISTS (SELECT 1 FROM questions q WHERE q.topic_id=t.id AND q.question_text='Ordne jede Aussage der passenden Kategorie zu.');
     """,
-\n
+
     13: """
     UPDATE questions
     SET alt_answers = '["System Information (A7)","MsInfo32 (A2)","Aufkleber (A3)","Webseite des Herstellers (A4)","Handbuch (A5)","Tools (A6)"]'
