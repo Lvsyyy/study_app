@@ -1,9 +1,35 @@
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    16: """
+    UPDATE questions
+    SET topic_id = (
+        SELECT target.id
+        FROM topics target
+        JOIN subjects s ON s.id = target.subject_id
+        WHERE s.name = 'NT' AND target.name = 'Allgemeine Netzwerktechnik'
+    )
+    WHERE question_text IN (
+        'Was bedeutet Single Point of Failure?',
+        'Was passiert mit Datenpaketen, die nicht ankommen?'
+    )
+      AND topic_id IN (
+        SELECT source.id
+        FROM topics source
+        JOIN subjects s ON s.id = source.subject_id
+        WHERE s.name = 'NT'
+    )
+      AND EXISTS (
+        SELECT 1
+        FROM topics target
+        JOIN subjects s ON s.id = target.subject_id
+        WHERE s.name = 'NT' AND target.name = 'Allgemeine Netzwerktechnik'
+    );
+    """,
+
 
     15: """
     UPDATE questions
