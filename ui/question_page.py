@@ -189,10 +189,10 @@ class QuestionPage(QWidget):
         console_layout.setContentsMargins(0, 0, 0, 0)
         console_layout.setSpacing(0)
         console_header = QHBoxLayout()
-        console_title = QLabel("  CMD   |   Vorgegebene Ausgabe")
-        console_title.setObjectName("BatchConsoleHeader")
-        console_title.setFixedHeight(34)
-        console_header.addWidget(console_title, 1)
+        self.batch_console_title = QLabel("  CMD   |   Vorgegebene Ausgabe")
+        self.batch_console_title.setObjectName("BatchConsoleHeader")
+        self.batch_console_title.setFixedHeight(34)
+        console_header.addWidget(self.batch_console_title, 1)
         self.batch_run_button = action_button("Run")
         self.batch_run_button.clicked.connect(self.run_batch)
         console_header.addWidget(self.batch_run_button)
@@ -412,6 +412,7 @@ class QuestionPage(QWidget):
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._batch_mode = question_type == "batch"
+        self._csharp_practice_mode = question_type == "csharp_practice"
         self._pap_mode = question_type == "pap"
         self._batch_result = None
         self.batch_output.clear()
@@ -422,7 +423,13 @@ class QuestionPage(QWidget):
                 self.batch_output.setPlainText("\n".join(batch_config.get("expected_output", [])))
             except (json.JSONDecodeError, TypeError):
                 self.batch_output.setPlainText("Keine Zielausgabe hinterlegt.")
-        self._code_mode = question_type in ("code", "batch") or (
+        elif self._csharp_practice_mode:
+            try:
+                practice_config = json.loads(question["answer"])
+                self.batch_output.setPlainText(practice_config.get("output", ""))
+            except (json.JSONDecodeError, TypeError):
+                self.batch_output.setPlainText("Keine Zielausgabe hinterlegt.")
+        self._code_mode = question_type in ("code", "batch", "csharp_practice") or (
             question["subject_name"] == "AE"
             and bool(re.search(r"\b(?:static\s+void\s+Main|Console\.|using\s+System|class\s+\w+)\b", question_text))
         )
@@ -458,6 +465,12 @@ class QuestionPage(QWidget):
             cursor.movePosition(QTextCursor.MoveOperation.End)
             self.code_editor.setTextCursor(cursor)
             if self._batch_mode:
+                self.code_editor_container.show()
+                self.batch_workspace.show()
+            elif self._csharp_practice_mode:
+                self.code_editor_header.setText("  C#   |   Program.cs")
+                self.batch_console_title.setText("  CONSOLE   |   Vorgegebene Ausgabe")
+                self.batch_run_button.hide()
                 self.code_editor_container.show()
                 self.batch_workspace.show()
             else:
@@ -789,6 +802,8 @@ class QuestionPage(QWidget):
             self.pap_editor.is_correct(self.current["answer"]) if self._pap_mode else
             self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
             self._batch_answer_matches() if self._batch_mode else
+            self._code_answer_matches(entered, json.loads(self.current["answer"]).get("solution", ""))
+            if self._csharp_practice_mode else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
             if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
         )
@@ -879,6 +894,13 @@ class QuestionPage(QWidget):
                     config = json.loads(self.current["answer"])
                     self.code_editor.setPlainText(config.get("solution", ""))
                     self.run_batch()
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                self.feedback.setText("Correct solution shown in the code editor.")
+            elif self._csharp_practice_mode:
+                try:
+                    config = json.loads(self.current["answer"])
+                    self.code_editor.setPlainText(self._format_code_body(config.get("solution", "")))
                 except (json.JSONDecodeError, TypeError):
                     pass
                 self.feedback.setText("Correct solution shown in the code editor.")
