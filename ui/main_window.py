@@ -270,8 +270,19 @@ class MainWindow(QMainWindow):
         })
         if code not in {"NT", "BS", "CS", "CS_P"}:
             return
-        ids = self.question_repository.get_study_queue(code)
-        rebuild = lambda: self.question_repository.get_study_queue(code)
+        if code == "NT":
+            # The NT exam pack covers every topic except Topologien.
+            exam_topics = tuple(
+                topic for topic in self.question_repository.list_topics(code)
+                if topic != "Topologien"
+            )
+            ids = self.question_repository.get_topics_study_queue(code, exam_topics)
+            rebuild = lambda: self.question_repository.get_topics_study_queue(
+                code, exam_topics
+            )
+        else:
+            ids = self.question_repository.get_study_queue(code)
+            rebuild = lambda: self.question_repository.get_study_queue(code)
         self._return_page = "SubjectMenu"
         self.question_page.set_queue(f"{code} · Exam practice", ids, rebuild=rebuild)
         self.stack.setCurrentWidget(self.question_page)
