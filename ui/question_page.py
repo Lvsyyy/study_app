@@ -466,7 +466,7 @@ class QuestionPage(QWidget):
                 self.code_editor_container.show()
             self.code_editor.setEnabled(True)
             self.code_editor.setFocus()
-        elif question_type in ("multi_select", "ordering", "matching"):
+        elif question_type in ("multi_select", "ordering", "matching", "table_sort"):
             self.question_text.setText(question_text)
             self.question_text.show()
             self.answer.hide()
