@@ -2,9 +2,29 @@ import json
 import random
 
 from PySide6.QtCore import Qt, QMimeData, Signal
-from PySide6.QtWidgets import QCheckBox, QComboBox, QLabel, QListWidget, QWidget, QVBoxLayout, QGridLayout, QFrame, QApplication
+from PySide6.QtWidgets import (
+    QCheckBox, QComboBox, QLabel, QListWidget, QListView, QWidget,
+    QVBoxLayout, QGridLayout, QFrame, QApplication, QStyledItemDelegate,
+)
 
 from core.theme_manager import ThemeManager
+
+
+class _WrappedComboDelegate(QStyledItemDelegate):
+    """Give long matching options enough vertical space to display fully."""
+
+    def sizeHint(self, option, index):
+        width = max(180, option.rect.width() - 24)
+        metrics = option.fontMetrics
+        bounds = metrics.boundingRect(
+            0, 0, width, 1000,
+            Qt.TextFlag.TextWordWrap,
+            str(index.data(Qt.ItemDataRole.DisplayRole) or ""),
+        )
+        return option.rect.__class__(
+            option.rect.x(), option.rect.y(), option.rect.width(),
+            max(42, bounds.height() + 18),
+        )
 
 
 class _SortCard(QLabel):
@@ -147,6 +167,7 @@ class InteractiveQuestion(QWidget):
         self.multi_select_indices = []
         self.order_list = None
         self.match_options = []
+        self.match_definitions = []
         self.table_sort = None
         self.apply_theme("Rose Pine")
 
@@ -223,6 +244,7 @@ class InteractiveQuestion(QWidget):
         self.multi_select_indices = []
         self.order_list = None
         self.match_options = []
+        self.match_definitions = []
         self.table_sort = None
 
     def load(self, kind, raw_answer):
@@ -262,8 +284,10 @@ class InteractiveQuestion(QWidget):
             self.table_sort = _TableSort(self.data, self._theme_palette)
             self.layout.addWidget(self.table_sort)
         elif kind == "matching":
-            definitions = [str(pair.get("right", "")) for pair in self.data.get("pairs", [])]
-            shuffled = definitions[:]
+            self.match_definitions = [
+                str(pair.get("right", "")) for pair in self.data.get("pairs", [])
+            ]
+            shuffled = self.match_definitions[:]
             random.shuffle(shuffled)
             for pair in self.data.get("pairs", []):
                 row = QWidget()
@@ -272,14 +296,44 @@ class InteractiveQuestion(QWidget):
                 row_layout.addWidget(QLabel(str(pair.get("left", ""))))
                 combo = QComboBox()
                 combo.setMaximumWidth(440)
+                combo.setMinimumHeight(48)
+                combo.setMaxVisibleItems(8)
+                view = QListView(combo)
+                view.setWordWrap(True)
+                view.setTextElideMode(Qt.TextElideMode.ElideNone)
+                view.setMinimumWidth(440)
+                view.setItemDelegate(_WrappedComboDelegate(view))
+                combo.setView(view)
                 combo.addItem("Select a definition…", None)
                 for definition in shuffled:
-                    display = definition.replace("; ", ";\n")
-                    combo.addItem(display, definition)
+                    combo.addItem(definition, definition)
                 row_layout.addWidget(combo)
                 self.match_options.append(combo)
                 self.layout.addWidget(row)
+            for combo in self.match_options:
+                combo.currentIndexChanged.connect(self._refresh_match_options)
         self.setEnabled(True)
+
+    def _refresh_match_options(self, *_):
+        """Remove definitions selected elsewhere from every other dropdown."""
+        selected = [
+            combo.currentData() for combo in self.match_options
+        ]
+        for index, combo in enumerate(self.match_options):
+            current = selected[index]
+            unavailable = {
+                value for other_index, value in enumerate(selected)
+                if other_index != index and value is not None
+            }
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem("Select a definition…", None)
+            for definition in self.match_definitions:
+                if definition not in unavailable:
+                    combo.addItem(definition, definition)
+            selected_index = combo.findData(current)
+            combo.setCurrentIndex(selected_index if selected_index >= 0 else 0)
+            combo.blockSignals(False)
 
     def set_answer_locked(self, locked):
         if self.kind == "ordering" and self.order_list:
