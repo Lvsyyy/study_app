@@ -266,9 +266,11 @@ class InteractiveQuestion(QWidget):
                 row_layout.setContentsMargins(0, 0, 0, 0)
                 row_layout.addWidget(QLabel(str(pair.get("left", ""))))
                 combo = QComboBox()
+                combo.setMaximumWidth(440)
                 combo.addItem("Select a definition…", None)
                 for definition in shuffled:
-                    combo.addItem(definition, definition)
+                    display = definition.replace("; ", ";\n")
+                    combo.addItem(display, definition)
                 row_layout.addWidget(combo)
                 self.match_options.append(combo)
                 self.layout.addWidget(row)
