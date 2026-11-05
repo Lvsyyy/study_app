@@ -462,6 +462,9 @@ class QuestionPage(QWidget):
             self.calculation_answer.hide()
             self.code_prefix.setText(code_prefix)
             self.code_suffix.setText(code_suffix)
+            if self._csharp_practice_mode:
+                # Match the eight-space method-body indentation used by revealed solutions.
+                editable_body = self._format_code_body(editable_body) or "        "
             self.code_editor.setPlainText(editable_body)
             cursor = self.code_editor.textCursor()
             cursor.movePosition(QTextCursor.MoveOperation.End)
