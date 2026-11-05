@@ -72,6 +72,8 @@ def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
     days = []
     chunk_start = start
     while chunk_start <= end:
+        if QThread.currentThread().isInterruptionRequested():
+            raise RuntimeError("WebUntis update cancelled")
         chunk_end = min(chunk_start + timedelta(days=4), end)
         payload = _fetch_chunk(chunk_start, chunk_end)
         days.extend(payload.get("days", []))
@@ -166,7 +168,9 @@ class WebUntisExamManager(QObject):
 
     def shutdown(self):
         if self.worker is not None and self.worker.isRunning():
-            self.worker.wait()
+            # Let an in-flight request finish, then stop before starting another chunk.
+            self.worker.requestInterruption()
+            self.worker.wait(25000)
 
     def check(self):
         if self.worker is not None and self.worker.isRunning():
