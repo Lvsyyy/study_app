@@ -1,9 +1,54 @@
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    22: """
+    UPDATE questions
+    SET question_type = 'multi_select',
+        answer = json_object(
+            'options', json_array(
+                'Eine schrittweise Beschreibung zur Lösung eines Problems',
+                'Eine Programmiersprache',
+                'Ein einzelner Computerbefehl',
+                'Ein Gerät zur Datenspeicherung'
+            ),
+            'correct', json_array(0)
+        ),
+        hint = 'Ein Algorithmus beschreibt eine geordnete Folge von Schritten zur Problemlösung.'
+    WHERE question_text = 'Was ist ein Algorithmus?'
+      AND topic_id IN (
+          SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+          WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      );
+
+    UPDATE questions
+    SET answer = json_object(
+        'categories', json_array('Ausdrücke','Anweisung','Verbundanweisung','Kommentare'),
+        'cards', json_array(
+            json_object('text','(3 / 5)','category','Ausdrücke'),
+            json_object('text','x + 10','category','Ausdrücke'),
+            json_object('text','true == false','category','Ausdrücke'),
+            json_object('text','alter >= 18','category','Ausdrücke'),
+            json_object('text','Console.WriteLine("Hallo");','category','Anweisung'),
+            json_object('text','int alter = 16;','category','Anweisung'),
+            json_object('text','Console.ReadLine();','category','Anweisung'),
+            json_object('text','x = x + 1;','category','Anweisung'),
+            json_object('text','if (x > 5) { Console.WriteLine(x); }','category','Verbundanweisung'),
+            json_object('text','while (x < 10) { x++; }','category','Verbundanweisung'),
+            json_object('text','for (int i = 0; i < 3; i++) { Console.WriteLine(i); }','category','Verbundanweisung'),
+            json_object('text','// Das ist ein Kommentar','category','Kommentare'),
+            json_object('text','/* Mehrzeiliger Kommentar */','category','Kommentare')
+        )
+    )
+    WHERE question_text = 'Ordne jeden C#-Codeausschnitt der passenden Kategorie zu.'
+      AND topic_id IN (
+          SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+          WHERE s.name='AE' AND t.name='Alles in einen Programm'
+      );
+    """,
+
     21: """
     INSERT OR IGNORE INTO topics(subject_id, name)
     SELECT id, 'Alles in einen Programm' FROM subjects WHERE name='AE';
