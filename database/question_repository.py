@@ -188,16 +188,8 @@ class QuestionRepository:
                FROM questions q
                JOIN topics t ON t.id = q.topic_id
                JOIN subjects s ON s.id = t.subject_id
-               LEFT JOIN (
-                   SELECT question_id,
-                          COUNT(*) AS n,
-                          SUM(is_correct) AS c,
-                          MAX(created_at) AS last
-                   FROM attempts
-                   GROUP BY question_id
-               ) a ON a.question_id = q.id
                WHERE s.name = ?
-               ORDER BY RANDOM()""",
+""",
             (subject_name,),
         )
 
@@ -238,14 +230,6 @@ class QuestionRepository:
                FROM questions q
                JOIN topics t ON t.id = q.topic_id
                JOIN subjects s ON s.id = t.subject_id
-               LEFT JOIN (
-                   SELECT question_id,
-                          COUNT(*) AS n,
-                          SUM(is_correct) AS c,
-                          MAX(created_at) AS last
-                   FROM attempts
-                   GROUP BY question_id
-               ) a ON a.question_id = q.id
                WHERE s.name = ? AND t.name = ?
                ORDER BY RANDOM()""",
             (subject_name, topic_name),
@@ -264,16 +248,8 @@ class QuestionRepository:
                 FROM questions q
                 JOIN topics t ON t.id = q.topic_id
                 JOIN subjects s ON s.id = t.subject_id
-                LEFT JOIN (
-                    SELECT question_id,
-                           COUNT(*) AS n,
-                           SUM(is_correct) AS c,
-                           MAX(created_at) AS last
-                    FROM attempts
-                    GROUP BY question_id
-                ) a ON a.question_id = q.id
                 WHERE s.name = ? AND t.name IN ({placeholders})
-                ORDER BY RANDOM()""",
+""",
             (subject_name, *topic_names),
         )
         return [row["id"] for row in rows]
