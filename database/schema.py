@@ -1,9 +1,54 @@
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    18: """
+    UPDATE questions
+    SET question_text='Was ist im Zusammenhang mit Netzklassen noch relevant?',
+        question_type='text',
+        answer='Class-full Routing',
+        topic_id=(
+            SELECT id FROM topics
+            WHERE subject_id=(SELECT id FROM subjects WHERE name='NT')
+              AND name='Adressbereiche'
+        )
+    WHERE question_text IN (
+        'Welche Aussagen zu den historischen IPv4-Netzklassen sind korrekt?',
+        'Ordne die Angaben zu den Netzklassen zu.'
+    )
+      AND topic_id IN (
+        SELECT t.id FROM topics t
+        JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+    );
+
+    UPDATE questions
+    SET question_type='matching',
+        answer='{"pairs":[{"left":"80","right":"80 für Datenpakete (HTTP)"},{"left":"25","right":"25 für E-Mails (SMTP)"}]}'
+    WHERE question_text='Wofür werden die Eingänge 80 und 25 genutzt?'
+      AND topic_id IN (
+        SELECT t.id FROM topics t
+        JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+    );
+
+    UPDATE questions
+    SET topic_id=(
+        SELECT id FROM topics
+        WHERE subject_id=(SELECT id FROM subjects WHERE name='NT')
+          AND name='Topologien'
+    )
+    WHERE question_text='Was bedeutet Single Point of Failure?'
+      AND topic_id IN (
+        SELECT t.id FROM topics t
+        JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+    );
+    """,
+
+
     17: """
     INSERT OR IGNORE INTO topics(subject_id, name)
     SELECT id, 'Grundbasis' FROM subjects WHERE name='NT';
