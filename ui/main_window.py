@@ -271,14 +271,12 @@ class MainWindow(QMainWindow):
         if code not in {"NT", "BS", "CS", "CS_P"}:
             return
         if code == "NT":
-            # The NT exam pack covers every topic except Topologien.
-            exam_topics = tuple(
-                topic for topic in self.question_repository.list_topics(code)
-                if topic != "Topologien"
+            # Exclude all topology-related topic names, including legacy variants.
+            ids = self.question_repository.get_study_queue_excluding_topics(
+                code, "%topolog%"
             )
-            ids = self.question_repository.get_topics_study_queue(code, exam_topics)
-            rebuild = lambda: self.question_repository.get_topics_study_queue(
-                code, exam_topics
+            rebuild = lambda: self.question_repository.get_study_queue_excluding_topics(
+                code, "%topolog%"
             )
         else:
             ids = self.question_repository.get_study_queue(code)
