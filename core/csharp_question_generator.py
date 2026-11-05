@@ -289,20 +289,18 @@ def _formatting():
 
 def _operators():
     a, b = _number_pair()
+    style = random.choice(("interpolation", "format"))
     if random.choice((True, False)):
         total, difference, product = a + b, a - b, a * b
-        body = (
+        declarations = (
             f"int zahl1 = {a};\nint zahl2 = {b};\n"
             "int summe = zahl1 + zahl2;\n"
             "int differenz = zahl1 - zahl2;\n"
-            "int produkt = zahl1 * zahl2;\n"
-            'Console.WriteLine("Zahl1 = " + zahl1);\n'
-            'Console.WriteLine("Zahl2 = " + zahl2);\n'
-            'Console.WriteLine("Summe = " + summe);\n'
-            'Console.WriteLine("Differenz = " + differenz);\n'
-            'Console.WriteLine("Produkt = " + produkt);\n'
-            "Console.ReadLine();"
+            "int produkt = zahl1 * zahl2;"
         )
+        labels = (("Zahl1", "zahl1"), ("Zahl2", "zahl2"),
+                  ("Summe", "summe"), ("Differenz", "differenz"),
+                  ("Produkt", "produkt"))
         output = (
             f"Zahl1 = {a}\nZahl2 = {b}\nSumme = {total}\n"
             f"Differenz = {difference}\nProdukt = {product}"
@@ -311,24 +309,45 @@ def _operators():
             "Erstelle zahl1 und zahl2. Berechne Summe, Differenz und Produkt in "
             "eigenen Variablen und gib alle fünf Werte mit Beschriftung aus."
         )
+        def build(selected):
+            lines = [declarations]
+            for label, variable in labels:
+                if selected == "interpolation":
+                    lines.append(f'Console.WriteLine($"{label} = {{{variable}}}");')
+                else:
+                    lines.append(f'Console.WriteLine("{label} = {{0}}", {variable});')
+            lines.append("Console.ReadLine();")
+            return "\n".join(lines)
     else:
-        body = (
-            f"int zahl1 = {a};\nint zahl2 = {b};\n"
-            f'Console.WriteLine("{a} == {b}: " + (zahl1 == zahl2));\n'
-            f'Console.WriteLine("{a} != {b}: " + (zahl1 != zahl2));\n'
-            f'Console.WriteLine("{a} > {b}: " + (zahl1 > zahl2));\n'
-            f'Console.WriteLine("{a} < {b}: " + (zahl1 < zahl2));\n'
-            "Console.ReadLine();"
+        expressions = (
+            (f"{a} == {b}", "zahl1 == zahl2", a == b),
+            (f"{a} != {b}", "zahl1 != zahl2", a != b),
+            (f"{a} > {b}", "zahl1 > zahl2", a > b),
+            (f"{a} < {b}", "zahl1 < zahl2", a < b),
         )
-        output = (
-            f"{a} == {b}: {str(a == b)}\n{a} != {b}: {str(a != b)}\n"
-            f"{a} > {b}: {str(a > b)}\n{a} < {b}: {str(a < b)}"
-        )
+        output = "\n".join(f"{label}: {str(result)}" for label, _, result in expressions)
         prompt = (
             "Erstelle zahl1 und zahl2. Vergleiche sie mit ==, !=, > und <. "
             "Gib jeweils den Vergleich und sein Ergebnis aus."
         )
-    return _program(prompt, body, output, "Verwende +, -, * sowie ==, !=, > und <.")
+        declarations = f"int zahl1 = {a};\nint zahl2 = {b};"
+        def build(selected):
+            lines = [declarations]
+            for label, expression, _ in expressions:
+                if selected == "interpolation":
+                    lines.append(f'Console.WriteLine($"{label}: {{{expression}}}");')
+                else:
+                    lines.append(f'Console.WriteLine("{label}: {{0}}", ({expression}));')
+            lines.append("Console.ReadLine();")
+            return "\n".join(lines)
+    solution = build(style)
+    alternatives = [build(other) for other in ("interpolation", "format") if other != style]
+    return _program(
+        prompt, solution, output,
+        "Verwende String-Interpolation ($\"... {variable}\") oder den "
+        "Console.WriteLine-Formatparameter ({0}). Keine String-Verkettung.",
+        alternatives=alternatives,
+    )
 
 
 def _if_condition():
