@@ -797,8 +797,11 @@ class QuestionPage(QWidget):
     def check_answer(self):
         if self.current is None or self._solved:
             return
-        entered = self._input_text().strip()
-        if not entered:
+        raw_entered = self._input_text()
+        # Preserve leading indentation in code: stripping it here makes the
+        # first line differ from later auto-indented lines during comparison.
+        entered = raw_entered if self._code_mode else raw_entered.strip()
+        if not entered.strip():
             self.feedback.setText("Enter an answer first.")
             set_state(self.feedback, None)
             return
