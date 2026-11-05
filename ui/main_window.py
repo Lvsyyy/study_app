@@ -2,6 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from core.math_question_generator import MathQuestionGenerator
+from core.csharp_question_generator import CSharpQuestionGenerator
 from core.session_tracker import SessionTracker
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
@@ -36,6 +37,7 @@ class MainWindow(QMainWindow):
         self.question_repository = QuestionRepository(self.db)
         self._initialized_topic_subjects = set()
         self.math_question_generator = MathQuestionGenerator(self.question_repository)
+        self.csharp_question_generator = CSharpQuestionGenerator(self.question_repository)
         self.attempt_repository = AttemptRepository(self.db)
         self.statistics_repository = StatisticsRepository(self.db)
         self.session = SessionTracker(SessionRepository(self.db), self)
@@ -287,6 +289,18 @@ class MainWindow(QMainWindow):
         self.sidebar.set_active(code)
 
     def start_subject_practice(self, subject, topic):
+        if subject == "AE" and topic in {
+            "Ausgabe", "Eingabe", "Ausgabe formatierung", "Variablen",
+            "Operatoren", "Bedingungen", "Verzweigte Bedingungen",
+        }:
+            self._return_page = "SubjectMenu"
+            self.question_page.set_generator(
+                f"AE · {topic}",
+                lambda: self.csharp_question_generator.generate_question_id(topic),
+            )
+            self.stack.setCurrentWidget(self.question_page)
+            self.sidebar.set_active(subject)
+            return
         if subject == "NT" and topic == "Subnetting":
             self._return_page = "SubjectMenu"
             self.subnetting_page.new_exercise()
