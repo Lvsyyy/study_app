@@ -191,7 +191,6 @@ def _if_condition():
             '        Console.WriteLine("Volljaehrig");\n    }\n'
             "    Console.ReadLine();\n}"
         ),
-        "answer": "alter >= 18",
     }
 
 
