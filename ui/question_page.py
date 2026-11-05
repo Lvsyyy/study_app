@@ -810,7 +810,11 @@ class QuestionPage(QWidget):
             self.pap_editor.is_correct(self.current["answer"]) if self._pap_mode else
             self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
             self._batch_answer_matches() if self._batch_mode else
-            self._code_answer_matches(entered, json.loads(self.current["answer"]).get("solution", ""))
+            self._code_answer_matches(
+                entered,
+                json.loads(self.current["answer"]).get("solution", ""),
+                json.loads(self.current["answer"]).get("alternatives", ()),
+            )
             if self._csharp_practice_mode else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
             if self._code_mode else is_correct(entered, self.current["answer"], alternatives)
