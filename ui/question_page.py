@@ -595,12 +595,13 @@ class QuestionPage(QWidget):
         )
 
     @staticmethod
+    @staticmethod
     def _condition_answer_matches(entered, expected):
         """Check the condition entered into the supplied if-statement scaffold."""
-        match = re.search(r"\\bif\\s*\\(\\s*(.*?)\\s*\\)", entered or "", re.DOTALL)
+        match = re.search(r"\bif\s*\(\s*(.*?)\s*\)", entered or "", re.DOTALL)
         if not match:
             return False
-        normalize = lambda value: re.sub(r"\\s+", "", value or "")
+        normalize = lambda value: re.sub(r"\s+", "", value or "")
         return normalize(match.group(1)) == normalize(expected)
 
     @staticmethod
