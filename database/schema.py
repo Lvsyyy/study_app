@@ -1,9 +1,69 @@
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    17: """
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Grundbasis' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Ausdehnungen' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Topologien' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Architekturen' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Kommunikationsteilnehmer' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Adressbereiche' FROM subjects WHERE name='NT';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Subnetting' FROM subjects WHERE name='NT';
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Grundbasis')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name IN ('Netzwerkgrundlagen','Allgemeine Netzwerktechnik','IP-Paket'));
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Ausdehnungen')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Netzwerkgrößen');
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Topologien')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Topologien Mischformen');
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Architekturen')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name IN ('Architekturtypen','Cloud Computing'));
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Kommunikationsteilnehmer')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name IN ('Kommunizierungsrichtungen','Netzwerkgeräte'));
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Adressbereiche')
+    WHERE topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Netzklassen');
+
+    UPDATE questions
+    SET topic_id=(SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT') AND name='Grundbasis')
+    WHERE topic_id IN (
+        SELECT id FROM topics
+        WHERE subject_id=(SELECT id FROM subjects WHERE name='NT')
+          AND name NOT IN ('Grundbasis','Ausdehnungen','Topologien','Architekturen','Kommunikationsteilnehmer','Adressbereiche','Subnetting')
+    );
+
+    UPDATE questions
+    SET question_text='Welche Aussagen zu den historischen IPv4-Netzklassen sind korrekt?',
+        question_type='multi_select',
+        answer='{"options":["Die Netzklasse B hatte standardmäßig die Subnetzmaske 255.255.0.0 (/16).","Die Netzklasse D wurde für Multicast verwendet.","Classful Addressing wurde durch CIDR abgelöst.","Die Netzklasse A hatte standardmäßig die Subnetzmaske 255.0.0.0 (/8).","Die Netzklasse C hatte standardmäßig die Subnetzmaske 255.255.255.0 (/24).","Die Netzklasse E war für experimentelle Zwecke reserviert.","Die Netzklasse A verwendete standardmäßig /24.","Die Netzklasse B war für Multicast reserviert.","Die Netzklasse C umfasste Adressen ab 224.0.0.0.","Classful Addressing ist heute der Standard und hat CIDR ersetzt.","Die Netzklasse D war für normale private LAN-Clients vorgesehen.","Die Netzklassen A, B und C hatten alle dieselbe Standard-Subnetzmaske."],"correct":[0,1,2,3,4,5]}'
+    WHERE question_text='Ordne die Angaben zu den Netzklassen zu.'
+      AND topic_id IN (SELECT id FROM topics WHERE subject_id=(SELECT id FROM subjects WHERE name='NT'));
+
+    DELETE FROM topics
+    WHERE subject_id=(SELECT id FROM subjects WHERE name='NT')
+      AND name NOT IN ('Grundbasis','Ausdehnungen','Topologien','Architekturen','Kommunikationsteilnehmer','Adressbereiche','Subnetting');
+    """,
+
     16: """
     UPDATE questions
     SET topic_id = (
