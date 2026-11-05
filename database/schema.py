@@ -1,9 +1,49 @@
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    19: """
+    UPDATE questions
+    SET answer='{"pairs":[{"left":"Verbindung und Kommunikation zwischen verschiedenen Geräten und Systemen, um Datenaustausch zu ermöglichen","right":"Definition der Vernetzung"},{"left":"Einfache Kommunikation, Erweiterkeit, einfache Verwaltung, Verfügbarkeit","right":"Vorteile eines Netzwerkes"},{"left":"Router, IPS, Computer, Ethernet Kabel, Server, Switch","right":"Was benötigen Sie, um IT-Netzwerke einrichten zu können?"},{"left":"Das man die richtigen IPs vergibt und das die Frequenz des Gerätes unterstüzt ist","right":"Was ist bei der Einrichtung von Netzwerken zu beachten?"},{"left":"Falsche Konfiguration, Signal Störungen, Geräte sind nicht sofot seebar, Kosten","right":"Welche Schwierigkeiten können bei der Einrichtung eines Netzwerkes auftreten?"},{"left":"Was bedeutet Shared Medium?","right":"Wenn Knoten sich ein Übertragungsmedium teilen"},{"left":"Was bedeutet Single Point of Failure?","right":"Die Stelle im Netz die den Netzverkehr steuert"},{"left":"Was passiert mit Datenpaketen, die nicht ankommen?","right":"Ein Ersatz Pakete wird geschickt"},{"left":"Welche Cloud-Arten gibt es?","right":"Public Cloud; Private Cloud"}]}'
+    WHERE question_text='Ordne jede Aussage der passenden Kategorie zu.'
+      AND topic_id IN (
+        SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+      );
+
+    DELETE FROM questions
+    WHERE question_text IN (
+        'Was bedeutet Shared Medium?',
+        'Was bedeutet Single Point of Failure?',
+        'Was passiert mit Datenpaketen, die nicht ankommen?',
+        'Welche Cloud-Arten gibt es?'
+    )
+      AND topic_id IN (
+        SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+      );
+
+    UPDATE questions
+    SET question_type='table_sort',
+        answer='{"categories":["IaaS","PaaS","SaaS"],"cards":[{"text":"Infrastructure as a Service","category":"IaaS"},{"text":"Zurverfügungstellung und Nutzung von Infrastrukturkomponenten","category":"IaaS"},{"text":"Platform as a Service","category":"PaaS"},{"text":"Bereitstellung von Laufzeit- und Entwicklungsplattformen","category":"PaaS"},{"text":"Software as a Service","category":"SaaS"},{"text":"Angebot von Software zur Nutzung von Geschäftsprozessen","category":"SaaS"}]}'
+    WHERE question_text='Ordne die Serviceart der passenden Beschreibung zu.'
+      AND topic_id IN (
+        SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+      );
+
+    UPDATE questions
+    SET question_type='table_sort',
+        answer='{"categories":["WAN","MAN","LAN","PAN","CAN","BAN"],"cards":[{"text":"Weltumspannend","category":"WAN"},{"text":"Unterseekabel / Internet","category":"WAN"},{"text":"Bis zu 100km","category":"MAN"},{"text":"Öffentliches Telefonnetz, Stadtnetzwerk","category":"MAN"},{"text":"Ca. 100m","category":"LAN"},{"text":"Computers, TV, Konsolen","category":"LAN"},{"text":"Ca. 10m","category":"PAN"},{"text":"Bluetooth, USB, Infrarot","category":"PAN"},{"text":"0,1 bis 10m","category":"CAN"},{"text":"Mikrokontroller / elektronische Steuergeräte in Autos (CAN-Bus)","category":"CAN"},{"text":"0,1 bis 1m","category":"BAN"},{"text":"Medizinischen Sensoren, Smart Watch","category":"BAN"}]}'
+    WHERE question_text='Ordne jedem Netzwerktyp Reichweite und Beispiele zu.'
+      AND topic_id IN (
+        SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+      );
+    """,
+
     18: """
     UPDATE questions
     SET question_text='Was ist im Zusammenhang mit Netzklassen noch relevant?',
