@@ -3,28 +3,11 @@ import random
 
 from PySide6.QtCore import Qt, QMimeData, Signal
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QLabel, QListWidget, QListView, QWidget,
-    QVBoxLayout, QGridLayout, QFrame, QApplication, QStyledItemDelegate,
+    QCheckBox, QComboBox, QLabel, QListWidget, QWidget,
+    QVBoxLayout, QGridLayout, QFrame, QApplication,
 )
 
 from core.theme_manager import ThemeManager
-
-
-class _WrappedComboDelegate(QStyledItemDelegate):
-    """Give long matching options enough vertical space to display fully."""
-
-    def sizeHint(self, option, index):
-        width = max(180, option.rect.width() - 24)
-        metrics = option.fontMetrics
-        bounds = metrics.boundingRect(
-            0, 0, width, 1000,
-            Qt.TextFlag.TextWordWrap,
-            str(index.data(Qt.ItemDataRole.DisplayRole) or ""),
-        )
-        return option.rect.__class__(
-            option.rect.x(), option.rect.y(), option.rect.width(),
-            max(42, bounds.height() + 18),
-        )
 
 
 class _SortCard(QLabel):
@@ -296,14 +279,12 @@ class InteractiveQuestion(QWidget):
                 row_layout.addWidget(QLabel(str(pair.get("left", ""))))
                 combo = QComboBox()
                 combo.setMaximumWidth(440)
-                combo.setMinimumHeight(48)
+                combo.setMinimumHeight(64)
                 combo.setMaxVisibleItems(8)
-                view = QListView(combo)
+                view = combo.view()
                 view.setWordWrap(True)
                 view.setTextElideMode(Qt.TextElideMode.ElideNone)
                 view.setMinimumWidth(440)
-                view.setItemDelegate(_WrappedComboDelegate(view))
-                combo.setView(view)
                 combo.addItem("Select a definition…", None)
                 for definition in shuffled:
                     combo.addItem(definition, definition)
