@@ -68,28 +68,51 @@ def _output():
 
 
 def _input():
-    name = random.choice(NAMES)
+    if random.choice(("name", "age")) == "name":
+        name = random.choice(NAMES)
+        body = (
+            'string name = Console.ReadLine();\\n'
+            'Console.WriteLine("Name: " + name);\\n'
+            'Console.WriteLine("Hallo " + name);\\n'
+            "Console.ReadLine();"
+        )
+        return _program(
+            "Lies einen Namen ein und gib zuerst 'Name: Name' und danach 'Hallo Name' aus. "
+            "Variable: name. Vorgegebene Eingabe: " + name,
+            body, f"Name: {name}\\nHallo {name}",
+            "Lies den Text mit string name = Console.ReadLine(); ein.",
+            alternatives=(
+                'string name = Console.ReadLine();\\n'
+                'Console.WriteLine($"Name: {name}");\\n'
+                'Console.WriteLine($"Hallo {name}");\\n'
+                'Console.ReadLine();',
+                'string name = Console.ReadLine();\\n'
+                'Console.WriteLine("Name: {0}", name);\\n'
+                'Console.WriteLine("Hallo {0}", name);\\n'
+                'Console.ReadLine();',
+            ),
+        )
+
+    age = random.randint(14, 25)
     body = (
-        'string name = Console.ReadLine();\n'
-        'Console.WriteLine("Name: " + name);\n'
-        'Console.WriteLine("Hallo " + name);\n'
+        "int age = Convert.ToInt32(Console.ReadLine());\\n"
+        'Console.WriteLine("Alter: " + age);\\n'
+        'Console.WriteLine("Du bist " + age + " Jahre alt.");\\n'
         "Console.ReadLine();"
     )
+    alternatives = (
+        "int age = Int32.Parse(Console.ReadLine());\\n"
+        'Console.WriteLine("Alter: " + age);\\n'
+        'Console.WriteLine("Du bist " + age + " Jahre alt.");\\n'
+        "Console.ReadLine();",
+    )
     return _program(
-        "Lies einen Namen ein und gib zuerst 'Name: Name' und danach 'Hallo Name' aus. "
-        "Variable: name. Vorgegebene Eingabe: " + name,
-        body, f"Name: {name}\nHallo {name}",
-        "Lies den Text mit string name = Console.ReadLine(); ein.",
-        alternatives=(
-            'string name = Console.ReadLine();\n'
-            'Console.WriteLine($"Name: {name}");\n'
-            'Console.WriteLine($"Hallo {name}");\n'
-            'Console.ReadLine();',
-            'string name = Console.ReadLine();\n'
-            'Console.WriteLine("Name: {0}", name);\n'
-            'Console.WriteLine("Hallo {0}", name);\n'
-            'Console.ReadLine();',
-        ),
+        "Lies ein Alter als Zahl ein und gib zuerst 'Alter: Alter' und danach "
+        "'Du bist Alter Jahre alt.' aus. Variable: age. Vorgegebene Eingabe: "
+        + str(age),
+        body, f"Alter: {age}\\nDu bist {age} Jahre alt.",
+        "Wandle die Eingabe mit Convert.ToInt32 oder Int32.Parse in eine int-Zahl um.",
+        alternatives=alternatives,
     )
 
 
