@@ -268,7 +268,8 @@ class InteractiveQuestion(QWidget):
             self.layout.addWidget(self.table_sort)
         elif kind == "matching":
             self.match_definitions = [
-                str(pair.get("right", "")) for pair in self.data.get("pairs", [])
+                (index, str(pair.get("right", "")))
+                for index, pair in enumerate(self.data.get("pairs", []))
             ]
             random.shuffle(self.match_definitions)
             for pair in self.data.get("pairs", []):
@@ -285,8 +286,8 @@ class InteractiveQuestion(QWidget):
                 view.setTextElideMode(Qt.TextElideMode.ElideNone)
                 view.setMinimumWidth(440)
                 combo.addItem("Select a definition…", None)
-                for definition in self.match_definitions:
-                    combo.addItem(definition, definition)
+                for definition_id, definition in self.match_definitions:
+                    combo.addItem(definition, definition_id)
                 row_layout.addWidget(combo)
                 self.match_options.append(combo)
                 self.layout.addWidget(row)
@@ -296,9 +297,7 @@ class InteractiveQuestion(QWidget):
 
     def _refresh_match_options(self, *_):
         """Remove definitions selected elsewhere from every other dropdown."""
-        selected = [
-            combo.currentData() for combo in self.match_options
-        ]
+        selected = [combo.currentData() for combo in self.match_options]
         for index, combo in enumerate(self.match_options):
             current = selected[index]
             unavailable = {
@@ -308,9 +307,9 @@ class InteractiveQuestion(QWidget):
             combo.blockSignals(True)
             combo.clear()
             combo.addItem("Select a definition…", None)
-            for definition in self.match_definitions:
-                if definition not in unavailable:
-                    combo.addItem(definition, definition)
+            for definition_id, definition in self.match_definitions:
+                if definition_id not in unavailable:
+                    combo.addItem(definition, definition_id)
             selected_index = combo.findData(current)
             combo.setCurrentIndex(selected_index if selected_index >= 0 else 0)
             combo.blockSignals(False)
@@ -335,7 +334,11 @@ class InteractiveQuestion(QWidget):
         if self.kind == "ordering" and self.order_list:
             return json.dumps([self.order_list.item(i).text() for i in range(self.order_list.count())], ensure_ascii=False)
         if self.kind == "matching":
-            return json.dumps([combo.currentData() for combo in self.match_options], ensure_ascii=False)
+            definitions = dict(self.match_definitions)
+            return json.dumps(
+                [definitions.get(combo.currentData()) for combo in self.match_options],
+                ensure_ascii=False,
+            )
         if self.kind == "table_sort" and self.table_sort:
             return self.table_sort.get_answer()
         return ""
@@ -367,7 +370,7 @@ class InteractiveQuestion(QWidget):
         elif self.kind == "table_sort" and self.table_sort:
             self.table_sort.reveal_solution()
         elif self.kind == "matching":
-            for combo, pair in zip(self.match_options, self.data.get("pairs", [])):
-                index = combo.findData(pair.get("right"))
+            for pair_index, combo in enumerate(self.match_options):
+                index = combo.findData(pair_index)
                 if index >= 0:
                     combo.setCurrentIndex(index)
