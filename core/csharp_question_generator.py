@@ -312,10 +312,7 @@ def _operators():
         def build(selected):
             lines = [declarations]
             for label, variable in labels:
-                if selected == "interpolation":
-                    lines.append(f'Console.WriteLine($"{label} = {{{variable}}}");')
-                else:
-                    lines.append(f'Console.WriteLine("{label} = {{0}}", {variable});')
+                lines.append(f'Console.WriteLine("{label} = {{0}}", {variable});')
             lines.append("Console.ReadLine();")
             return "\n".join(lines)
     else:
@@ -341,7 +338,11 @@ def _operators():
             lines.append("Console.ReadLine();")
             return "\n".join(lines)
     solution = build(style)
-    alternatives = [build(other) for other in ("interpolation", "format") if other != style]
+    alternatives = (
+        []
+        if "labels" in locals()
+        else [build(other) for other in ("interpolation", "format") if other != style]
+    )
     return _program(
         prompt, solution, output,
         "Verwende String-Interpolation ($\"... {variable}\") oder den "
