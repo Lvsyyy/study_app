@@ -1,6 +1,5 @@
 import json
 import re
-import random
 import time
 from pathlib import Path
 
@@ -319,7 +318,6 @@ class QuestionPage(QWidget):
         self._rebuild = rebuild
         self.subject_label.setText(heading)
         self.queue = list(dict.fromkeys(ids))
-        random.shuffle(self.queue)
         self.index = 0
         self._round_correct = 0
         self._round_answered = 0
@@ -515,11 +513,11 @@ class QuestionPage(QWidget):
             f"Question {self.index + 1}" if self._generator is not None
             else f"Question {self.index + 1} of {len(self.queue)}"
         )
-        self._set_saved_button(self.questions.is_saved(question["id"]))
-        stats = self.attempts.topic_accuracy(question["topic_id"])
+        self._set_saved_button(bool(question["is_saved"]))
         self.accuracy_label.setText(
-            f"Topic accuracy: {stats['accuracy']}% over {stats['attempts']} attempts"
-            if stats else "No attempts in this topic yet"
+            f"Topic accuracy: {question['topic_accuracy']}% over "
+            f"{question['topic_attempts']} attempts"
+            if question["topic_attempts"] else "No attempts in this topic yet"
         )
         self._load_image(question["question_image"])
 

@@ -171,9 +171,44 @@ class QuestionRepository:
                 for question in questions
             ]
 
+    def delete_unattempted_generated_math_questions(self):
+        """Remove skipped generated questions, but retain anything attempted or saved."""
+        with self.db.connection:
+            cursor = self.db.execute(
+                """DELETE FROM questions
+                   WHERE question_type = 'math_generated'
+                     AND NOT EXISTS (
+                         SELECT 1 FROM attempts a WHERE a.question_id = questions.id
+                     )
+                     AND NOT EXISTS (
+                         SELECT 1 FROM saved_questions sq WHERE sq.question_id = questions.id
+                     )"""
+            )
+        return cursor.rowcount
+
     def get_question(self, question_id):
         return self.db.fetch_one(
-            f"{_QUESTION_SELECT} WHERE q.id = ?",
+            """SELECT q.*, t.name AS topic_name, s.name AS subject_name,
+                      EXISTS(
+                          SELECT 1 FROM saved_questions sq
+                          WHERE sq.question_id = q.id
+                      ) AS is_saved,
+                      (
+                          SELECT COUNT(*)
+                          FROM attempts a
+                          JOIN questions aq ON aq.id = a.question_id
+                          WHERE aq.topic_id = q.topic_id
+                      ) AS topic_attempts,
+                      (
+                          SELECT CAST(ROUND(100.0 * SUM(a.is_correct) / COUNT(*)) AS INTEGER)
+                          FROM attempts a
+                          JOIN questions aq ON aq.id = a.question_id
+                          WHERE aq.topic_id = q.topic_id
+                      ) AS topic_accuracy
+               FROM questions q
+               JOIN topics t ON t.id = q.topic_id
+               JOIN subjects s ON s.id = t.subject_id
+               WHERE q.id = ?""",
             (question_id,),
         )
 
@@ -188,14 +223,6 @@ class QuestionRepository:
                FROM questions q
                JOIN topics t ON t.id = q.topic_id
                JOIN subjects s ON s.id = t.subject_id
-               LEFT JOIN (
-                   SELECT question_id,
-                          COUNT(*) AS n,
-                          SUM(is_correct) AS c,
-                          MAX(created_at) AS last
-                   FROM attempts
-                   GROUP BY question_id
-               ) a ON a.question_id = q.id
                WHERE s.name = ?
                ORDER BY RANDOM()""",
             (subject_name,),
@@ -238,17 +265,22 @@ class QuestionRepository:
                FROM questions q
                JOIN topics t ON t.id = q.topic_id
                JOIN subjects s ON s.id = t.subject_id
-               LEFT JOIN (
-                   SELECT question_id,
-                          COUNT(*) AS n,
-                          SUM(is_correct) AS c,
-                          MAX(created_at) AS last
-                   FROM attempts
-                   GROUP BY question_id
-               ) a ON a.question_id = q.id
                WHERE s.name = ? AND t.name = ?
                ORDER BY RANDOM()""",
             (subject_name, topic_name),
+        )
+        return [row["id"] for row in rows]
+
+    def get_study_queue_excluding_topic(self, subject_name, excluded_topic):
+        """Return question ids, excluding one exact topic name."""
+        rows = self.db.fetch_all(
+            """SELECT q.id
+               FROM questions q
+               JOIN topics t ON t.id = q.topic_id
+               JOIN subjects s ON s.id = t.subject_id
+               WHERE s.name = ? AND t.name != ?
+               ORDER BY RANDOM()""",
+            (subject_name, excluded_topic),
         )
         return [row["id"] for row in rows]
 
@@ -264,14 +296,6 @@ class QuestionRepository:
                 FROM questions q
                 JOIN topics t ON t.id = q.topic_id
                 JOIN subjects s ON s.id = t.subject_id
-                LEFT JOIN (
-                    SELECT question_id,
-                           COUNT(*) AS n,
-                           SUM(is_correct) AS c,
-                           MAX(created_at) AS last
-                    FROM attempts
-                    GROUP BY question_id
-                ) a ON a.question_id = q.id
                 WHERE s.name = ? AND t.name IN ({placeholders})
                 ORDER BY RANDOM()""",
             (subject_name, *topic_names),

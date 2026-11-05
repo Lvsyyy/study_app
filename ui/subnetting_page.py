@@ -376,13 +376,24 @@ class SubnettingPage(QWidget):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
-        expected = (self.canvas._ip(self.canvas.network), self.canvas._ip(self.canvas.broadcast))
+        ip_value = self.canvas._ip(self.canvas.ip)
+        mask_value = self.canvas._mask(self.canvas.prefix)
+        network_value = self.canvas._ip(self.canvas.network)
+        broadcast_value = self.canvas._ip(self.canvas.broadcast)
+        expected_rows = (
+            (0, ip_value, self._binary_ip(ip_value), False),
+            (1, mask_value, self._binary_ip(mask_value), True),
+            (2, network_value, self._binary_ip(network_value), True),
+            (3, broadcast_value, self._binary_ip(broadcast_value), True),
+        )
         table_ok = True
-        for row, decimal_value in zip((2, 3), expected):
-            binary_value = ".".join(f"{int(part):08b}" for part in decimal_value.split("."))
+        for row, decimal_value, binary_value, check_decimal in expected_rows:
             decimal_item = self.info_table.item(row, 1)
             binary_item = self.info_table.item(row, 2)
-            decimal_ok = bool(decimal_item and decimal_item.text().strip() == decimal_value)
+            decimal_ok = (
+                not check_decimal or
+                bool(decimal_item and decimal_item.text().strip() == decimal_value)
+            )
             binary_ok = bool(binary_item and binary_item.text().strip() == binary_value)
             for item, correct in ((decimal_item, decimal_ok), (binary_item, binary_ok)):
                 if item:

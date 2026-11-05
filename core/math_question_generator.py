@@ -226,7 +226,10 @@ class MathQuestionGenerator:
         self.questions = question_repository
 
     def generate_question_id(self, question_type="mix"):
-        return self.questions.add_question(**self._generate(question_type))
+        self.questions.delete_unattempted_generated_math_questions()
+        question = self._generate(question_type)
+        question["question_type"] = "math_generated"
+        return self.questions.add_question(**question)
 
     def _generate(self, question_type="mix"):
         available_types = [key for key, _label in MATH_QUESTION_TYPES]

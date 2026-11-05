@@ -8,8 +8,9 @@ from core.theme_manager import ThemeManager
 
 
 class _SortCard(QLabel):
-    def __init__(self, text, palette, parent=None):
+    def __init__(self, text, card_index, palette, parent=None):
         super().__init__(text, parent)
+        self.card_index = card_index
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setWordWrap(True)
         self.setMinimumHeight(76)
@@ -27,13 +28,13 @@ class _SortCard(QLabel):
         from PySide6.QtGui import QDrag
         drag = QDrag(self)
         mime = QMimeData()
-        mime.setText(self.text())
+        mime.setData("application/x-table-sort-card", str(self.card_index).encode("ascii"))
         drag.setMimeData(mime)
         drag.exec(Qt.DropAction.MoveAction)
 
 
 class _SortDropZone(QFrame):
-    dropped = Signal(str, str)
+    dropped = Signal(int, str)
 
     def __init__(self, category, parent=None):
         super().__init__(parent)
@@ -48,11 +49,16 @@ class _SortDropZone(QFrame):
         layout.addWidget(self.label)
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasText():
+        if event.mimeData().hasFormat("application/x-table-sort-card"):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        self.dropped.emit(event.mimeData().text(), self.category)
+        try:
+            card_index = int(bytes(event.mimeData().data("application/x-table-sort-card")).decode("ascii"))
+        except (TypeError, ValueError, UnicodeDecodeError):
+            event.ignore()
+            return
+        self.dropped.emit(card_index, self.category)
         event.acceptProposedAction()
 
 
@@ -96,14 +102,13 @@ class _TableSort(QWidget):
             self.completed = True
             self.feedback.setText("Alle Karten richtig zugeordnet.")
             return
-        self.card_layout.addWidget(_SortCard(str(self.cards[self.index].get("text", "")), self.palette))
+        self.card_layout.addWidget(_SortCard(str(self.cards[self.index].get("text", "")), self.index, self.palette))
 
-    def _drop(self, text, category):
-        if self.completed or self.index >= len(self.cards):
+    def _drop(self, card_index, category):
+        if self.completed or self.index >= len(self.cards) or card_index != self.index:
             return
         current = self.cards[self.index]
-        if text != str(current.get("text", "")):
-            return
+        text = str(current.get("text", ""))
         if category == str(current.get("category", "")):
             zone = self.zones[category]
             existing = zone.label.text()
