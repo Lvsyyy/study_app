@@ -4,6 +4,8 @@ This module generates one new exercise whenever an AE/OOP topic is opened.
 It does not execute C#; code submissions are checked against the generated
 reference solution, while output-reading tasks use the normal answer field.
 """
+import json
+import itertools
 import random
 
 from database.question_repository import QuestionRepository
@@ -67,55 +69,173 @@ def _output():
     )
 
 
-def _input():
-    if random.choice(("name", "age")) == "name":
-        name = random.choice(NAMES)
-        body = (
-            'string name = Console.ReadLine();\n'
-            'Console.WriteLine("Name: " + name);\n'
-            'Console.WriteLine("Hallo " + name);\n'
-            "Console.ReadLine();"
-        )
-        return _program(
-            "Lies einen Namen ein. Gib danach den Namen mit 'Name:' und "
-            "anschließend eine Begrüßung mit 'Hallo' aus.\n"
-            f"Eingabe: {name}\nVariable: name (string)",
-            body, f"Name: {name}\nHallo {name}",
-            "Verwende Console.ReadLine(), um den Namen einzulesen.",
-            alternatives=(
-                'string name = Console.ReadLine();\n'
-                'Console.WriteLine($"Name: {name}");\n'
-                'Console.WriteLine($"Hallo {name}");\n'
-                'Console.ReadLine();',
-                'string name = Console.ReadLine();\n'
-                'Console.WriteLine("Name: {0}", name);\n'
-                'Console.WriteLine("Hallo {0}", name);\n'
-                'Console.ReadLine();',
-            ),
-        )
+INPUT_FIELDS = (
+    {
+        "type": "string", "variable": "name", "label": "Name",
+        "values": NAMES,
+        "prompts": ("Name: ", "Wie heißt du? ", "Gib deinen Namen ein: "),
+    },
+    {
+        "type": "int", "variable": "alter", "label": "Alter",
+        "values": tuple(range(14, 26)),
+        "prompts": ("Alter: ", "Wie alt bist du? ", "Gib dein Alter ein: "),
+    },
+    {
+        "type": "string", "variable": "wohnort", "label": "Wohnort",
+        "values": ("Berlin", "München", "Hamburg", "Köln", "Dresden"),
+        "prompts": ("Wohnort: ", "Wo wohnst du? ", "Gib deinen Wohnort ein: "),
+    },
+    {
+        "type": "double", "variable": "groesse", "label": "Größe",
+        "values": (1.62, 1.68, 1.72, 1.75, 1.80, 1.84, 1.90),
+        "prompts": ("Größe: ", "Wie groß bist du? ", "Gib deine Größe in Metern ein: "),
+    },
+    {
+        "type": "int", "variable": "geschwister", "label": "Geschwister",
+        "values": (0, 1, 2, 3, 4),
+        "prompts": ("Geschwister: ", "Wie viele Geschwister hast du? ",
+                    "Gib die Anzahl deiner Geschwister ein: "),
+    },
+    {
+        "type": "string", "variable": "lieblingsfarbe", "label": "Lieblingsfarbe",
+        "values": COLORS,
+        "prompts": ("Lieblingsfarbe: ", "Was ist deine Lieblingsfarbe? ",
+                    "Gib deine Lieblingsfarbe ein: "),
+    },
+    {
+        "type": "double", "variable": "gewicht", "label": "Gewicht",
+        "values": (48.5, 55.0, 62.5, 70.0, 74.5, 81.0, 92.5),
+        "prompts": ("Gewicht: ", "Wie viel wiegst du in kg? ",
+                    "Gib dein Gewicht in kg ein: "),
+    },
+)
 
-    age = random.randint(14, 25)
-    body = (
-        "int age = Convert.ToInt32(Console.ReadLine());\n"
-        'Console.WriteLine("Alter: " + age);\n'
-        'Console.WriteLine("Du bist " + age + " Jahre alt.");\n'
-        "Console.ReadLine();"
+
+def _input_conversion(field, method):
+    if field["type"] == "string":
+        return f'string {field["variable"]} = Console.ReadLine();'
+    return (
+        f'{field["type"]} {field["variable"]} = '
+        f'{method}(Console.ReadLine());'
     )
-    alternatives = (
-        "int age = Int32.Parse(Console.ReadLine());\n"
-        'Console.WriteLine("Alter: " + age);\n'
-        'Console.WriteLine("Du bist " + age + " Jahre alt.");\n'
-        "Console.ReadLine();",
+
+
+def _input_solution(fields, conversions, output_style, output_layout):
+    lines = []
+    for field, conversion in zip(fields, conversions):
+        prompt = field["prompt"].replace("\\", "\\\\").replace('"', '\\"')
+        lines.extend((
+            f'Console.Write("{prompt}");',
+            _input_conversion(field, conversion),
+        ))
+
+    if output_layout == "combined":
+        labels = " | ".join(
+            f'{field["label"]}: {{{index}}}'
+            for index, field in enumerate(fields)
+        )
+        values = ", ".join(field["variable"] for field in fields)
+        if output_style == "interpolation":
+            interpolated = " | ".join(
+                f'{field["label"]}: {{{field["variable"]}}}'
+                for field in fields
+            )
+            lines.append(f'Console.WriteLine($"\\n{interpolated}");')
+        else:
+            lines.append(f'Console.WriteLine("\\n{labels}", {values});')
+    else:
+        for index, field in enumerate(fields):
+            prefix = "\\n" if index == 0 else ""
+            if output_style == "interpolation":
+                lines.append(
+                    f'Console.WriteLine($"\\n{field["label"]}: '
+                    f'{{{field["variable"]}}}");'
+                    if index == 0 else
+                    f'Console.WriteLine($"{field["label"]}: '
+                    f'{{{field["variable"]}}}");'
+                )
+            else:
+                lines.append(
+                    f'Console.WriteLine("{prefix}{field["label"]}: '
+                    f'{{0}}", {field["variable"]});'
+                )
+
+    lines.append("Console.ReadLine();")
+    return "\n".join(lines)
+
+
+def _input():
+    fields = random.sample(INPUT_FIELDS, random.randint(1, 3))
+    for field in fields:
+        field["prompt"] = random.choice(field["prompts"])
+        field["value"] = random.choice(field["values"])
+
+    question_lines = [
+        "Frage den Benutzer nach den folgenden Angaben und gib alle "
+        "eingegebenen Werte anschließend aus:"
+    ]
+    question_lines.extend(
+        f'- {field["label"]} – verwende die Variable '
+        f'{field["type"]} {field["variable"]}.'
+        for field in fields
+    )
+    question = "\n".join(question_lines)
+
+    input_output = "\n".join(
+        f'{field["prompt"].rstrip()}{_input_display_value(field)}'
+        for field in fields
+    )
+    result_lines = [
+        f'{field["label"]}: {_input_display_value(field)}'
+        for field in fields
+    ]
+    expected_output = f"{input_output}\n\n" + "\n".join(result_lines)
+
+    conversion_options = [
+        ("Convert.ToInt32", "Int32.Parse") if field["type"] == "int" else
+        ("Convert.ToDouble", "Double.Parse") if field["type"] == "double" else
+        (None,)
+        for field in fields
+    ]
+    output_options = tuple(itertools.product(
+        ("interpolation", "format"),
+        ("combined", "separate"),
+    ))
+    accepted = []
+    for conversions in itertools.product(*conversion_options):
+        for output_style, output_layout in output_options:
+            accepted.append(_input_solution(
+                fields, conversions, output_style, output_layout
+            ))
+
+    selected_style, selected_layout = random.choice(output_options)
+    selected_conversions = tuple(
+        random.choice(options) for options in conversion_options
+    )
+    solution = _input_solution(
+        fields, selected_conversions, selected_style, selected_layout
+    )
+    alternatives = [candidate for candidate in accepted if candidate != solution]
+
+    variable_summary = ", ".join(
+        f'{field["type"]} {field["variable"]}' for field in fields
+    )
+    hints = (
+        "Verwende Console.Write() für die Eingabeaufforderungen, "
+        "Console.ReadLine() zum Einlesen und die angegebenen Datentypen. "
+        "Für int und double sind die beiden üblichen Konvertierungen erlaubt."
     )
     return _program(
-        "Lies das Alter als ganze Zahl ein. Gib danach das Alter mit 'Alter:' "
-        "und einen Satz mit dem Alter aus.\n"
-        f"Eingabe: {age}\nVariable: age (int)",
-        body, f"Alter: {age}\nDu bist {age} Jahre alt.",
-        "Verwende Console.ReadLine() und wandle die Eingabe mit "
-        "Convert.ToInt32() oder Int32.Parse() in int um.",
-        alternatives=alternatives,
+        question + f"\nVariablen: {variable_summary}",
+        solution, expected_output, hints, alternatives=alternatives,
     )
+
+
+def _input_display_value(field):
+    value = field["value"]
+    if field["type"] == "double":
+        return f"{value:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+    return str(value)
 
 
 def _variables():
