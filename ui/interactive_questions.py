@@ -270,8 +270,7 @@ class InteractiveQuestion(QWidget):
             self.match_definitions = [
                 str(pair.get("right", "")) for pair in self.data.get("pairs", [])
             ]
-            shuffled = self.match_definitions[:]
-            random.shuffle(shuffled)
+            random.shuffle(self.match_definitions)
             for pair in self.data.get("pairs", []):
                 row = QWidget()
                 row_layout = QVBoxLayout(row)
@@ -286,7 +285,7 @@ class InteractiveQuestion(QWidget):
                 view.setTextElideMode(Qt.TextElideMode.ElideNone)
                 view.setMinimumWidth(440)
                 combo.addItem("Select a definition…", None)
-                for definition in shuffled:
+                for definition in self.match_definitions:
                     combo.addItem(definition, definition)
                 row_layout.addWidget(combo)
                 self.match_options.append(combo)
