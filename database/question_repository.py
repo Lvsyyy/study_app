@@ -188,27 +188,27 @@ class QuestionRepository:
 
     def get_question(self, question_id):
         return self.db.fetch_one(
-            f"""{_QUESTION_SELECT}
-                WHERE q.id = ?""".replace(
-                    "SELECT q.*, t.name AS topic_name, s.name AS subject_name",
-                    """SELECT q.*, t.name AS topic_name, s.name AS subject_name,
-                              EXISTS(
-                                  SELECT 1 FROM saved_questions sq
-                                  WHERE sq.question_id = q.id
-                              ) AS is_saved,
-                              (
-                                  SELECT COUNT(*)
-                                  FROM attempts a
-                                  JOIN questions aq ON aq.id = a.question_id
-                                  WHERE aq.topic_id = q.topic_id
-                              ) AS topic_attempts,
-                              (
-                                  SELECT CAST(ROUND(100.0 * SUM(a.is_correct) / COUNT(*)) AS INTEGER)
-                                  FROM attempts a
-                                  JOIN questions aq ON aq.id = a.question_id
-                                  WHERE aq.topic_id = q.topic_id
-                              ) AS topic_accuracy"""
-                ),
+            """SELECT q.*, t.name AS topic_name, s.name AS subject_name,
+                      EXISTS(
+                          SELECT 1 FROM saved_questions sq
+                          WHERE sq.question_id = q.id
+                      ) AS is_saved,
+                      (
+                          SELECT COUNT(*)
+                          FROM attempts a
+                          JOIN questions aq ON aq.id = a.question_id
+                          WHERE aq.topic_id = q.topic_id
+                      ) AS topic_attempts,
+                      (
+                          SELECT CAST(ROUND(100.0 * SUM(a.is_correct) / COUNT(*)) AS INTEGER)
+                          FROM attempts a
+                          JOIN questions aq ON aq.id = a.question_id
+                          WHERE aq.topic_id = q.topic_id
+                      ) AS topic_accuracy
+               FROM questions q
+               JOIN topics t ON t.id = q.topic_id
+               JOIN subjects s ON s.id = t.subject_id
+               WHERE q.id = ?""",
             (question_id,),
         )
 
