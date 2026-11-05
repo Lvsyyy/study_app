@@ -1,9 +1,29 @@
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+
+    15: """
+    UPDATE questions
+    SET question_type='table_sort',
+        answer='{"categories":["Bus","Stern","Ring"],"cards":[{"text":"Aufbau: Zentrales Kabel verbindet alle Geräte","category":"Bus"},{"text":"Anwendung: Kleineren lokalen Netzen in 90er Jahre","category":"Bus"},{"text":"Vorteile: Passive Topologie, Erweiterbarkeit, Günstig","category":"Bus"},{"text":"Nachteile: Nur ein Medium, Nicht unendlich","category":"Bus"},{"text":"Aufbau: Geräte separat angeschlossen, Zentralen Verteiler (Switch)","category":"Stern"},{"text":"Anwendung: Häufigste Netzwerkstruktur, Neuinstallation auf Etagen- oder Gebäudeebene","category":"Stern"},{"text":"Vorteile: Kein Einzelpunktausfall, Erweiterbarkeit, Verteiler = Signalverstärker","category":"Stern"},{"text":"Nachteile: Große Kabelmenge, Hohe Kosten, Kein Verteiler = kein Netzverkehr","category":"Stern"},{"text":"Aufbau: Alle Knoten an einen Ring verbunden, Datenverkehr eine Richtung","category":"Ring"},{"text":"Anwendung: Automatisierungstechnik","category":"Ring"},{"text":"Vorteile: Knoten verarbeiten und verstärken die Signale, Einfache Fehlersuche","category":"Ring"},{"text":"Nachteile: Datenverkehr nur in eine Richtung, Hoher Aufwand der Kabelverlegung, Schwere Erweiterbarkeit","category":"Ring"}]}'
+    WHERE question_text='Ordne Aufbau, Anwendung, Vorteile und Nachteile der passenden Topologie zu.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='NT' AND t.name='Topologien');
+
+    UPDATE questions
+    SET question_type='table_sort',
+        answer='{"categories":["Stern-Stern","Baum-Topologie","Maschennetz"],"cards":[{"text":"Aufbau: Multilayerswitch verbindet Switches mit Glasfaser","category":"Stern-Stern"},{"text":"Anwendung: In mehr stöckigen Bürogebäude","category":"Stern-Stern"},{"text":"Aufbau: Wurzle die zu Verteilungsstellen führt","category":"Baum-Topologie"},{"text":"Anwendung: Firmengelände verbindet Gebäude","category":"Baum-Topologie"},{"text":"Aufbau: Baum-Topologie aber alle Netzknoten sind verbunden (redundant)","category":"Maschennetz"},{"text":"Anwendung: Sicherheitsrelevanten lokalen Netzen, Weitverkehrsnetzen","category":"Maschennetz"}]}'
+    WHERE question_text='Ordne Aufbau und Anwendung der passenden Mischform zu.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='NT' AND t.name='Topologien Mischformen');
+
+    UPDATE questions
+    SET question_type='table_sort',
+        answer='{"categories":["Client/Server-Architekturen","Peer-to-Peer","Monolithische Anwendungssysteme","Cloud Computing"],"cards":[{"text":"Beschreibung: Jeder Rechner ist gleichberechtigt und jeder Nutzer ist ein Admin und arbeitet mit eigenen Betriebsmitteln (Software)","category":"Peer-to-Peer"},{"text":"Vorteile: Preiswerte Implementierung (Günstig); Kein Netzwerkbetriebssystem vorausgesetzt; Kein Netzwerkadministrator notwending","category":"Peer-to-Peer"},{"text":"Nachteile: Schlechte Skalierbarkeit bei großen Netzwerken; Sicherheitsprobleme; Jeder Nutzer benötigt Administrationskenntnisse","category":"Peer-to-Peer"},{"text":"Beschreibung: Wird verwaltet auf zentralen Server / Rechner mit verteileten Ressourcen","category":"Client/Server-Architekturen"},{"text":"Vorteile: Zentralisierte Administration; Skalierbarkeit und flexible Architektur; Verbesserte Sicherheit","category":"Client/Server-Architekturen"},{"text":"Nachteile: Server verlangen höherwertige Ausstattung (Teuer); Administrator notwendig; Single Point of Failure in Form des Servers","category":"Client/Server-Architekturen"},{"text":"Beschreibung: Bietet Nutzern / Unternehmen eigenes IT-Infrakstruktur wenn nichts vorhanden ist","category":"Cloud Computing"},{"text":"Vorteile: Schnelle Verfügbarkeit; Geringer Aufwand (Keine Kabelverlegung / IT-Infrastruktur); Kosten senken; Technische und wirtschaftliche Vorteile; Hohe Skalierbarkeit (Mehr Speicher) und Flexibilität","category":"Cloud Computing"},{"text":"Nachteile: Datenschutz, Datensicherheit, mangelndes Vertrauen; Abhängigkeit von Internetverbindung; Abhängigkeit vom Cloud-Anbieter; Kann nicht einfach Anbieter wechseln","category":"Cloud Computing"}]}'
+    WHERE question_text='Ordne die Beschreibungen, Vorteile und Nachteile dem passenden Architekturtyp zu.'
+      AND topic_id IN (SELECT t.id FROM topics t JOIN subjects s ON s.id=t.subject_id WHERE s.name='NT' AND t.name='Architekturtypen');
+    """,
 
     14: """
     INSERT OR IGNORE INTO topics(subject_id, name) SELECT id, 'Architekturtypen' FROM subjects WHERE name='NT';
