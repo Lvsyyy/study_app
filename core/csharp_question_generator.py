@@ -34,11 +34,6 @@ def _main(prompt, body, answer, hint=None, question_type="code"):
 
 
 def _program(prompt, body, output, hint):
-    prompt = (
-        f"{prompt}\n\n"
-        "Vorgegebene Ausgabe:\n"
-        + "\n".join(output.splitlines())
-    )
     return _main(
         prompt, body,
         __import__("json").dumps({"solution": body, "output": output}, ensure_ascii=False),
