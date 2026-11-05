@@ -271,12 +271,12 @@ class MainWindow(QMainWindow):
         if code not in {"NT", "BS", "CS", "CS_P"}:
             return
         if code == "NT":
-            # Exclude all topology-related topic names, including legacy variants.
-            ids = self.question_repository.get_study_queue_excluding_topics(
-                code, "%topolog%"
+            # Exclude questions assigned to the exact "Topologien" topic.
+            ids = self.question_repository.get_study_queue_excluding_topic(
+                code, "Topologien"
             )
-            rebuild = lambda: self.question_repository.get_study_queue_excluding_topics(
-                code, "%topolog%"
+            rebuild = lambda: self.question_repository.get_study_queue_excluding_topic(
+                code, "Topologien"
             )
         else:
             ids = self.question_repository.get_study_queue(code)
