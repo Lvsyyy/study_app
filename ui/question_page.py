@@ -409,6 +409,8 @@ class QuestionPage(QWidget):
         self.pap_editor.reset()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
+        self.batch_workspace.hide()
+        self.batch_run_button.show()
         question_text = question["question_text"]
         question_type = question["question_type"] if "question_type" in question.keys() else "text"
         self._batch_mode = question_type == "batch"
