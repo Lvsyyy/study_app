@@ -8,13 +8,13 @@ from core.theme_manager import ThemeManager
 
 
 class _SortCard(QLabel):
-    def __init__(self, text, parent=None):
+    def __init__(self, text, palette, parent=None):
         super().__init__(text, parent)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setWordWrap(True)
         self.setMinimumHeight(76)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
-        self.setStyleSheet("border: 1px solid palette(mid); border-radius: 8px; padding: 12px; background: palette(base);")
+        self.setStyleSheet(f"border: 1px solid {palette['border']}; border-radius: 8px; padding: 12px; background: {palette['card']}; color: {palette['text']};")
 
     def mousePressEvent(self, event):
         self._start = event.position().toPoint()
@@ -57,9 +57,10 @@ class _SortDropZone(QFrame):
 
 
 class _TableSort(QWidget):
-    def __init__(self, data, parent=None):
+    def __init__(self, data, palette, parent=None):
         super().__init__(parent)
         self.data = data
+        self.palette = palette
         self.cards = list(data.get("cards", []))
         random.shuffle(self.cards)
         self.index = 0
@@ -95,7 +96,7 @@ class _TableSort(QWidget):
             self.completed = True
             self.feedback.setText("Alle Karten richtig zugeordnet.")
             return
-        self.card_layout.addWidget(_SortCard(str(self.cards[self.index].get("text", ""))))
+        self.card_layout.addWidget(_SortCard(str(self.cards[self.index].get("text", "")), self.palette))
 
     def _drop(self, text, category):
         if self.completed or self.index >= len(self.cards):
@@ -145,6 +146,7 @@ class InteractiveQuestion(QWidget):
 
     def apply_theme(self, theme):
         p = ThemeManager.palette(theme)
+        self._theme_palette = p
         self.setStyleSheet(f"""
             QCheckBox {{
                 background: {p['card']};
@@ -247,7 +249,7 @@ class InteractiveQuestion(QWidget):
                 self.order_list.addItem(str(value))
             self.layout.addWidget(self.order_list)
         elif kind == "table_sort":
-            self.table_sort = _TableSort(self.data)
+            self.table_sort = _TableSort(self.data, self._theme_palette)
             self.layout.addWidget(self.table_sort)
         elif kind == "matching":
             definitions = [str(pair.get("right", "")) for pair in self.data.get("pairs", [])]
