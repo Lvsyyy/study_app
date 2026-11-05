@@ -139,6 +139,7 @@ class InteractiveQuestion(QWidget):
         self.kind = None
         self.data = {}
         self.controls = []
+        self.multi_select_indices = []
         self.order_list = None
         self.match_options = []
         self.table_sort = None
@@ -214,6 +215,7 @@ class InteractiveQuestion(QWidget):
             if widget:
                 widget.deleteLater()
         self.controls = []
+        self.multi_select_indices = []
         self.order_list = None
         self.match_options = []
         self.table_sort = None
@@ -227,9 +229,12 @@ class InteractiveQuestion(QWidget):
             self.data = {}
 
         if kind == "multi_select":
-            for option in self.data.get("options", []):
+            options = list(enumerate(self.data.get("options", [])))
+            random.shuffle(options)
+            for original_index, option in options:
                 control = QCheckBox(str(option))
                 self.controls.append(control)
+                self.multi_select_indices.append(original_index)
                 self.layout.addWidget(control)
         elif kind == "ordering":
             self.layout.addWidget(QLabel("Drag the items into the correct order:"))
@@ -285,7 +290,7 @@ class InteractiveQuestion(QWidget):
 
     def get_answer(self):
         if self.kind == "multi_select":
-            return json.dumps([i for i, control in enumerate(self.controls) if control.isChecked()])
+            return json.dumps([self.multi_select_indices[i] for i, control in enumerate(self.controls) if control.isChecked()])
         if self.kind == "ordering" and self.order_list:
             return json.dumps([self.order_list.item(i).text() for i in range(self.order_list.count())], ensure_ascii=False)
         if self.kind == "matching":
@@ -312,8 +317,8 @@ class InteractiveQuestion(QWidget):
     def reveal_solution(self):
         if self.kind == "multi_select":
             correct = set(self.data.get("correct", []))
-            for index, control in enumerate(self.controls):
-                control.setChecked(index in correct)
+            for control, original_index in zip(self.controls, self.multi_select_indices):
+                control.setChecked(original_index in correct)
         elif self.kind == "ordering" and self.order_list:
             self.order_list.clear()
             for value in self.data.get("items", []):
