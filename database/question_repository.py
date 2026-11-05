@@ -189,7 +189,7 @@ class QuestionRepository:
                JOIN topics t ON t.id = q.topic_id
                JOIN subjects s ON s.id = t.subject_id
                WHERE s.name = ?
-""",
+               ORDER BY RANDOM()""",
             (subject_name,),
         )
 
@@ -249,7 +249,7 @@ class QuestionRepository:
                 JOIN topics t ON t.id = q.topic_id
                 JOIN subjects s ON s.id = t.subject_id
                 WHERE s.name = ? AND t.name IN ({placeholders})
-""",
+                ORDER BY RANDOM()""",
             (subject_name, *topic_names),
         )
         return [row["id"] for row in rows]
