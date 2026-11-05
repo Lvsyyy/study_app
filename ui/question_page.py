@@ -1,6 +1,5 @@
 import json
 import re
-import random
 import time
 from pathlib import Path
 
@@ -319,7 +318,6 @@ class QuestionPage(QWidget):
         self._rebuild = rebuild
         self.subject_label.setText(heading)
         self.queue = list(dict.fromkeys(ids))
-        random.shuffle(self.queue)
         self.index = 0
         self._round_correct = 0
         self._round_answered = 0
