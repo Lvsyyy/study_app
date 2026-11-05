@@ -185,11 +185,6 @@ def _input():
         f'{field["prompt"].rstrip()}{_input_display_value(field)}'
         for field in fields
     )
-    result_lines = [
-        f'{field["label"]}: {_input_display_value(field)}'
-        for field in fields
-    ]
-    expected_output = f"{input_output}\n\n" + "\n".join(result_lines)
 
     conversion_options = [
         ("Convert.ToInt32", "Int32.Parse") if field["type"] == "int" else
@@ -217,16 +212,22 @@ def _input():
     )
     alternatives = [candidate for candidate in accepted if candidate != solution]
 
-    variable_summary = ", ".join(
-        f'{field["type"]} {field["variable"]}' for field in fields
+    result_lines = [
+        f'{field["label"]}: {_input_display_value(field)}'
+        for field in fields
+    ]
+    result_output = (
+        " | ".join(result_lines)
+        if selected_layout == "combined" else "\\n".join(result_lines)
     )
+    expected_output = f"{input_output}\\n\\n{result_output}"
     hints = (
         "Verwende Console.Write() für die Eingabeaufforderungen, "
         "Console.ReadLine() zum Einlesen und die angegebenen Datentypen. "
         "Für int und double sind die beiden üblichen Konvertierungen erlaubt."
     )
     return _program(
-        question + f"\nVariablen: {variable_summary}",
+        question,
         solution, expected_output, hints, alternatives=alternatives,
     )
 
