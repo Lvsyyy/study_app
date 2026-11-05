@@ -33,10 +33,13 @@ def _main(prompt, body, answer, hint=None, question_type="code"):
     }
 
 
-def _program(prompt, body, output, hint):
+def _program(prompt, body, output, hint, alternatives=()):
+    answer_data = {"solution": body, "output": output}
+    if alternatives:
+        answer_data["alternatives"] = list(alternatives)
     return _main(
         prompt, body,
-        __import__("json").dumps({"solution": body, "output": output}, ensure_ascii=False),
+        __import__("json").dumps(answer_data, ensure_ascii=False),
         hint, question_type="csharp_practice",
     )
 
@@ -76,7 +79,17 @@ def _input():
         "Lies einen Namen ein und gib zuerst 'Name: Name' und danach 'Hallo Name' aus. "
         "Variable: name. Vorgegebene Eingabe: " + name,
         body, f"Name: {name}\nHallo {name}",
-        "Lies den Text mit string name = Console.ReadLine(); ein."
+        "Lies den Text mit string name = Console.ReadLine(); ein.",
+        alternatives=(
+            'string name = Console.ReadLine();\n'
+            'Console.WriteLine($"Name: {name}");\n'
+            'Console.WriteLine($"Hallo {name}");\n'
+            'Console.ReadLine();',
+            'string name = Console.ReadLine();\n'
+            'Console.WriteLine(string.Format("Name: {0}", name));\n'
+            'Console.WriteLine(string.Format("Hallo {0}", name));\n'
+            'Console.ReadLine();',
+        ),
     )
 
 
