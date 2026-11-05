@@ -122,10 +122,14 @@ def _input_conversion(field, method):
 
 def _input_solution(fields, conversions, output_style, output_layout):
     lines = []
-    for field, conversion in zip(fields, conversions):
+    for index, (field, conversion) in enumerate(zip(fields, conversions)):
         prompt = field["prompt"].replace("\\", "\\\\").replace('"', '\\"')
+        # Explicitly separate successive prompts in the generated console stream.
+        # The preview includes the entered values, so the code must emit the
+        # same line break before asking for the next value.
+        prefix = "\\n" if index else ""
         lines.extend((
-            f'Console.Write("{prompt}");',
+            f'Console.Write("{prefix}{prompt}");',
             _input_conversion(field, conversion),
         ))
 
