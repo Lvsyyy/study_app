@@ -71,39 +71,39 @@ def _output():
 
 INPUT_FIELDS = (
     {
-        "type": "string", "variable": "name", "label": "Name",
+        "type": "string", "variables": ("name", "vorname"), "label": "Name",
         "values": NAMES,
         "prompts": ("Name: ", "Wie heißt du? ", "Gib deinen Namen ein: "),
     },
     {
-        "type": "int", "variable": "alter", "label": "Alter",
+        "type": "int", "variables": ("alter", "jahre"), "label": "Alter",
         "values": tuple(range(14, 26)),
         "prompts": ("Alter: ", "Wie alt bist du? ", "Gib dein Alter ein: "),
     },
     {
-        "type": "string", "variable": "wohnort", "label": "Wohnort",
+        "type": "string", "variables": ("wohnort", "stadt"), "label": "Wohnort",
         "values": ("Berlin", "München", "Hamburg", "Köln", "Dresden"),
         "prompts": ("Wohnort: ", "Wo wohnst du? ", "Gib deinen Wohnort ein: "),
     },
     {
-        "type": "double", "variable": "groesse", "label": "Größe",
+        "type": "double", "variables": ("groesse", "koerpergroesse"), "label": "Größe",
         "values": (1.62, 1.68, 1.72, 1.75, 1.80, 1.84, 1.90),
         "prompts": ("Größe: ", "Wie groß bist du? ", "Gib deine Größe in Metern ein: "),
     },
     {
-        "type": "int", "variable": "geschwister", "label": "Geschwister",
+        "type": "int", "variables": ("geschwister", "anzahlGeschwister"), "label": "Geschwister",
         "values": (0, 1, 2, 3, 4),
         "prompts": ("Geschwister: ", "Wie viele Geschwister hast du? ",
                     "Gib die Anzahl deiner Geschwister ein: "),
     },
     {
-        "type": "string", "variable": "lieblingsfarbe", "label": "Lieblingsfarbe",
+        "type": "string", "variables": ("lieblingsfarbe", "farbe"), "label": "Lieblingsfarbe",
         "values": COLORS,
         "prompts": ("Lieblingsfarbe: ", "Was ist deine Lieblingsfarbe? ",
                     "Gib deine Lieblingsfarbe ein: "),
     },
     {
-        "type": "double", "variable": "gewicht", "label": "Gewicht",
+        "type": "double", "variables": ("gewicht", "koerpergewicht"), "label": "Gewicht",
         "values": (48.5, 55.0, 62.5, 70.0, 74.5, 81.0, 92.5),
         "prompts": ("Gewicht: ", "Wie viel wiegst du in kg? ",
                     "Gib dein Gewicht in kg ein: "),
@@ -165,8 +165,12 @@ def _input_solution(fields, conversions, output_style, output_layout):
 
 
 def _input():
-    fields = random.sample(INPUT_FIELDS, random.randint(1, 3))
+    fields = [
+        dict(field)
+        for field in random.sample(INPUT_FIELDS, random.randint(1, 3))
+    ]
     for field in fields:
+        field["variable"] = random.choice(field["variables"])
         field["prompt"] = random.choice(field["prompts"])
         field["value"] = random.choice(field["values"])
 
