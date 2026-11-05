@@ -171,6 +171,21 @@ class QuestionRepository:
                 for question in questions
             ]
 
+    def delete_unattempted_generated_math_questions(self):
+        """Remove skipped generated questions, but retain anything attempted or saved."""
+        with self.db.connection:
+            cursor = self.db.execute(
+                """DELETE FROM questions
+                   WHERE question_type = 'math_generated'
+                     AND NOT EXISTS (
+                         SELECT 1 FROM attempts a WHERE a.question_id = questions.id
+                     )
+                     AND NOT EXISTS (
+                         SELECT 1 FROM saved_questions sq WHERE sq.question_id = questions.id
+                     )"""
+            )
+        return cursor.rowcount
+
     def get_question(self, question_id):
         return self.db.fetch_one(
             f"{_QUESTION_SELECT} WHERE q.id = ?",
