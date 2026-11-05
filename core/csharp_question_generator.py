@@ -86,8 +86,8 @@ def _input():
             'Console.WriteLine($"Hallo {name}");\n'
             'Console.ReadLine();',
             'string name = Console.ReadLine();\n'
-            'Console.WriteLine(string.Format("Name: {0}", name));\n'
-            'Console.WriteLine(string.Format("Hallo {0}", name));\n'
+            'Console.WriteLine("Name: {0}", name);\n'
+            'Console.WriteLine("Hallo {0}", name);\n'
             'Console.ReadLine();',
         ),
     )
