@@ -595,6 +595,15 @@ class QuestionPage(QWidget):
         )
 
     @staticmethod
+    def _condition_answer_matches(entered, expected):
+        """Check the condition entered into the supplied if-statement scaffold."""
+        match = re.search(r"\\bif\\s*\\(\\s*(.*?)\\s*\\)", entered or "", re.DOTALL)
+        if not match:
+            return False
+        normalize = lambda value: re.sub(r"\\s+", "", value or "")
+        return normalize(match.group(1)) == normalize(expected)
+
+    @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
         """Compare code while ignoring indentation differences."""
         import textwrap
@@ -810,10 +819,16 @@ class QuestionPage(QWidget):
             self.pap_editor.is_correct(self.current["answer"]) if self._pap_mode else
             self.interactive_question.is_correct() if not self.interactive_question.isHidden() else
             self._batch_answer_matches() if self._batch_mode else
-            self._code_answer_matches(
-                entered,
-                json.loads(self.current["answer"]).get("solution", ""),
-                json.loads(self.current["answer"]).get("alternatives", ()),
+            (
+                self._condition_answer_matches(
+                    entered, json.loads(self.current["answer"]).get("solution", "")
+                )
+                if "if (________________)" in self.current["question_text"]
+                else self._code_answer_matches(
+                    entered,
+                    json.loads(self.current["answer"]).get("solution", ""),
+                    json.loads(self.current["answer"]).get("alternatives", ()),
+                )
             )
             if self._csharp_practice_mode else
             self._code_answer_matches(entered, self.current["answer"], alternatives)
@@ -839,7 +854,7 @@ class QuestionPage(QWidget):
             self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
             set_state(self.feedback, "bad")
             if self._code_mode:
-                self.code_editor.selectAll()
+                pass
             elif not self.calculation_answer.isHidden():
                 self.calculation_answer.selectAll()
             else:
