@@ -1,9 +1,21 @@
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    20: """
+    UPDATE questions
+    SET answer='{"pairs":[{"left":"80","right":"Datenpakete (HTTP)"},{"left":"25","right":"E-Mails (SMTP)"}]}'
+    WHERE question_text='Wofür werden die Eingänge 80 und 25 genutzt?'
+      AND question_type='matching'
+      AND topic_id IN (
+        SELECT t.id FROM topics t
+        JOIN subjects s ON s.id=t.subject_id
+        WHERE s.name='NT'
+      );
+    """,
+
     19: """
     UPDATE questions
     SET answer='{"pairs":[{"left":"Verbindung und Kommunikation zwischen verschiedenen Geräten und Systemen, um Datenaustausch zu ermöglichen","right":"Definition der Vernetzung"},{"left":"Einfache Kommunikation, Erweiterkeit, einfache Verwaltung, Verfügbarkeit","right":"Vorteile eines Netzwerkes"},{"left":"Router, IPS, Computer, Ethernet Kabel, Server, Switch","right":"Was benötigen Sie, um IT-Netzwerke einrichten zu können?"},{"left":"Das man die richtigen IPs vergibt und das die Frequenz des Gerätes unterstüzt ist","right":"Was ist bei der Einrichtung von Netzwerken zu beachten?"},{"left":"Falsche Konfiguration, Signal Störungen, Geräte sind nicht sofot seebar, Kosten","right":"Welche Schwierigkeiten können bei der Einrichtung eines Netzwerkes auftreten?"},{"left":"Was bedeutet Shared Medium?","right":"Wenn Knoten sich ein Übertragungsmedium teilen"},{"left":"Was bedeutet Single Point of Failure?","right":"Die Stelle im Netz die den Netzverkehr steuert"},{"left":"Was passiert mit Datenpaketen, die nicht ankommen?","right":"Ein Ersatz Pakete wird geschickt"},{"left":"Welche Cloud-Arten gibt es?","right":"Public Cloud; Private Cloud"}]}'
