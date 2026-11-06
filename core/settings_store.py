@@ -8,6 +8,10 @@ class SettingsStore:
     THEMES = ("Rose Pine", "Catppuccin Mocha", "Dracula")
     ICON_PACKS = tuple(ICON_PACKS)
     LANGUAGES = LANGUAGES
+    # Deliberately not "general/...": Qt's INI backend escapes a group called
+    # "general" as "[%General]" and reads it back as "General/...", so a value
+    # saved there is never found again by the next process.
+    LANGUAGE_KEY = "ui/language"
 
     def __init__(self, settings=None):
         self._settings = settings or QSettings("Lvsy", "StudyApp")
@@ -26,7 +30,11 @@ class SettingsStore:
 
     @property
     def language(self):
-        return self._choice("general/language", self.LANGUAGES, DEFAULT_LANGUAGE)
+        value = self._settings.value(
+            self.LANGUAGE_KEY,
+            self._settings.value("general/language", DEFAULT_LANGUAGE),
+        )
+        return value if value in self.LANGUAGES else DEFAULT_LANGUAGE
 
     @property
     def window_geometry(self):
@@ -43,7 +51,15 @@ class SettingsStore:
 
     def set_language(self, value):
         if value in self.LANGUAGES:
-            self._settings.setValue("general/language", value)
+            self._settings.setValue(self.LANGUAGE_KEY, value)
 
     def set_window_geometry(self, value):
         self._settings.setValue("window/geometry", value)
+
+    def sync(self):
+        """Write pending changes to disk immediately.
+
+        QSettings flushes lazily, so a value saved right before the app closes
+        would otherwise be lost on the next launch.
+        """
+        self._settings.sync()

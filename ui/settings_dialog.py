@@ -61,3 +61,5 @@ class SettingsDialog(QDialog):
         self.settings.set_theme(self.theme.currentText())
         self.settings.set_icon_pack(self.icons.currentText())
         self.settings.set_language(self.language.currentText())
+        # Flush now: a language change closes the app straight away.
+        self.settings.sync()

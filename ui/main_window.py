@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from core.csharp_question_generator import CSharpQuestionGenerator
 from core.i18n import tr
 from core.math_question_generator import MathQuestionGenerator
+from core.relaunch import relaunch
 from core.session_tracker import SessionTracker
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
@@ -349,25 +350,36 @@ class MainWindow(QMainWindow):
 
     def open_settings(self):
         dialog = SettingsDialog(self.settings, self)
-        if dialog.exec():
-            previous_language = self.settings.language
-            dialog.save_values()
-            if self.settings.language != previous_language:
-                QMessageBox.information(
-                    self,
-                    tr("Language changed"),
-                    tr("Restart Study App to apply the new language."),
-                )
-            ThemeManager.apply(self.app, self.settings.theme)
-            self.sidebar.set_icon_pack(self.settings.icon_pack)
-            self.dashboard.apply_theme(self.settings.theme)
-            self.question_page.apply_theme(self.settings.theme)
+        if not dialog.exec():
+            return
+        previous_language = self.settings.language
+        dialog.save_values()
+        if self.settings.language != previous_language:
+            self._relaunch_for_language()
+            return
+        ThemeManager.apply(self.app, self.settings.theme)
+        self.sidebar.set_icon_pack(self.settings.icon_pack)
+        self.dashboard.apply_theme(self.settings.theme)
+        self.question_page.apply_theme(self.settings.theme)
+
+    def _relaunch_for_language(self):
+        """Restart straight into the new language instead of asking for it."""
+        if not relaunch():
+            QMessageBox.warning(
+                self,
+                tr("Language changed"),
+                tr("Restart Study App to apply the new language."),
+            )
+            return
+        self.close()
+        self.app.quit()
 
     def closeEvent(self, event):
         self.updater.stop()
         self.webuntis.shutdown()
         self.session.stop()
         self.settings.set_window_geometry(self.saveGeometry())
+        self.settings.sync()
         if self._owns_db:
             self.db.close()
         super().closeEvent(event)
