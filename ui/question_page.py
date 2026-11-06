@@ -955,30 +955,30 @@ class QuestionPage(QWidget):
                     f'--[{edge.get("label", "Normal")}]--> '
                     f'{target.get("text", edge.get("to"))}'
                 )
-            return "\\n".join(lines)
+            return "\n".join(lines)
 
         if not self.interactive_question.isHidden() and isinstance(data, dict):
             kind = self.interactive_question.kind
             if kind == "multi_select":
                 options, correct = data.get("options", []), data.get("correct", [])
-                return "Correct options:\\n" + "\\n".join(
+                return "Correct options:\n" + "\n".join(
                     f'✓ {options[index]}'
                     for index in correct
                     if isinstance(index, int) and 0 <= index < len(options)
                 )
             if kind == "ordering":
-                return "Correct order:\\n" + "\\n".join(
+                return "Correct order:\n" + "\n".join(
                     f'{index + 1}. {value}'
                     for index, value in enumerate(data.get("items", []))
                 )
             if kind == "matching":
-                return "Correct matches:\\n" + "\\n".join(
+                return "Correct matches:\n" + "\n".join(
                     f'{pair.get("left", "")}  →  {pair.get("right", "")}'
                     for pair in data.get("pairs", [])
                 )
             if kind == "table_sort":
                 categories, cards = data.get("categories", []), data.get("cards", [])
-                return "Correct categories:\\n" + "\\n".join(
+                return "Correct categories:\n" + "\n".join(
                     f'{category}: ' + ", ".join(
                         str(card.get("text", ""))
                         for card in cards
@@ -1002,18 +1002,18 @@ class QuestionPage(QWidget):
                     " | ".join(str(value or "") for value in row) for row in rows
                 )
                 sections.append("")
-            return "\\n".join(sections).strip()
+            return "\n".join(sections).strip()
 
         if self._batch_mode and isinstance(data, dict):
             solution = data.get("solution", "")
             output = data.get("expected_output", [])
-            output_text = "\\n".join(output) if isinstance(output, list) else str(output)
-            return f"Solution:\\n{solution}\\n\\nExpected output:\\n{output_text}".strip()
+            output_text = "\n".join(output) if isinstance(output, list) else str(output)
+            return f"Solution:\n{solution}\n\nExpected output:\n{output_text}".strip()
 
         if self._csharp_practice_mode and isinstance(data, dict):
             solution = self._format_code_body(data.get("solution", ""))
             output = data.get("output", "")
-            return f"Solution:\\n{solution}\\n\\nConsole output:\\n{output}".strip()
+            return f"Solution:\n{solution}\n\nConsole output:\n{output}".strip()
 
         if self._code_mode:
             solution = data.get("solution", raw) if isinstance(data, dict) else raw
