@@ -1,11 +1,17 @@
 import ipaddress
 import random
 
-from PySide6.QtCore import Qt, Signal, QRectF, QPointF
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QBrush, QPalette
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPalette, QPen
 from PySide6.QtWidgets import (
-    QHBoxLayout, QLabel, QLineEdit, QScrollArea, QTableWidget,
-    QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget
+    QHBoxLayout,
+    QHeaderView,
+    QLineEdit,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ui.widgets import action_button, card, muted_label, title_label
@@ -347,27 +353,34 @@ class SubnettingPage(QWidget):
         self.refresh_text()
 
     def show_hint(self):
-        self.feedback.setText("Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und Subnetzmaske. Jede Teilung erhöht den Präfix um 1.")
+        self.feedback.setText(
+            "Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und "
+            "Subnetzmaske. Jede Teilung erhöht den Präfix um 1."
+        )
 
     @staticmethod
     def _binary_ip(value):
         return ".".join(f"{int(part):08b}" for part in value.split("."))
 
-    def reveal_answer(self):
-        self._completed = True
-        self.primary_button.setText("Next  →")
-        self.canvas.reveal_answers()
-        ip_value = self.canvas._ip(self.canvas.ip)
-        mask_value = self.canvas._mask(self.canvas.prefix)
-        network_value = self.canvas._ip(self.canvas.network)
-        broadcast_value = self.canvas._ip(self.canvas.broadcast)
-        values = {
-            0: (f"{ip_value}/{self.canvas.prefix}", self._binary_ip(ip_value)),
+    def _expected_values(self):
+        """Row -> (decimal, binary) answers; row 0 is the read-only IP address."""
+        canvas = self.canvas
+        ip_value = canvas._ip(canvas.ip)
+        mask_value = canvas._mask(canvas.prefix)
+        network_value = canvas._ip(canvas.network)
+        broadcast_value = canvas._ip(canvas.broadcast)
+        return {
+            0: (f"{ip_value}/{canvas.prefix}", self._binary_ip(ip_value)),
             1: (mask_value, self._binary_ip(mask_value)),
             2: (network_value, self._binary_ip(network_value)),
             3: (broadcast_value, self._binary_ip(broadcast_value)),
         }
-        for row, (decimal_value, binary_value) in values.items():
+
+    def reveal_answer(self):
+        self._completed = True
+        self.primary_button.setText("Next  →")
+        self.canvas.reveal_answers()
+        for row, (decimal_value, binary_value) in self._expected_values().items():
             self.info_table.item(row, 1).setText(decimal_value)
             self.info_table.item(row, 2).setText(binary_value)
         self.feedback.setText("Lösungen wurden eingetragen.")
@@ -376,23 +389,13 @@ class SubnettingPage(QWidget):
         if self.canvas.phase != "done":
             self.feedback.setText("Schließe zuerst die Aufteilung ab.")
             return
-        ip_value = self.canvas._ip(self.canvas.ip)
-        mask_value = self.canvas._mask(self.canvas.prefix)
-        network_value = self.canvas._ip(self.canvas.network)
-        broadcast_value = self.canvas._ip(self.canvas.broadcast)
-        expected_rows = (
-            (0, ip_value, self._binary_ip(ip_value), False),
-            (1, mask_value, self._binary_ip(mask_value), True),
-            (2, network_value, self._binary_ip(network_value), True),
-            (3, broadcast_value, self._binary_ip(broadcast_value), True),
-        )
         table_ok = True
-        for row, decimal_value, binary_value, check_decimal in expected_rows:
+        for row, (decimal_value, binary_value) in self._expected_values().items():
             decimal_item = self.info_table.item(row, 1)
             binary_item = self.info_table.item(row, 2)
-            decimal_ok = (
-                not check_decimal or
-                bool(decimal_item and decimal_item.text().strip() == decimal_value)
+            # Row 0 already shows the given IP address, so only its binary form counts.
+            decimal_ok = row == 0 or bool(
+                decimal_item and decimal_item.text().strip() == decimal_value
             )
             binary_ok = bool(binary_item and binary_item.text().strip() == binary_value)
             for item, correct in ((decimal_item, decimal_ok), (binary_item, binary_ok)):

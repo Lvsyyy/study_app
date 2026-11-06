@@ -63,7 +63,6 @@ class Database:
                     self.connection.rollback()
                 raise
 
-
     def execute(self, sql, params=()):
         return self.connection.execute(sql, params)
 

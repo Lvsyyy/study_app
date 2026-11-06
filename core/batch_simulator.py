@@ -41,7 +41,6 @@ def simulate_batch(source, inputs=()):
     variables = {}
     output = []
     input_values = iter(inputs)
-    echo_enabled = True
     color = None
     lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines()
     index = 0
@@ -64,11 +63,8 @@ def simulate_batch(source, inputs=()):
             continue
         raw = raw.lstrip("@")
         upper = raw.upper()
-        if upper == "ECHO OFF":
-            echo_enabled = False
-            continue
-        if upper == "ECHO ON":
-            echo_enabled = True
+        # Echo state does not change the simulated console output.
+        if upper in ("ECHO OFF", "ECHO ON"):
             continue
         if upper.startswith("ECHO "):
             value = expand(raw[5:])
@@ -85,7 +81,9 @@ def simulate_batch(source, inputs=()):
             try:
                 entered = str(next(input_values))
             except StopIteration:
-                raise BatchSimulationError(f"Input required for variable {name}.")
+                raise BatchSimulationError(
+                    f"Input required for variable {name}."
+                ) from None
             variables[name.upper()] = entered
             output.append(expand(prompt) + entered)
             continue

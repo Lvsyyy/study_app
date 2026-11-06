@@ -72,17 +72,24 @@ def test_alternatives_round_trip(repos):
 
 def test_unknown_subject_rejected_and_nothing_written(repos):
     questions = repos[0]
+    # A fresh database already holds the questions seeded by the migrations,
+    # so "nothing written" has to be measured relative to that baseline.
+    before = questions.count_questions()
     with pytest.raises(ValueError):
         questions.add_question("Nope", "T", "Q", "A")
-    assert questions.count_questions() == 0
+    assert questions.count_questions() == before
 
 
-def test_study_queue_unseen_first_then_weakest(repos):
+def test_study_queue_returns_every_question_in_a_fresh_random_order(repos):
     questions, attempts, *_ = repos
     a, b, c = add(questions, 3)
     attempts.record(a, "x", True)    # 100%
     attempts.record(b, "x", False)   # 0%
-    assert questions.get_study_queue("Math") == [c, b, a]
+
+    orders = [tuple(questions.get_study_queue("Math")) for _ in range(30)]
+    assert all(sorted(order) == sorted([a, b, c]) for order in orders)
+    # Every round is reshuffled rather than following a fixed sequence.
+    assert len(set(orders)) > 1
 
 
 def test_attempt_totals_and_time(repos):
@@ -166,15 +173,16 @@ def test_saved_questions(repos):
 
 def test_import_is_all_or_nothing(tmp_path, repos):
     questions = repos[0]
+    before = questions.count_questions()
     good = {"subject": "Math", "topic": "T", "question": "Q", "answer": "A"}
     bad = {"subject": "Nope", "topic": "T", "question": "Q", "answer": "A"}
     path = tmp_path / "q.json"
     path.write_text(json.dumps([good, bad]))
     count, errors = import_file(path, questions)
-    assert count == 0 and errors and questions.count_questions() == 0
+    assert count == 0 and errors and questions.count_questions() == before
     path.write_text(json.dumps([good, {**good, "alt_answers": ["B"], "difficulty": 3}]))
     count, errors = import_file(path, questions)
-    assert count == 2 and not errors and questions.count_questions() == 2
+    assert count == 2 and not errors and questions.count_questions() == before + 2
 
 
 def test_import_validation(tmp_path):

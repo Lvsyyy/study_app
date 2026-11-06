@@ -4,30 +4,22 @@ This module generates one new exercise whenever an AE/OOP topic is opened.
 It does not execute C#; code submissions are checked against the generated
 reference solution, while output-reading tasks use the normal answer field.
 """
-import json
 import itertools
+import json
 import random
 
 from database.question_repository import QuestionRepository
-
 
 NAMES = ("Alex", "Mia", "Noah", "Lena", "Max", "Emma", "Luca", "Nina")
 COLORS = ("Rot", "Blau", "Gruen", "Gelb")
 ITEMS = ("Apfel", "Birne", "Buch", "Stift", "Tasche", "Ball")
 
 
-def _main(prompt, body, answer, hint=None, question_type="code"):
-    shell = (
-        f"{prompt.strip()}\n"
-        "static void Main(string[] args)\n"
-        "{\n"
-        "    \n"
-        "}"
-    )
+def _question(question_text, answer, hint=None, question_type="code"):
     return {
         "subject_name": "AE",
         "topic_name": None,
-        "question_text": shell,
+        "question_text": question_text,
         "answer": answer,
         "hint": hint,
         "difficulty": 1,
@@ -35,14 +27,30 @@ def _main(prompt, body, answer, hint=None, question_type="code"):
     }
 
 
-def _program(prompt, body, output, hint, alternatives=()):
-    answer_data = {"solution": body, "output": output}
+def _main(prompt, answer, hint=None, question_type="code"):
+    """Build a question around a fixed, empty Main method shell."""
+    shell = (
+        f"{prompt.strip()}\n"
+        "static void Main(string[] args)\n"
+        "{\n"
+        "    \n"
+        "}"
+    )
+    return _question(shell, answer, hint, question_type)
+
+
+def _practice_answer(solution, output, alternatives=()):
+    """Serialise a practice task's reference solution and expected console output."""
+    answer_data = {"solution": solution, "output": output}
     if alternatives:
         answer_data["alternatives"] = list(alternatives)
+    return json.dumps(answer_data, ensure_ascii=False)
+
+
+def _program(prompt, body, output, hint, alternatives=()):
     return _main(
-        prompt, body,
-        __import__("json").dumps(answer_data, ensure_ascii=False),
-        hint, question_type="csharp_practice",
+        prompt, _practice_answer(body, output, alternatives), hint,
+        question_type="csharp_practice",
     )
 
 
@@ -53,10 +61,10 @@ def _number_pair():
 
 
 def _output():
-    first, second = random.sample(
+    first, second = random.choice(
         (("Hallo Welt!", "Ich lerne C#."), ("Guten Morgen!", "C# macht Spaß."),
-         ("Willkommen!", "Viel Erfolg beim Programmieren.")), 1
-    )[0]
+         ("Willkommen!", "Viel Erfolg beim Programmieren."))
+    )
     body = (
         f'Console.WriteLine("{first}");\n'
         f'Console.WriteLine("{second}");\n'
@@ -122,7 +130,7 @@ def _input_conversion(field, method):
 
 def _input_solution(fields, conversions, output_style, output_layout):
     lines = []
-    for index, (field, conversion) in enumerate(zip(fields, conversions)):
+    for index, (field, conversion) in enumerate(zip(fields, conversions, strict=True)):
         prompt = field["prompt"].replace("\\", "\\\\").replace('"', '\\"')
         # Explicitly separate successive prompts in the generated console stream.
         # The preview includes the entered values, so the code must emit the
@@ -307,7 +315,11 @@ def _formatting():
 def _operators():
     a, b = _number_pair()
     style = random.choice(("interpolation", "format"))
+    # The comparison variant accepts either output style; the variable variant
+    # only accepts the style it was generated with.
+    accepts_both_styles = True
     if random.choice((True, False)):
+        accepts_both_styles = False
         total, difference, product = a + b, a - b, a * b
         declarations = (
             f"int zahl1 = {a};\nint zahl2 = {b};\n"
@@ -359,9 +371,8 @@ def _operators():
             return "\n".join(lines)
     solution = build(style)
     alternatives = (
-        []
-        if "labels" in locals()
-        else [build(other) for other in ("interpolation", "format") if other != style]
+        [build(other) for other in ("interpolation", "format") if other != style]
+        if accepts_both_styles else []
     )
     return _program(
         prompt, solution, output,
@@ -373,24 +384,21 @@ def _operators():
 
 def _if_condition():
     age = random.randint(18, 30)
-    return _main(
+    prompt = (
         f"Ergänze nur die Bedingung. Bei einem Alter ab 18 soll 'Volljaehrig' "
-        f"ausgegeben werden. Variable: alter = {age}.",
-        "",
-        __import__("json").dumps({"solution": "alter >= 18", "output": "Volljaehrig" if age >= 18 else ""}, ensure_ascii=False),
+        f"ausgegeben werden. Variable: alter = {age}.\n"
+        "static void Main(string[] args)\n{\n"
+        f"    int alter = {age};\n"
+        "    if (________________)\n    {\n"
+        '        Console.WriteLine("Volljaehrig");\n    }\n'
+        "    Console.ReadLine();\n}"
+    )
+    return _question(
+        prompt,
+        _practice_answer("alter >= 18", "Volljaehrig" if age >= 18 else ""),
         "Vergleiche alter mit 18.",
-        question_type="csharp_practice"
-    ) | {
-        "question_text": (
-            f"Ergänze nur die Bedingung. Bei einem Alter ab 18 soll 'Volljaehrig' "
-            f"ausgegeben werden. Variable: alter = {age}.\n"
-            "static void Main(string[] args)\n{\n"
-            f"    int alter = {age};\n"
-            "    if (________________)\n    {\n"
-            '        Console.WriteLine("Volljaehrig");\n    }\n'
-            "    Console.ReadLine();\n}"
-        ),
-    }
+        question_type="csharp_practice",
+    )
 
 
 def _if_output():
@@ -414,22 +422,22 @@ def _if_output():
 
 def _if_else_condition():
     temperature = random.randint(5, 35)
-    return {
-        "subject_name": "AE", "topic_name": None,
-        "question_text": (
-            "Ergänze nur die Bedingung. Bei mindestens 20 Grad soll 'Warm', "
-            f"andernfalls 'Kalt' ausgegeben werden. temperatur = {temperature}.\n"
-            "static void Main(string[] args)\n{\n"
-            f"    int temperatur = {temperature};\n"
-            "    if (________________)\n    {\n"
-            '        Console.WriteLine("Warm");\n    }\n    else\n    {\n'
-            '        Console.WriteLine("Kalt");\n    }\n'
-            "    Console.ReadLine();\n}"
-        ),
-        "answer": __import__("json").dumps({"solution": "temperatur >= 20", "output": "Warm" if temperature >= 20 else "Kalt"}, ensure_ascii=False),
-        "hint": "Vergleiche temperatur mit 20.",
-        "difficulty": 1, "question_type": "csharp_practice",
-    }
+    prompt = (
+        "Ergänze nur die Bedingung. Bei mindestens 20 Grad soll 'Warm', "
+        f"andernfalls 'Kalt' ausgegeben werden. temperatur = {temperature}.\n"
+        "static void Main(string[] args)\n{\n"
+        f"    int temperatur = {temperature};\n"
+        "    if (________________)\n    {\n"
+        '        Console.WriteLine("Warm");\n    }\n    else\n    {\n'
+        '        Console.WriteLine("Kalt");\n    }\n'
+        "    Console.ReadLine();\n}"
+    )
+    return _question(
+        prompt,
+        _practice_answer("temperatur >= 20", "Warm" if temperature >= 20 else "Kalt"),
+        "Vergleiche temperatur mit 20.",
+        question_type="csharp_practice",
+    )
 
 
 def _if_else_output():
@@ -454,14 +462,15 @@ def _if_else_output():
 
 
 
-GENERATORS = {
-    "Ausgabe": _output,
-    "Eingabe": _input,
-    "Variablen": _variables,
-    "Ausgabe formatierung": _formatting,
-    "Operatoren": _operators,
-    "Bedingungen": random.choice,
-    "Verzweigte Bedingungen": random.choice,
+# Each practice topic picks one of its generator variants at random.
+TOPIC_VARIANTS = {
+    "Ausgabe": (_output,),
+    "Eingabe": (_input,),
+    "Variablen": (_variables,),
+    "Ausgabe formatierung": (_formatting,),
+    "Operatoren": (_operators,),
+    "Bedingungen": (_if_condition, _if_output),
+    "Verzweigte Bedingungen": (_if_else_condition, _if_else_output),
 }
 
 
@@ -472,11 +481,9 @@ class CSharpQuestionGenerator:
         self.repository = repository
 
     def generate_question_id(self, topic_name):
-        if topic_name == "Bedingungen":
-            question = random.choice((_if_condition, _if_output))()
-        elif topic_name == "Verzweigte Bedingungen":
-            question = random.choice((_if_else_condition, _if_else_output))()
-        else:
-            question = GENERATORS[topic_name]()
+        variants = TOPIC_VARIANTS.get(topic_name)
+        if variants is None:
+            raise ValueError(f"Unknown practice topic: {topic_name}")
+        question = random.choice(variants)()
         question["topic_name"] = topic_name
         return self.repository.add_question(**question)

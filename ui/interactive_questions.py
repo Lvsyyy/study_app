@@ -1,10 +1,18 @@
 import json
 import random
 
-from PySide6.QtCore import Qt, QMimeData, Signal
+from PySide6.QtCore import QMimeData, Qt, Signal
+from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QLabel, QListWidget, QWidget,
-    QVBoxLayout, QGridLayout, QFrame, QApplication,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QLabel,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from core.theme_manager import ThemeManager
@@ -14,6 +22,7 @@ class _SortCard(QLabel):
     def __init__(self, text, card_index, palette, parent=None):
         super().__init__(text, parent)
         self.card_index = card_index
+        self._start = None
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setWordWrap(True)
         self.setMinimumHeight(76)
@@ -24,11 +33,10 @@ class _SortCard(QLabel):
         self._start = event.position().toPoint()
 
     def mouseMoveEvent(self, event):
-        if not (event.buttons() & Qt.MouseButton.LeftButton):
+        if self._start is None or not (event.buttons() & Qt.MouseButton.LeftButton):
             return
         if (event.position().toPoint() - self._start).manhattanLength() < QApplication.startDragDistance():
             return
-        from PySide6.QtGui import QDrag
         drag = QDrag(self)
         mime = QMimeData()
         mime.setData("application/x-table-sort-card", str(self.card_index).encode("ascii"))
@@ -151,6 +159,8 @@ class InteractiveQuestion(QWidget):
         self.order_list = None
         self.match_options = []
         self.match_definitions = []
+        self.match_expected = []
+        self.match_prompt_ids = []
         self.table_sort = None
         self.apply_theme("Rose Pine")
 
@@ -228,6 +238,8 @@ class InteractiveQuestion(QWidget):
         self.order_list = None
         self.match_options = []
         self.match_definitions = []
+        self.match_expected = []
+        self.match_prompt_ids = []
         self.table_sort = None
 
     def load(self, kind, raw_answer):
@@ -267,12 +279,19 @@ class InteractiveQuestion(QWidget):
             self.table_sort = _TableSort(self.data, self._theme_palette)
             self.layout.addWidget(self.table_sort)
         elif kind == "matching":
+            # Randomise both the prompts and the definitions, so neither side
+            # can be answered from memory of the previous order.
+            indexed_pairs = list(enumerate(self.data.get("pairs", [])))
+            random.shuffle(indexed_pairs)
+            # Display row -> original pair index, needed to reveal the solution.
+            self.match_prompt_ids = [index for index, _pair in indexed_pairs]
             self.match_definitions = [
                 (index, str(pair.get("right", "")))
-                for index, pair in enumerate(self.data.get("pairs", []))
+                for index, pair in indexed_pairs
             ]
             random.shuffle(self.match_definitions)
-            for pair in self.data.get("pairs", []):
+            self.match_expected = [pair.get("right") for _index, pair in indexed_pairs]
+            for _index, pair in indexed_pairs:
                 row = QWidget()
                 row_layout = QVBoxLayout(row)
                 row_layout.setContentsMargins(0, 0, 0, 0)
@@ -353,7 +372,7 @@ class InteractiveQuestion(QWidget):
         if self.kind == "ordering":
             return entered == self.data.get("items", [])
         if self.kind == "matching":
-            return entered == [pair.get("right") for pair in self.data.get("pairs", [])]
+            return entered == self.match_expected
         if self.kind == "table_sort" and self.table_sort:
             return self.table_sort.is_correct()
         return False
@@ -361,7 +380,9 @@ class InteractiveQuestion(QWidget):
     def reveal_solution(self):
         if self.kind == "multi_select":
             correct = set(self.data.get("correct", []))
-            for control, original_index in zip(self.controls, self.multi_select_indices):
+            for control, original_index in zip(
+                self.controls, self.multi_select_indices, strict=True
+            ):
                 control.setChecked(original_index in correct)
         elif self.kind == "ordering" and self.order_list:
             self.order_list.clear()
@@ -370,7 +391,9 @@ class InteractiveQuestion(QWidget):
         elif self.kind == "table_sort" and self.table_sort:
             self.table_sort.reveal_solution()
         elif self.kind == "matching":
-            for pair_index, combo in enumerate(self.match_options):
-                index = combo.findData(pair_index)
+            for combo, pair_id in zip(
+                self.match_options, self.match_prompt_ids, strict=True
+            ):
+                index = combo.findData(pair_id)
                 if index >= 0:
                     combo.setCurrentIndex(index)

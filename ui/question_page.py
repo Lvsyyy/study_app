@@ -1,17 +1,51 @@
 import json
+import random
 import re
+import textwrap
 import time
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QRegularExpression
-from PySide6.QtGui import QPixmap, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QTextCursor
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget, QFrame)
-from ui.interactive_questions import InteractiveQuestion
-from ui.pap_editor import PapEditor
+from PySide6.QtCore import QRegularExpression, Qt, Signal
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QPixmap,
+    QSyntaxHighlighter,
+    QTextCharFormat,
+    QTextCursor,
+)
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from core.answer_checker import is_correct
+from core.batch_simulator import BatchSimulationError, simulate_batch
 from core.formatting import format_duration
+from ui.interactive_questions import InteractiveQuestion
+from ui.pap_editor import PapEditor
 from ui.widgets import action_button, card, muted_label, set_state, title_label
+
+
+def _normalize_console(text):
+    """Compare console output without trailing whitespace or blank-line noise."""
+    return "\n".join(
+        line.rstrip() for line in text.replace("\r", "").strip().splitlines()
+    )
+
+
+def _compact(text):
+    """Drop all whitespace so 'alter>=18' and 'alter >= 18' compare equal."""
+    return re.sub(r"\s+", "", text or "")
 
 
 class AutoIndentCodeEditor(QPlainTextEdit):
@@ -312,13 +346,6 @@ class QuestionPage(QWidget):
     def apply_theme(self, theme):
         self.interactive_question.apply_theme(theme)
 
-    def set_subject(self, subject):
-        self.set_queue(
-            subject,
-            self.questions.get_study_queue(subject),
-            rebuild=lambda: self.questions.get_study_queue(subject),
-        )
-
     def set_generator(self, heading, generator):
         self.heading = heading
         self._rebuild = None
@@ -339,7 +366,10 @@ class QuestionPage(QWidget):
         self.heading = heading
         self._rebuild = rebuild
         self.subject_label.setText(heading)
+        # Shuffle here as well, so paths without a rebuild (saved questions,
+        # "practice again") still get a fresh order every round.
         self.queue = list(dict.fromkeys(ids))
+        random.shuffle(self.queue)
         self.index = 0
         self._round_correct = 0
         self._round_answered = 0
@@ -349,8 +379,40 @@ class QuestionPage(QWidget):
             self._show_empty(f"No questions for {heading} yet.")
 
     def _controls_enabled(self, enabled):
-        for widget in (self.answer, self.calculation_answer, self.code_editor, self.calculation_table_container, self.interactive_question, self.pap_editor, self.batch_run_button, self.skip_button, self.hint_button, self.reveal_button, self.save_button):
+        for widget in (
+            self.answer,
+            self.calculation_answer,
+            self.code_editor,
+            self.calculation_table_container,
+            self.interactive_question,
+            self.pap_editor,
+            self.batch_run_button,
+            self.skip_button,
+            self.hint_button,
+            self.reveal_button,
+            self.save_button,
+        ):
             widget.setEnabled(enabled)
+
+    def _lock_controls(self):
+        """Freeze the answer controls after a correct answer or a reveal."""
+        for widget in (
+            self.answer,
+            self.code_editor,
+            self.batch_run_button,
+            self.calculation_answer,
+            self.calculation_table_container,
+        ):
+            widget.setEnabled(False)
+        self.interactive_question.set_answer_locked(True)
+        self.pap_editor.set_editing_enabled(False)
+        self.primary_button.setText("Next  →")
+
+    def _reset_solution_panel(self):
+        self.solution_panel.hide()
+        self.solution_content.clear()
+        self.solution_pap_editor.hide()
+        self.solution_pap_editor.reset()
 
     def _show_empty(self, message):
         self.current = None
@@ -377,10 +439,7 @@ class QuestionPage(QWidget):
         self.interactive_question.hide()
         self.pap_editor.hide()
         self.pap_editor.reset()
-        self.solution_panel.hide()
-        self.solution_content.clear()
-        self.solution_pap_editor.hide()
-        self.solution_pap_editor.reset()
+        self._reset_solution_panel()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -433,10 +492,7 @@ class QuestionPage(QWidget):
         self.interactive_question.set_answer_locked(False)
         self.pap_editor.hide()
         self.pap_editor.reset()
-        self.solution_panel.hide()
-        self.solution_content.clear()
-        self.solution_pap_editor.hide()
-        self.solution_pap_editor.reset()
+        self._reset_solution_panel()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         self.batch_workspace.hide()
@@ -614,8 +670,6 @@ class QuestionPage(QWidget):
     @staticmethod
     def _format_code_body(code):
         """Indent a solution as a body inside the fixed Main method."""
-        import textwrap
-
         body = textwrap.dedent((code or "").strip("\n"))
         if not body:
             return ""
@@ -625,20 +679,16 @@ class QuestionPage(QWidget):
         )
 
     @staticmethod
-    @staticmethod
     def _condition_answer_matches(entered, expected):
         """Check the condition entered into the supplied if-statement scaffold."""
         match = re.search(r"\bif\s*\(\s*(.*?)\s*\)", entered or "", re.DOTALL)
         if not match:
             return False
-        normalize = lambda value: re.sub(r"\s+", "", value or "")
-        return normalize(match.group(1)) == normalize(expected)
+        return _compact(match.group(1)) == _compact(expected)
 
     @staticmethod
     def _code_answer_matches(entered, expected, alternatives=()):
         """Compare code while ignoring indentation differences."""
-        import textwrap
-
         submitted = textwrap.dedent(
             (entered or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
         ).rstrip()
@@ -797,7 +847,7 @@ class QuestionPage(QWidget):
                 return json.dumps({
                     "tables": [
                         {"title": title, **table}
-                        for title, table in zip(titles, tables)
+                        for title, table in zip(titles, tables, strict=True)
                     ]
                 }, ensure_ascii=False)
             return json.dumps(tables[0], ensure_ascii=False)
@@ -872,40 +922,24 @@ class QuestionPage(QWidget):
             took = f" · {format_duration(round(elapsed))}" if first and elapsed is not None else ""
             self.feedback.setText(f"Correct ✓{took}" if first else "Correct ✓ (first try counted)")
             set_state(self.feedback, "good")
-            self.answer.setEnabled(False)
-            self.code_editor.setEnabled(False)
-            self.batch_run_button.setEnabled(False)
-            self.calculation_answer.setEnabled(False)
-            self.calculation_table_container.setEnabled(False)
-            self.interactive_question.set_answer_locked(True)
-            self.pap_editor.set_editing_enabled(False)
-            self.primary_button.setText("Next  →")
+            self._lock_controls()
         else:
             note = "Only your first attempt counts. " if first else ""
             self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
             set_state(self.feedback, "bad")
-            if self._code_mode:
-                pass
-            elif not self.calculation_answer.isHidden():
+            if not self._code_mode and not self.calculation_answer.isHidden():
                 self.calculation_answer.selectAll()
-            else:
+            elif not self._code_mode:
                 self.answer.selectAll()
 
     def run_batch(self):
         if not self._batch_mode or self.current is None:
             return
-        from core.batch_simulator import simulate_batch, BatchSimulationError
-
         try:
             config = json.loads(self.current["answer"])
             inputs = config.get("inputs", [])
-            result = simulate_batch(self.code_editor.toPlainText(), inputs)
-            self._batch_result = result
-            expected = "\n".join(config.get("expected_output", []))
-            normalize = lambda value: "\n".join(
-                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
-            )
-            matches = normalize(result["output"]) == normalize(expected)
+            self._batch_result = simulate_batch(self.code_editor.toPlainText(), inputs)
+            matches = self._batch_output_matches()
             self.feedback.setText(
                 "Ausgabe stimmt mit der Vorgabe überein." if matches
                 else "Die Ausgabe stimmt noch nicht mit der Vorgabe überein."
@@ -916,21 +950,24 @@ class QuestionPage(QWidget):
             self.feedback.setText(f"Batch-Fehler: {exc}")
             set_state(self.feedback, "bad")
 
-    def _batch_answer_matches(self):
-        if self._batch_result is None:
-            self.run_batch()
-        if self._batch_result is None:
+    def _batch_output_matches(self):
+        """Compare the last simulated run with the task's expected console output."""
+        if self.current is None or self._batch_result is None:
             return False
         try:
             config = json.loads(self.current["answer"])
-            expected = "\n".join(config.get("expected_output", []))
-            actual = self._batch_result["output"]
-            normalize = lambda value: "\n".join(
-                line.rstrip() for line in value.replace("\r", "").strip().splitlines()
-            )
-            return normalize(actual) == normalize(expected)
         except (json.JSONDecodeError, TypeError):
             return False
+        expected = "\n".join(config.get("expected_output", []))
+        return (
+            _normalize_console(self._batch_result["output"])
+            == _normalize_console(expected)
+        )
+
+    def _batch_answer_matches(self):
+        if self._batch_result is None:
+            self.run_batch()
+        return self._batch_output_matches()
 
     def _format_solution_data(self):
         """Build a readable reference answer without modifying submitted controls."""
@@ -1044,14 +1081,7 @@ class QuestionPage(QWidget):
         self.solution_panel.show()
         self.feedback.setText("Correct solution shown below your answer.")
         set_state(self.feedback, "bad")
-        self.answer.setEnabled(False)
-        self.code_editor.setEnabled(False)
-        self.batch_run_button.setEnabled(False)
-        self.calculation_answer.setEnabled(False)
-        self.calculation_table_container.setEnabled(False)
-        self.interactive_question.set_answer_locked(True)
-        self.pap_editor.set_editing_enabled(False)
-        self.primary_button.setText("Next  →")
+        self._lock_controls()
 
     def next_question(self):
         if self.current is None:

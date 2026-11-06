@@ -75,25 +75,32 @@ class QuestionRepository:
             return self._ensure_topic(subject_name, topic_name)
 
     def add_topics(self, subject_name, topic_names):
-        """Create several topics in one transaction and return their ids in input order."""
-        names = tuple(dict.fromkeys(
-            str(name).strip() for name in topic_names if name is not None and str(name).strip()
-        ))
+        """Create topics in one transaction, returning one id per submitted name.
+
+        Duplicate names are created once but still contribute an id per input
+        entry, so the result lines up positionally with `topic_names`.
+        """
+        names = [
+            str(name).strip()
+            for name in topic_names
+            if name is not None and str(name).strip()
+        ]
         if not names:
             return []
 
-        placeholders = ",".join("?" for _ in names)
+        unique = tuple(dict.fromkeys(names))
+        placeholders = ",".join("?" for _ in unique)
         with self.db.connection:
             subject_id = self.get_subject_id(subject_name)
             if subject_id is None:
                 raise ValueError(f"Unknown subject: {subject_name}")
             self.db.connection.executemany(
                 "INSERT OR IGNORE INTO topics(subject_id, name) VALUES (?, ?)",
-                ((subject_id, name) for name in names),
+                ((subject_id, name) for name in unique),
             )
             rows = self.db.fetch_all(
                 f"SELECT name, id FROM topics WHERE subject_id = ? AND name IN ({placeholders})",
-                (subject_id, *names),
+                (subject_id, *unique),
             )
 
         ids = {row["name"]: row["id"] for row in rows}
@@ -216,19 +223,32 @@ class QuestionRepository:
     def alternatives(question) -> list[str]:
         return _decode_alternatives(question)
 
+    def _question_ids(self, subject_name, topic_names=None, excluded_topic=None):
+        """Ids of matching questions in a fresh random order."""
+        conditions = ["s.name = ?"]
+        params = [subject_name]
+        if topic_names:
+            placeholders = ",".join("?" for _ in topic_names)
+            conditions.append(f"t.name IN ({placeholders})")
+            params.extend(topic_names)
+        if excluded_topic is not None:
+            conditions.append("t.name != ?")
+            params.append(excluded_topic)
+
+        rows = self.db.fetch_all(
+            f"""SELECT q.id
+                FROM questions q
+                JOIN topics t ON t.id = q.topic_id
+                JOIN subjects s ON s.id = t.subject_id
+                WHERE {" AND ".join(conditions)}
+                ORDER BY RANDOM()""",
+            tuple(params),
+        )
+        return [row["id"] for row in rows]
+
     def get_study_queue(self, subject_name):
         """Return question ids in a fresh random order for each practice round."""
-        rows = self.db.fetch_all(
-            """SELECT q.id
-               FROM questions q
-               JOIN topics t ON t.id = q.topic_id
-               JOIN subjects s ON s.id = t.subject_id
-               WHERE s.name = ?
-               ORDER BY RANDOM()""",
-            (subject_name,),
-        )
-
-        return [row["id"] for row in rows]
+        return self._question_ids(subject_name)
 
     def get_review_question(self, subject_name, exclude_id=None):
         """Choose one previously attempted question, strongly favoring weak answers."""
@@ -260,59 +280,16 @@ class QuestionRepository:
 
     def get_topic_study_queue(self, subject_name, topic_name):
         """Return one topic's question ids in a fresh random order."""
-        rows = self.db.fetch_all(
-            """SELECT q.id
-               FROM questions q
-               JOIN topics t ON t.id = q.topic_id
-               JOIN subjects s ON s.id = t.subject_id
-               WHERE s.name = ? AND t.name = ?
-               ORDER BY RANDOM()""",
-            (subject_name, topic_name),
-        )
-        return [row["id"] for row in rows]
+        return self._question_ids(subject_name, (topic_name,))
 
     def get_study_queue_excluding_topic(self, subject_name, excluded_topic):
         """Return question ids, excluding one exact topic name."""
-        rows = self.db.fetch_all(
-            """SELECT q.id
-               FROM questions q
-               JOIN topics t ON t.id = q.topic_id
-               JOIN subjects s ON s.id = t.subject_id
-               WHERE s.name = ? AND t.name != ?
-               ORDER BY RANDOM()""",
-            (subject_name, excluded_topic),
-        )
-        return [row["id"] for row in rows]
+        return self._question_ids(subject_name, excluded_topic=excluded_topic)
 
     def get_topics_study_queue(self, subject_name, topic_names):
         """Return selected topics' question ids in a fresh random order."""
         topic_names = tuple(topic_names)
-        if not topic_names:
-            return []
-
-        placeholders = ",".join("?" for _ in topic_names)
-        rows = self.db.fetch_all(
-            f"""SELECT q.id
-                FROM questions q
-                JOIN topics t ON t.id = q.topic_id
-                JOIN subjects s ON s.id = t.subject_id
-                WHERE s.name = ? AND t.name IN ({placeholders})
-                ORDER BY RANDOM()""",
-            (subject_name, *topic_names),
-        )
-        return [row["id"] for row in rows]
-
-    def get_next_question(self, subject_name, offset=0):
-        return self.db.fetch_one(
-            """SELECT q.*, t.name AS topic_name, s.name AS subject_name
-               FROM questions q
-               JOIN topics t ON t.id = q.topic_id
-               JOIN subjects s ON s.id = t.subject_id
-               WHERE s.name = ?
-               ORDER BY q.id
-               LIMIT 1 OFFSET ?""",
-            (subject_name, offset),
-        )
+        return self._question_ids(subject_name, topic_names) if topic_names else []
 
     def count_questions(self, subject_name=None):
         if subject_name:

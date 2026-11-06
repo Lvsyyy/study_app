@@ -1,8 +1,8 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
-from core.math_question_generator import MathQuestionGenerator
 from core.csharp_question_generator import CSharpQuestionGenerator
+from core.math_question_generator import MathQuestionGenerator
 from core.session_tracker import SessionTracker
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
@@ -13,15 +13,75 @@ from database.question_repository import QuestionRepository
 from database.session_repository import SessionRepository
 from database.statistics_repository import StatisticsRepository
 from ui.dashboard import Dashboard
-from ui.question_page import QuestionPage
 from ui.math_menu_page import MathMenuPage
-from ui.subject_menu_page import SubjectMenuPage
+from ui.question_page import QuestionPage
 from ui.saved_page import SavedPage
 from ui.settings_dialog import SettingsDialog
 from ui.sidebar import NAV_ITEMS, Sidebar
 from ui.statistics_page import StatisticsPage
-from ui.subnetting_page import SubnettingPage
+from ui.subject_menu_page import SubjectMenuPage
 from ui.subjects_page import SubjectsPage
+from ui.subnetting_page import SubnettingPage
+
+# Practice topics that generate a fresh AE exercise instead of a fixed queue.
+AE_PRACTICE_TOPICS = (
+    "Ausgabe",
+    "Eingabe",
+    "Ausgabe formatierung",
+    "Variablen",
+    "Operatoren",
+    "Bedingungen",
+    "Verzweigte Bedingungen",
+)
+
+AE_GROUPS = {
+    "OOP": {
+        "Praxis": list(AE_PRACTICE_TOPICS),
+        "Theorie": ["Alles in einen Programm", "PAP"],
+    },
+    "DB / WEB": {
+        "Themen": ["HTML", "CSS"],
+    },
+}
+
+# Topics seeded once per subject so a fresh install is not empty.
+SUBJECT_TOPIC_SEEDS = {
+    "PuG": ("Arbeitsvertrag",),
+    "BS": (
+        "Bootvorgang",
+        "BIOS update",
+        "Windows Dateisysteme",
+        "Festplatten",
+        "Partitionierung",
+        "Virtuelle PCs",
+        "Batch",
+        "Benutzer",
+    ),
+    "CS": (
+        "IT-Systeme",
+        "Komponenten",
+        "Anschlüsse und Schnittstellen",
+        "Neumann Architektur",
+        "Bussystem",
+    ),
+    "CS_P": (
+        "Strom- Spannungs- Wiederstandsmessung",
+        "Elektrische Grundbasis",
+        "Ohmsches Gesetz",
+        "Reihenschaltung",
+        "Parallelschaltung",
+        "Mischschaltung",
+    ),
+    "NT": (
+        "Grundbasis",
+        "Ausdehnungen",
+        "Topologien",
+        "Architekturen",
+        "Kommunikationsteilnehmer",
+        "Adressbereiche",
+        "Subnetting",
+    ),
+}
 
 
 class MainWindow(QMainWindow):
@@ -42,6 +102,7 @@ class MainWindow(QMainWindow):
         self.statistics_repository = StatisticsRepository(self.db)
         self.session = SessionTracker(SessionRepository(self.db), self)
         self._return_page = "Home"
+        self._active_subject = None
 
         self.setWindowTitle("Study App")
         self.resize(1380, 860)
@@ -113,12 +174,8 @@ class MainWindow(QMainWindow):
         self.webuntis.check()
 
     def show_page(self, name):
-        if name == "Math":
+        if name in ("Math", "MathMenu"):
             self.show_math_menu()
-        elif name == "MathMenu":
-            self._return_page = "Subjects"
-            self.stack.setCurrentWidget(self.math_menu_page)
-            self.sidebar.set_active("Math")
         elif name == "SubjectMenu":
             self.stack.setCurrentWidget(self.subject_menu_page)
             self.sidebar.set_active(self._active_subject)
@@ -126,19 +183,19 @@ class MainWindow(QMainWindow):
             self._return_page = name
             self.stack.setCurrentWidget(self.pages[name])
             self.sidebar.set_active(name)
-            if name == "Statistics":
-                self.statistics_page.refresh()
-            elif name == "Saved":
-                self.saved_page.refresh()
-            elif name == "Subjects":
-                self.subjects_page.refresh()
+            self._refresh_page(name)
         elif name in self.subject_names:
-            if name == "Math":
-                self.show_math_menu()
-            else:
-                self.show_subject_menu(name)
+            self.show_subject_menu(name)
         else:
             self.show_page("Home")
+
+    def _refresh_page(self, name):
+        if name == "Statistics":
+            self.statistics_page.refresh()
+        elif name == "Saved":
+            self.saved_page.refresh()
+        elif name == "Subjects":
+            self.subjects_page.refresh()
 
     def show_math_menu(self):
         self._return_page = "Subjects"
@@ -148,89 +205,21 @@ class MainWindow(QMainWindow):
     def show_subject_menu(self, subject):
         self._return_page = "Subjects"
         self._active_subject = subject
-        topics = self.question_repository.list_topics(subject)
-        groups = None
-        initialize_topics = subject not in self._initialized_topic_subjects
-        if subject == "PuG":
-            if initialize_topics:
-                self.question_repository.add_topics(subject, ("Arbeitsvertrag",))
-            topics = self.question_repository.list_topics(subject)
-        if subject == "BS":
-            if initialize_topics:
-                self.question_repository.add_topics(subject, (
-                "Bootvorgang",
-                "BIOS update",
-                "Windows Dateisysteme",
-                "Festplatten",
-                "Partitionierung",
-                "Virtuelle PCs",
-                "Batch",
-                "Benutzer",
-            ))
-            topics = self.question_repository.list_topics(subject)
-        if subject == "CS":
-            if initialize_topics:
-                self.question_repository.add_topics(subject, (
-                "IT-Systeme",
-                "Komponenten",
-                "Anschlüsse und Schnittstellen",
-                "Neumann Architektur",
-                "Bussystem",
-            ))
-            topics = self.question_repository.list_topics(subject)
-        if subject == "CS_P":
-            if initialize_topics:
-                self.question_repository.add_topics(subject, (
-                "Strom- Spannungs- Wiederstandsmessung",
-                "Elektrische Grundbasis",
-                "Ohmsches Gesetz",
-                "Reihenschaltung",
-                "Parallelschaltung",
-                "Mischschaltung",
-            ))
-            topics = self.question_repository.list_topics(subject)
-        if subject == "NT":
-            if initialize_topics:
-                self.question_repository.add_topics(subject, (
-                "Grundbasis",
-                "Ausdehnungen",
-                "Topologien",
-                "Architekturen",
-                "Kommunikationsteilnehmer",
-                "Adressbereiche",
-                "Subnetting",
-            ))
-            topics = self.question_repository.list_topics(subject)
-        if subject == "AE":
-            groups = {
-                "OOP": {
-                    "Praxis": [
-                        "Ausgabe",
-                        "Eingabe",
-                        "Ausgabe formatierung",
-                        "Variablen",
-                        "Operatoren",
-                        "Bedingungen",
-                        "Verzweigte Bedingungen",
-                    ],
-                    "Theorie": ["Alles in einen Programm", "PAP"],
-                },
-                "DB / WEB": {
-                    "Themen": ["HTML", "CSS"],
-                },
-            }
-            if initialize_topics:
-                self.question_repository.add_topics(
-                    subject,
-                    (
-                        topic_name
-                        for group in groups.values()
-                        for subgroup_topics in group.values()
-                        for topic_name in subgroup_topics
-                    ),
+        groups = AE_GROUPS if subject == "AE" else None
+        if subject not in self._initialized_topic_subjects:
+            seeds = list(SUBJECT_TOPIC_SEEDS.get(subject, ()))
+            if groups:
+                seeds.extend(
+                    topic_name
+                    for group in groups.values()
+                    for subgroup_topics in group.values()
+                    for topic_name in subgroup_topics
                 )
-            topics = self.question_repository.list_topics(subject)
-        self._initialized_topic_subjects.add(subject)
+            if seeds:
+                self.question_repository.add_topics(subject, seeds)
+            self._initialized_topic_subjects.add(subject)
+
+        topics = self.question_repository.list_topics(subject)
         self.subject_menu_page.set_subject(
             subject, topics, groups=groups,
             exam_available=subject in self._subjects_with_upcoming_exams(),
@@ -265,6 +254,12 @@ class MainWindow(QMainWindow):
             if (code := self._exam_subject_code(exam)) is not None
         }
 
+    def _enter_practice(self, subject, return_page="SubjectMenu", page=None):
+        """Show the practice page (or a dedicated exercise page) for a subject."""
+        self._return_page = return_page
+        self.stack.setCurrentWidget(page or self.question_page)
+        self.sidebar.set_active(subject)
+
     def start_exam_practice(self, subject_or_code):
         code = self._exam_subject_code({
             "subject_short": subject_or_code,
@@ -272,75 +267,63 @@ class MainWindow(QMainWindow):
         })
         if code not in {"NT", "BS", "CS", "CS_P"}:
             return
+
         if code == "NT":
             # Exclude questions assigned to the exact "Topologien" topic.
-            ids = self.question_repository.get_study_queue_excluding_topic(
-                code, "Topologien"
-            )
-            rebuild = lambda: self.question_repository.get_study_queue_excluding_topic(
-                code, "Topologien"
-            )
+            def rebuild():
+                return self.question_repository.get_study_queue_excluding_topic(
+                    code, "Topologien"
+                )
         else:
-            ids = self.question_repository.get_study_queue(code)
-            rebuild = lambda: self.question_repository.get_study_queue(code)
-        self._return_page = "SubjectMenu"
-        self.question_page.set_queue(f"{code} · Exam practice", ids, rebuild=rebuild)
-        self.stack.setCurrentWidget(self.question_page)
-        self.sidebar.set_active(code)
+            def rebuild():
+                return self.question_repository.get_study_queue(code)
+
+        self.question_page.set_queue(f"{code} · Exam practice", rebuild(), rebuild=rebuild)
+        self._enter_practice(code)
 
     def start_subject_practice(self, subject, topic):
-        if subject == "AE" and topic in {
-            "Ausgabe", "Eingabe", "Ausgabe formatierung", "Variablen",
-            "Operatoren", "Bedingungen", "Verzweigte Bedingungen",
-        }:
-            self._return_page = "SubjectMenu"
+        if subject == "AE" and topic in AE_PRACTICE_TOPICS:
             self.question_page.set_generator(
                 f"AE · {topic}",
                 lambda: self.csharp_question_generator.generate_question_id(topic),
             )
-            self.stack.setCurrentWidget(self.question_page)
-            self.sidebar.set_active(subject)
+            self._enter_practice(subject)
             return
         if subject == "NT" and topic == "Subnetting":
-            self._return_page = "SubjectMenu"
             self.subnetting_page.new_exercise()
-            self.stack.setCurrentWidget(self.subnetting_page)
-            self.sidebar.set_active(subject)
+            self._enter_practice(subject, page=self.subnetting_page)
             return
+
         if topic is None:
-            ids = self.question_repository.get_study_queue(subject)
-            rebuild = lambda: self.question_repository.get_study_queue(subject)
+            def rebuild():
+                return self.question_repository.get_study_queue(subject)
             heading = f"{subject} · Mixed practice"
         elif isinstance(topic, (tuple, list)):
             selected_topics = tuple(topic)
-            ids = self.question_repository.get_topics_study_queue(subject, selected_topics)
-            rebuild = lambda: self.question_repository.get_topics_study_queue(
-                subject, selected_topics
-            )
+
+            def rebuild():
+                return self.question_repository.get_topics_study_queue(
+                    subject, selected_topics
+                )
             heading = f"{subject} · Mixed practice"
         else:
-            ids = self.question_repository.get_topic_study_queue(subject, topic)
-            rebuild = lambda: self.question_repository.get_topic_study_queue(subject, topic)
+            def rebuild():
+                return self.question_repository.get_topic_study_queue(subject, topic)
             heading = f"{subject} · {topic}"
-        self._return_page = "SubjectMenu"
-        self.question_page.set_queue(heading, ids, rebuild=rebuild)
-        self.stack.setCurrentWidget(self.question_page)
-        self.sidebar.set_active(subject)
+
+        self.question_page.set_queue(heading, rebuild(), rebuild=rebuild)
+        self._enter_practice(subject)
 
     def start_math_practice(self, question_type):
-        self._return_page = "MathMenu"
         self.question_page.set_generator(
             "Math",
             lambda: self.math_question_generator.generate_question_id(question_type),
         )
-        self.stack.setCurrentWidget(self.question_page)
-        self.sidebar.set_active("Math")
+        self._enter_practice("Math", return_page="MathMenu")
 
     def practice_saved(self, ids):
-        self._return_page = "Saved"
         self.question_page.set_queue("Saved questions", ids)
-        self.stack.setCurrentWidget(self.question_page)
-        self.sidebar.set_active("Saved")
+        self._enter_practice("Saved", return_page="Saved")
 
     def open_settings(self):
         dialog = SettingsDialog(self.settings, self)

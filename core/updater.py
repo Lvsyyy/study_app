@@ -2,49 +2,24 @@
 import json
 import os
 import shutil
-import ssl
 import subprocess
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
+
+from core.net import ssl_context
 
 API_URL = "https://api.github.com/repos/Lvsyyy/study_app/commits/main"
 ARCHIVE_URL = "https://github.com/Lvsyyy/study_app/archive/{commit}.zip"
 
 
-def _https_context():
-    """Build a verified TLS context using certifi or macOS system roots."""
-    try:
-        import certifi
-
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        if sys.platform == "darwin":
-            result = subprocess.run(
-                [
-                    "/usr/bin/security",
-                    "find-certificate",
-                    "-a",
-                    "-p",
-                    "/System/Library/Keychains/SystemRootCertificates.keychain",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            if result.stdout.strip():
-                return ssl.create_default_context(cadata=result.stdout)
-        return ssl.create_default_context()
-
-
 def _open_url(request, timeout):
-    from urllib.request import urlopen
+    return urlopen(request, timeout=timeout, context=ssl_context())
 
-    return urlopen(request, timeout=timeout, context=_https_context())
 
 HELPER = r"""
 import json
@@ -103,8 +78,6 @@ class UpdateWorker(QThread):
 
     def run(self):
         try:
-            from urllib.request import Request
-
             headers = {"User-Agent": "Study-App-Updater"}
             request = Request(API_URL, headers=headers)
             with _open_url(request, timeout=20) as response:
@@ -146,16 +119,19 @@ def start_update(dialog):
     dialog.update_worker.start()
 
 
+def _reset_update_button(dialog):
+    dialog.update_button.setEnabled(True)
+    dialog.update_button.setText("Check for updates")
+
+
 def _finish_update(dialog, archive, commit, error):
     if error == "UP_TO_DATE":
-        dialog.update_button.setEnabled(True)
-        dialog.update_button.setText("Check for updates")
+        _reset_update_button(dialog)
         QMessageBox.information(dialog, "No updates", "You are already using the latest version.")
         return
 
     if error:
-        dialog.update_button.setEnabled(True)
-        dialog.update_button.setText("Check for updates")
+        _reset_update_button(dialog)
         QMessageBox.critical(dialog, "Update failed", f"Could not check for or download the update:\n{error}")
         return
 
@@ -186,8 +162,7 @@ def _finish_update(dialog, archive, commit, error):
             start_new_session=(sys.platform == "darwin"),
         )
     except Exception as launch_error:
-        dialog.update_button.setEnabled(True)
-        dialog.update_button.setText("Check for updates")
+        _reset_update_button(dialog)
         QMessageBox.critical(dialog, "Update failed", f"Could not start the updater:\n{launch_error}")
         return
 

@@ -65,7 +65,7 @@ def grouped_table(number, source, target):
         width = 3 if source == 8 else 4
         digits = base_string(number, source)
         groups = [f"{int(d, source):0{width}b}" for d in digits]
-        answers = [[digit, group] for digit, group in zip(digits, groups)]
+        answers = [[digit, group] for digit, group in zip(digits, groups, strict=True)]
         templates = [[digit, ""] for digit in digits]
         return table_data([f"Ziffer (Basis {source})", "Binärgruppe"], answers, templates)
 
@@ -74,7 +74,7 @@ def grouped_table(number, source, target):
     padded = bits.zfill(((len(bits) + width - 1) // width) * width)
     groups = [padded[i:i + width] for i in range(0, len(padded), width)]
     converted = [str(int(group, 2)) if target == 8 else DIGITS[int(group, 2)] for group in groups]
-    answers = [[group, value] for group, value in zip(groups, converted)]
+    answers = [[group, value] for group, value in zip(groups, converted, strict=True)]
     templates = [[group, ""] for group in groups]
     answers.append(["Gesamtergebnis", base_string(number, target)])
     templates.append(["Gesamtergebnis", ""])
@@ -136,7 +136,7 @@ def binary_arithmetic_table(a, b, operator):
         carry = 0
         carry_outs = []
         result_reversed = []
-        for left, right in zip(reversed(aa), reversed(bb)):
+        for left, right in zip(reversed(aa), reversed(bb), strict=True):
             total = int(left) + int(right) + carry
             result_reversed.append(str(total & 1))
             carry = total >> 1
@@ -172,7 +172,7 @@ def binary_arithmetic_table(a, b, operator):
         carry = 0
         carry_outs = []
         result_reversed = []
-        for left, right in zip(reversed(aa), reversed(b2)):
+        for left, right in zip(reversed(aa), reversed(b2), strict=True):
             total = int(left) + int(right) + carry
             result_reversed.append(str(total & 1))
             carry = total >> 1

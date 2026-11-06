@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 
-
 _STUDY_DAYS_SQL = """
     SELECT date(created_at, 'localtime') AS day FROM attempts
     UNION

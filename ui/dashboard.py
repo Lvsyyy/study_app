@@ -3,6 +3,8 @@ from datetime import date, datetime
 
 from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -16,7 +18,6 @@ from PySide6.QtWidgets import (
 from core.formatting import format_duration, format_percent
 from core.theme_manager import ThemeManager
 from ui.widgets import card, clear_layout, muted_label, section_title, stat_card, title_label
-
 
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -121,7 +122,7 @@ class Dashboard(QWidget):
         row.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
         self.root.addLayout(row)
         self._build_timetable()
- 
+
     def _build_exams(self):
         heading = QHBoxLayout()
         heading.addWidget(section_title("Upcoming Exams"))
@@ -190,6 +191,7 @@ class Dashboard(QWidget):
             return
 
         today = date.today()
+        palette = ThemeManager.palette(self.theme_name)
         exam_cards = []
         for exam in self.exams:
             start = datetime.fromisoformat(exam["start"]).astimezone()
@@ -197,7 +199,7 @@ class Dashboard(QWidget):
             days_left = (exam_day - today).days
             date_label = QLabel(start.strftime("%d.%m"))
             date_label.setStyleSheet(
-                f"font-size: 19px; font-weight: 700; color: {ThemeManager.palette(self.theme_name)['text']};"
+                f"font-size: 19px; font-weight: 700; color: {palette['text']};"
             )
             weekday_label = muted_label(start.strftime("%A"))
             countdown_text = (
@@ -206,12 +208,10 @@ class Dashboard(QWidget):
                 else f"{abs(days_left)} days ago"
             )
             countdown = QLabel(countdown_text)
-            countdown.setStyleSheet(
-                f"color: {ThemeManager.palette(self.theme_name)['muted']};"
-            )
+            countdown.setStyleSheet(f"color: {palette['muted']};")
             subject = QLabel(exam["subject"])
             subject.setStyleSheet(
-                f"color: {ThemeManager.palette(self.theme_name)['text']}; font-weight: 600;"
+                f"color: {palette['text']}; font-weight: 600;"
             )
             subject.setWordWrap(True)
             subject.setMinimumWidth(0)
@@ -237,7 +237,6 @@ class Dashboard(QWidget):
             card_button.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
             )
-            palette = ThemeManager.palette(self.theme_name)
             card_button.setStyleSheet(
                 f"QPushButton {{ text-align: left; padding: 3px; color: {palette['text']}; "
                 f"background: {palette['panel']}; border: 1px solid {palette['border']}; "
@@ -340,8 +339,6 @@ class Dashboard(QWidget):
         self.timetable_layout.addStretch()
 
     def _show_exam(self, exam):
-        from PySide6.QtWidgets import QDialog, QDialogButtonBox
-
         start = datetime.fromisoformat(exam["start"]).astimezone()
         details = [
             exam["subject"],
@@ -375,12 +372,15 @@ class Dashboard(QWidget):
         super().showEvent(event)
         self.refresh()
 
-    def apply_theme(self, name):
-        self.theme_name = name
+    def _render_all(self):
         self._render_legend()
         self._render_heatmap()
         self._render_exams()
         self._render_timetable()
+
+    def apply_theme(self, name):
+        self.theme_name = name
+        self._render_all()
 
     def refresh(self):
         totals = self.attempts.totals()
@@ -408,10 +408,7 @@ class Dashboard(QWidget):
                 line.addStretch()
                 line.addWidget(muted_label(f"{item['accuracy']}% accuracy"))
                 self.weak_rows.addLayout(line)
-        self._render_legend()
-        self._render_heatmap()
-        self._render_exams()
-        self._render_timetable()
+        self._render_all()
 
     def shift_month(self, amount):
         self.month_offset += amount

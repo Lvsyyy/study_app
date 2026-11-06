@@ -4,10 +4,37 @@ import random
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QComboBox, QGraphicsEllipseItem, QGraphicsItem, QGraphicsLineItem,
-    QGraphicsObject, QGraphicsScene, QGraphicsTextItem, QGraphicsView,
-    QHBoxLayout, QInputDialog, QLabel, QPushButton, QVBoxLayout, QWidget,
+    QComboBox,
+    QGraphicsEllipseItem,
+    QGraphicsItem,
+    QGraphicsLineItem,
+    QGraphicsObject,
+    QGraphicsScene,
+    QGraphicsTextItem,
+    QGraphicsView,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
+
+
+def _node_key(node):
+    """Node identity for grading: type plus normalized text, ignoring position."""
+    return (
+        str(node.get("type", "")).casefold(),
+        " ".join(str(node.get("text", "")).casefold().split()),
+    )
+
+
+def _edge_key(edge, nodes):
+    return (
+        nodes.get(edge.get("from")),
+        nodes.get(edge.get("to")),
+        str(edge.get("label", "Normal")).casefold(),
+    )
 
 
 class ConnectionPort(QGraphicsEllipseItem):
@@ -278,7 +305,6 @@ class PapEditor(QWidget):
         self.add_button.setEnabled(self._editing_enabled)
         self.delete_button.setEnabled(self._editing_enabled)
         for node in self._graphics_nodes.values():
-            flags = node.flags()
             movable = QGraphicsItem.GraphicsItemFlag.ItemIsMovable
             node.setFlag(movable, self._editing_enabled)
             for port in node.ports.values():
@@ -302,7 +328,9 @@ class PapEditor(QWidget):
             self._arrange_solution()
         else:
             self.edges = []
-            for node, (x, y) in zip(self.nodes, self._scatter_positions(len(self.nodes))):
+            for node, (x, y) in zip(
+                self.nodes, self._scatter_positions(len(self.nodes)), strict=True
+            ):
                 node["x"], node["y"] = x, y
         self._connection_source = None
         self.refresh()
@@ -526,26 +554,19 @@ class PapEditor(QWidget):
         try:
             actual = json.loads(self.get_answer())
             wanted = json.loads(expected) if isinstance(expected, str) else expected
-            normalize = lambda nodes: sorted(
-                (n["type"].casefold(), " ".join(n["text"].casefold().split()))
-                for n in nodes
-            )
-            actual_ids = {
-                n["id"]: (n["type"].casefold(), " ".join(n["text"].casefold().split()))
-                for n in actual["nodes"]
-            }
-            expected_ids = {
-                n["id"]: (n["type"].casefold(), " ".join(n["text"].casefold().split()))
-                for n in wanted["nodes"]
-            }
+            actual_ids = {node["id"]: _node_key(node) for node in actual["nodes"]}
+            expected_ids = {node["id"]: _node_key(node) for node in wanted["nodes"]}
             actual_edges = sorted(
-                (actual_ids[e["from"]], actual_ids[e["to"]], e.get("label", "Normal").casefold())
-                for e in actual["edges"] if e["from"] in actual_ids and e["to"] in actual_ids
+                _edge_key(edge, actual_ids)
+                for edge in actual["edges"]
+                if edge["from"] in actual_ids and edge["to"] in actual_ids
             )
             expected_edges = sorted(
-                (expected_ids[e["from"]], expected_ids[e["to"]], e.get("label", "Normal").casefold())
-                for e in wanted["edges"]
+                _edge_key(edge, expected_ids) for edge in wanted["edges"]
             )
-            return normalize(actual["nodes"]) == normalize(wanted["nodes"]) and actual_edges == expected_edges
+            return (
+                sorted(actual_ids.values()) == sorted(expected_ids.values())
+                and actual_edges == expected_edges
+            )
         except (KeyError, TypeError, ValueError):
             return False

@@ -1,7 +1,6 @@
 """Public WebUntis exam retrieval and local new-exam tracking."""
 import hashlib
 import json
-import ssl
 from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -9,20 +8,12 @@ from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QObject, QThread, Signal
 
+from core.net import ssl_context
 from core.paths import app_data_dir
 
 SCHOOL = "bsz-roth"
 CLASS_ID = 4215
 ENTRIES_URL = f"https://{SCHOOL}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries"
-
-
-def _ssl_context():
-    try:
-        import certifi
-
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        return ssl.create_default_context()
 
 
 def _fetch_chunk(start: date, end: date) -> dict:
@@ -50,13 +41,18 @@ def _fetch_chunk(start: date, end: date) -> dict:
         },
     )
     try:
-        with urlopen(request, timeout=20, context=_ssl_context()) as response:
+        with urlopen(request, timeout=20, context=ssl_context()) as response:
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"WebUntis HTTP {exc.code}: {body[:300]}") from exc
     except URLError as exc:
         raise RuntimeError(f"Could not reach WebUntis: {exc.reason}") from exc
+
+
+def _first_resource(value):
+    """First entry of a WebUntis position list, or an empty dict."""
+    return value[0] if isinstance(value, list) and value else {}
 
 
 def _resource_name(value):
@@ -88,19 +84,18 @@ def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
             end_value = duration.get("end")
             if not start_value:
                 continue
-            positions = entry.get("positions") or []
-            subject_data = (entry.get("position1") or [{}])[0]
+            subject_data = _first_resource(entry.get("position1"))
             subject = _resource_name(subject_data) or "Unspecified"
-            subject_current = (
-                (subject_data.get("current") or subject_data)
-                if isinstance(subject_data, dict) else {}
-            )
+            subject_current = subject_data.get("current") or subject_data
             subject_short = subject_current.get("shortName") or ""
-            room = _resource_name((entry.get("position3") or [{}])[0])
-            teacher = _resource_name((entry.get("position2") or [{}])[0])
+            room = _resource_name(_first_resource(entry.get("position3")))
+            teacher = _resource_name(_first_resource(entry.get("position2")))
             description = entry.get("lessonInfo") or next(
-                (item.get("text", "") for item in entry.get("texts", [])
-                 if item.get("type") == "LESSON_INFO"),
+                (
+                    item.get("text", "")
+                    for item in entry.get("texts", [])
+                    if item.get("type") == "LESSON_INFO"
+                ),
                 "",
             )
             entry_type = entry.get("type") or "LESSON"
@@ -178,9 +173,6 @@ class WebUntisExamManager(QObject):
         self.worker = _ExamWorker(self)
         self.worker.finished_with_result.connect(self._handle_results)
         self.worker.start()
-
-    def _handle_result(self, exams, error):
-        self._handle_results(exams, [], error)
 
     def _handle_results(self, exams, timetable, error):
         if error:
