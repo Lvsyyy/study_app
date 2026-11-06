@@ -1,6 +1,8 @@
 """Public WebUntis exam retrieval and local new-exam tracking."""
 import hashlib
 import json
+import re
+import time
 from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -13,10 +15,37 @@ from core.paths import app_data_dir
 
 SCHOOL = "bsz-roth"
 CLASS_ID = 4215
-ENTRIES_URL = f"https://{SCHOOL}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries"
+BASE_URL = f"https://{SCHOOL}.webuntis.com"
+ENTRIES_URL = f"{BASE_URL}/WebUntis/api/rest/view/v1/timetable/entries"
+REFERER = f"{BASE_URL}/timetable/class?entityId={CLASS_ID}"
+# WebUntis serves a whole planning window in one response, so a single request
+# covers the range and every retry stays cheap. The edge in front of the school
+# server occasionally resets connections or answers with a 409/5xx page, which is
+# what an "Error 1004" page is, so only those codes are retried.
+ATTEMPTS = 3
+RETRYABLE = (409, 429, 500, 502, 503, 504)
 
 
-def _fetch_chunk(start: date, end: date) -> dict:
+def _interrupted() -> bool:
+    thread = QThread.currentThread()
+    return bool(thread and thread.isInterruptionRequested())
+
+
+def _http_reason(code: int, body: str) -> str:
+    """One readable line for a rejected request, never a raw HTML page."""
+    edge = re.search(r"Error\s+(\d{4})", body or "")
+    if edge:
+        return (
+            f"WebUntis edge error {edge.group(1)} (HTTP {code}): the school server "
+            "refused the request, try again in a minute"
+        )
+    text = re.sub(r"<[^>]+>", " ", body or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return f"WebUntis HTTP {code}: {text[:200]}" if text else f"WebUntis HTTP {code}"
+
+
+def _fetch_entries(start: date, end: date) -> dict:
+    """Request one date range, retrying transient edge failures."""
     params = {
         "start": start.isoformat(),
         "end": end.isoformat(),
@@ -32,22 +61,31 @@ def _fetch_chunk(start: date, end: date) -> dict:
         headers={
             "Accept": "application/json, text/plain, */*",
             "Anonymous-School": SCHOOL,
-            "Referer": (
-                f"https://{SCHOOL}.webuntis.com/timetable/class"
-                f"?date={start.isoformat()}&entityId={CLASS_ID}"
-            ),
+            "Referer": REFERER,
             "User-Agent": "Mozilla/5.0",
-            "X-WebUntis-Api-School-Year-Id": "28",
         },
     )
-    try:
-        with urlopen(request, timeout=20, context=ssl_context()) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"WebUntis HTTP {exc.code}: {body[:300]}") from exc
-    except URLError as exc:
-        raise RuntimeError(f"Could not reach WebUntis: {exc.reason}") from exc
+    reason = "WebUntis request failed"
+    for attempt in range(1, ATTEMPTS + 1):
+        if _interrupted():
+            raise RuntimeError("WebUntis update cancelled")
+        try:
+            with urlopen(request, timeout=20, context=ssl_context()) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if "days" not in payload:
+                raise RuntimeError(f"WebUntis returned an unexpected response: {str(payload)[:200]}")
+            return payload
+        except HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            reason = _http_reason(exc.code, body)
+            if exc.code not in RETRYABLE:
+                raise RuntimeError(reason) from exc
+        except (URLError, OSError, ValueError) as exc:
+            detail = getattr(exc, "reason", None) or exc
+            reason = f"Could not reach WebUntis: {detail}"
+        if attempt < ATTEMPTS:
+            time.sleep(attempt)
+    raise RuntimeError(reason)
 
 
 def _first_resource(value):
@@ -65,15 +103,7 @@ def _resource_name(value):
 def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
     start = date.today()
     end = start + timedelta(weeks=max(3, weeks))
-    days = []
-    chunk_start = start
-    while chunk_start <= end:
-        if QThread.currentThread().isInterruptionRequested():
-            raise RuntimeError("WebUntis update cancelled")
-        chunk_end = min(chunk_start + timedelta(days=4), end)
-        payload = _fetch_chunk(chunk_start, chunk_end)
-        days.extend(payload.get("days", []))
-        chunk_start = chunk_end + timedelta(days=1)
+    days = _fetch_entries(start, end).get("days", [])
 
     entries = {}
     exams = {}
@@ -165,7 +195,7 @@ class WebUntisExamManager(QObject):
         worker = self.worker
         if worker is None or not worker.isRunning():
             return
-        # Ask the worker to stop between request chunks. A request already in
+        # Ask the worker to stop before its next attempt. A request already in
         # flight can take up to the HTTP timeout, but closing the app must not
         # wait for it, so fall back to terminating the thread.
         worker.requestInterruption()
