@@ -250,34 +250,6 @@ class QuestionRepository:
         """Return question ids in a fresh random order for each practice round."""
         return self._question_ids(subject_name)
 
-    def get_review_question(self, subject_name, exclude_id=None):
-        """Choose one previously attempted question, strongly favoring weak answers."""
-        row = self.db.fetch_one(
-            """SELECT q.id
-               FROM questions q
-               JOIN topics t ON t.id = q.topic_id
-               JOIN subjects s ON s.id = t.subject_id
-               JOIN (
-                   SELECT question_id,
-                          COUNT(*) AS attempts,
-                          SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) AS wrong,
-                          SUM(is_correct) AS correct,
-                          MAX(created_at) AS last
-                   FROM attempts
-                   GROUP BY question_id
-               ) a ON a.question_id = q.id
-               WHERE s.name = ? AND (? IS NULL OR q.id != ?)
-               ORDER BY
-                   (1.0 * a.wrong / a.attempts) DESC,
-                   a.wrong DESC,
-                   (1.0 * a.correct / a.attempts) ASC,
-                   a.last ASC,
-                   RANDOM()
-               LIMIT 1""",
-            (subject_name, exclude_id, exclude_id),
-        )
-        return row["id"] if row else None
-
     def get_topic_study_queue(self, subject_name, topic_name):
         """Return one topic's question ids in a fresh random order."""
         return self._question_ids(subject_name, (topic_name,))

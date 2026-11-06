@@ -34,6 +34,7 @@ class Dashboard(QWidget):
         self.exam_error = ""
         self.timetable = []
         self.timetable_error = ""
+        self._rendered_signature = None
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         self.page_scroll = QScrollArea()
@@ -171,11 +172,13 @@ class Dashboard(QWidget):
     def set_timetable(self, entries, error=""):
         self.timetable = entries
         self.timetable_error = error
+        self._rendered_signature = None
         self._render_timetable()
 
     def set_exams(self, exams, error=""):
         self.exams = exams
         self.exam_error = error
+        self._rendered_signature = None
         self._render_exams()
 
     def _render_exams(self):
@@ -436,6 +439,27 @@ class Dashboard(QWidget):
                     muted_label(tr("{accuracy}% accuracy", accuracy=item["accuracy"]))
                 )
                 self.weak_rows.addLayout(line)
+
+        # Rebuilding the heatmap, exam cards and timetable is the expensive part
+        # of a refresh, so skip it when nothing they show has changed.
+        signature = (
+            tuple(sorted(totals.items())),
+            tuple(sorted(study.items())),
+            streak,
+            tuple(
+                (item["subject_name"], item["topic_name"], item["accuracy"])
+                for item in weak_points
+            ),
+            self.theme_name,
+            self.month_offset,
+            tuple(exam["id"] for exam in self.exams),
+            tuple(entry["id"] for entry in self.timetable),
+            self.exam_error,
+            self.timetable_error,
+        )
+        if signature == self._rendered_signature:
+            return
+        self._rendered_signature = signature
         self._render_all()
 
     def shift_month(self, amount):

@@ -162,10 +162,17 @@ class WebUntisExamManager(QObject):
         )
 
     def shutdown(self):
-        if self.worker is not None and self.worker.isRunning():
-            # Let an in-flight request finish, then stop before starting another chunk.
-            self.worker.requestInterruption()
-            self.worker.wait(25000)
+        worker = self.worker
+        if worker is None or not worker.isRunning():
+            return
+        # Ask the worker to stop between request chunks. A request already in
+        # flight can take up to the HTTP timeout, but closing the app must not
+        # wait for it, so fall back to terminating the thread.
+        worker.requestInterruption()
+        if worker.wait(3000):
+            return
+        worker.terminate()
+        worker.wait(1000)
 
     def check(self):
         if self.worker is not None and self.worker.isRunning():

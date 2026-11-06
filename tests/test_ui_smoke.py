@@ -85,7 +85,7 @@ def test_reveal_preserves_answer_and_shows_separate_solution(window):
 
     assert page.answer.text() == "My submitted answer"
     assert page.solution_panel.isVisible()
-    assert page.solution_content.toPlainText() == "Correct answer"
+    assert page.solution_panel.content.toPlainText() == "Correct answer"
     assert page.primary_button.text() == "Next  →"
 
 
@@ -172,8 +172,8 @@ def test_pug_subject_includes_arbeitsvertrag(window):
 def test_binary_dividers_fit_each_table_cell(window):
     _, template = binary_arithmetic_table("10101", "00110", "+")
     page = window.question_page
-    page._show_calculation_table(json.loads(template))
-    table = page.calculation_tables[0]
+    page.table_answer.show_data(json.loads(template))
+    table = page.table_answer.tables[0]
 
     separator_rows = [
         row for row in range(table.rowCount())
@@ -185,4 +185,4 @@ def test_binary_dividers_fit_each_table_cell(window):
         assert table.columnSpan(row, 0) == 1
         assert all(table.cellWidget(row, column) is not None
                    for column in range(table.columnCount()))
-        assert page._table_input_data(table)["rows"][row][0] == "__SEPARATOR__"
+        assert page.table_answer._table_data(table)["rows"][row][0] == "__SEPARATOR__"
