@@ -261,7 +261,7 @@ class QuestionPage(QWidget):
         self.root.addWidget(self.pap_editor)
 
         self.solution_panel = QFrame()
-        self.solution_panel.setObjectName("SolutionPanel")
+        self.solution_panel.setProperty("role", "card")
         solution_layout = QVBoxLayout(self.solution_panel)
         solution_layout.setContentsMargins(16, 14, 16, 14)
         solution_layout.setSpacing(8)
@@ -274,19 +274,11 @@ class QuestionPage(QWidget):
         self.solution_content.setMaximumHeight(300)
         self.solution_content.setFont(code_font)
         self.solution_content.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
-        self.solution_content.setStyleSheet(
-            "QPlainTextEdit { background: #101820; color: #d4dce8; "
-            "border: 1px solid #3c4b5c; border-radius: 6px; padding: 10px; }"
-        )
         self.solution_highlighter = CSharpHighlighter(self.solution_content.document())
         solution_layout.addWidget(self.solution_content)
         self.solution_pap_editor = PapEditor()
         self.solution_pap_editor.hide()
         solution_layout.addWidget(self.solution_pap_editor)
-        self.solution_panel.setStyleSheet(
-            "QFrame#SolutionPanel { background: palette(alternate-base); "
-            "border: 1px solid palette(mid); border-radius: 9px; }"
-        )
         self.solution_panel.hide()
         self.root.addWidget(self.solution_panel)
 
