@@ -280,6 +280,9 @@ class QuestionPage(QWidget):
         )
         self.solution_highlighter = CSharpHighlighter(self.solution_content.document())
         solution_layout.addWidget(self.solution_content)
+        self.solution_pap_editor = PapEditor()
+        self.solution_pap_editor.hide()
+        solution_layout.addWidget(self.solution_pap_editor)
         self.solution_panel.setStyleSheet(
             "QFrame#SolutionPanel { background: palette(alternate-base); "
             "border: 1px solid palette(mid); border-radius: 9px; }"
@@ -384,6 +387,8 @@ class QuestionPage(QWidget):
         self.pap_editor.reset()
         self.solution_panel.hide()
         self.solution_content.clear()
+        self.solution_pap_editor.hide()
+        self.solution_pap_editor.reset()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -438,6 +443,8 @@ class QuestionPage(QWidget):
         self.pap_editor.reset()
         self.solution_panel.hide()
         self.solution_content.clear()
+        self.solution_pap_editor.hide()
+        self.solution_pap_editor.reset()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         self.batch_workspace.hide()
@@ -1027,7 +1034,21 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text(), False)
         self._solved = True
-        self.solution_content.setPlainText(self._format_solution_data())
+        if self._pap_mode:
+            try:
+                self.solution_pap_editor.load_config(
+                    json.loads(self.current["answer"]), show_solution=True
+                )
+                self.solution_pap_editor.set_editing_enabled(False)
+                self.solution_pap_editor.show()
+                self.solution_content.hide()
+            except (json.JSONDecodeError, TypeError):
+                self.solution_content.setPlainText("The flowchart solution could not be loaded.")
+                self.solution_content.show()
+        else:
+            self.solution_pap_editor.hide()
+            self.solution_content.setPlainText(self._format_solution_data())
+            self.solution_content.show()
         self.solution_panel.show()
         self.feedback.setText("Correct solution shown below your answer.")
         set_state(self.feedback, "bad")
