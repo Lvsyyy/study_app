@@ -269,10 +269,6 @@ def set_language(name):
     _current = name if name in LANGUAGES else DEFAULT_LANGUAGE
 
 
-def current_language():
-    return _current
-
-
 def tr(text, **values):
     """Translate UI text, formatting `{placeholders}` when values are given."""
     translated = GERMAN.get(text, text) if _current == "Deutsch" else text

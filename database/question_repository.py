@@ -70,10 +70,6 @@ class QuestionRepository:
 
         return row["id"]
 
-    def add_topic(self, subject_name, topic_name):
-        with self.db.connection:
-            return self._ensure_topic(subject_name, topic_name)
-
     def add_topics(self, subject_name, topic_names):
         """Create topics in one transaction, returning one id per submitted name.
 
@@ -170,14 +166,6 @@ class QuestionRepository:
                 answer_template,
             )
 
-    def add_questions(self, questions):
-        """Insert many questions (dicts of add_question kwargs) in one transaction."""
-        with self.db.connection:
-            return [
-                self._insert_question(**question)
-                for question in questions
-            ]
-
     def delete_unattempted_generated_math_questions(self):
         """Remove skipped generated questions, but retain anything attempted or saved."""
         with self.db.connection:
@@ -262,23 +250,6 @@ class QuestionRepository:
         """Return selected topics' question ids in a fresh random order."""
         topic_names = tuple(topic_names)
         return self._question_ids(subject_name, topic_names) if topic_names else []
-
-    def count_questions(self, subject_name=None):
-        if subject_name:
-            row = self.db.fetch_one(
-                """SELECT COUNT(*) AS count
-                   FROM questions q
-                   JOIN topics t ON t.id = q.topic_id
-                   JOIN subjects s ON s.id = t.subject_id
-                   WHERE s.name = ?""",
-                (subject_name,),
-            )
-        else:
-            row = self.db.fetch_one(
-                "SELECT COUNT(*) AS count FROM questions"
-            )
-
-        return row["count"]
 
     # -- saved ---------------------------------------------------------------
 

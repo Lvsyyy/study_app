@@ -61,7 +61,7 @@ with zipfile.ZipFile(archive) as bundle:
     bundle.extractall(staging)
 
 source = staging / root_name
-excluded = {".git", ".venv", "__pycache__", ".pytest_cache"}
+excluded = {".git", ".venv", "__pycache__"}
 for current, dirs, files in os.walk(source):
     dirs[:] = [name for name in dirs if name not in excluded]
     relative = Path(current).relative_to(source)

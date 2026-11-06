@@ -12,7 +12,6 @@ from database.question_repository import QuestionRepository
 
 NAMES = ("Alex", "Mia", "Noah", "Lena", "Max", "Emma", "Luca", "Nina")
 COLORS = ("Rot", "Blau", "Gruen", "Gelb")
-ITEMS = ("Apfel", "Birne", "Buch", "Stift", "Tasche", "Ball")
 
 
 def _question(question_text, answer, hint=None, question_type="code"):

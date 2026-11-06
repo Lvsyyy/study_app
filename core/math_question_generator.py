@@ -60,27 +60,6 @@ def positional_table(number, source):
     return table_data(["Ziffer", "Stellenwert", "Rechnung", "Ergebnis"], answer_rows, template_rows)
 
 
-def grouped_table(number, source, target):
-    if source in (8, 16) and target == 2:
-        width = 3 if source == 8 else 4
-        digits = base_string(number, source)
-        groups = [f"{int(d, source):0{width}b}" for d in digits]
-        answers = [[digit, group] for digit, group in zip(digits, groups, strict=True)]
-        templates = [[digit, ""] for digit in digits]
-        return table_data([f"Ziffer (Basis {source})", "Binärgruppe"], answers, templates)
-
-    width = 3 if target == 8 else 4
-    bits = base_string(number, 2)
-    padded = bits.zfill(((len(bits) + width - 1) // width) * width)
-    groups = [padded[i:i + width] for i in range(0, len(padded), width)]
-    converted = [str(int(group, 2)) if target == 8 else DIGITS[int(group, 2)] for group in groups]
-    answers = [[group, value] for group, value in zip(groups, converted, strict=True)]
-    templates = [[group, ""] for group in groups]
-    answers.append(["Gesamtergebnis", base_string(number, target)])
-    templates.append(["Gesamtergebnis", ""])
-    return table_data([f"Binärgruppe ({width} Bit)", f"Ziffer (Basis {target})"], answers, templates)
-
-
 def conversion_table(number, source, target):
     if source == 10:
         return decimal_division_table(number, target)

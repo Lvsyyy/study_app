@@ -145,10 +145,6 @@ def fetch_timetable(weeks: int = 6) -> tuple[list[dict], list[dict]]:
     return ordered_entries, ordered_exams
 
 
-def fetch_exams(weeks: int = 6) -> list[dict]:
-    return fetch_timetable(weeks)[1]
-
-
 class _ExamWorker(QThread):
     finished_with_result = Signal(list, list, str)
 
