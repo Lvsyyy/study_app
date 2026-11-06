@@ -260,6 +260,33 @@ class QuestionPage(QWidget):
         self.pap_editor.hide()
         self.root.addWidget(self.pap_editor)
 
+        self.solution_panel = QFrame()
+        self.solution_panel.setObjectName("SolutionPanel")
+        solution_layout = QVBoxLayout(self.solution_panel)
+        solution_layout.setContentsMargins(16, 14, 16, 14)
+        solution_layout.setSpacing(8)
+        self.solution_title = QLabel("Correct solution")
+        self.solution_title.setProperty("role", "question")
+        solution_layout.addWidget(self.solution_title)
+        self.solution_content = QPlainTextEdit()
+        self.solution_content.setReadOnly(True)
+        self.solution_content.setMinimumHeight(110)
+        self.solution_content.setMaximumHeight(300)
+        self.solution_content.setFont(code_font)
+        self.solution_content.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.solution_content.setStyleSheet(
+            "QPlainTextEdit { background: #101820; color: #d4dce8; "
+            "border: 1px solid #3c4b5c; border-radius: 6px; padding: 10px; }"
+        )
+        self.solution_highlighter = CSharpHighlighter(self.solution_content.document())
+        solution_layout.addWidget(self.solution_content)
+        self.solution_panel.setStyleSheet(
+            "QFrame#SolutionPanel { background: palette(alternate-base); "
+            "border: 1px solid palette(mid); border-radius: 9px; }"
+        )
+        self.solution_panel.hide()
+        self.root.addWidget(self.solution_panel)
+
         meta = QHBoxLayout()
         self.number_label = muted_label("")
         meta.addWidget(self.number_label)
@@ -355,6 +382,8 @@ class QuestionPage(QWidget):
         self.interactive_question.hide()
         self.pap_editor.hide()
         self.pap_editor.reset()
+        self.solution_panel.hide()
+        self.solution_content.clear()
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
@@ -407,6 +436,8 @@ class QuestionPage(QWidget):
         self.interactive_question.set_answer_locked(False)
         self.pap_editor.hide()
         self.pap_editor.reset()
+        self.solution_panel.hide()
+        self.solution_content.clear()
         self.calculation_answer.hide()
         self.code_editor_container.hide()
         self.batch_workspace.hide()
@@ -902,54 +933,103 @@ class QuestionPage(QWidget):
         except (json.JSONDecodeError, TypeError):
             return False
 
+    def _format_solution_data(self):
+        """Build a readable reference answer without modifying submitted controls."""
+        raw = self.current["answer"]
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            data = None
+
+        if self._pap_mode and isinstance(data, dict):
+            nodes = {node.get("id"): node for node in data.get("nodes", [])}
+            lines = ["Flowchart blocks:"]
+            for node in data.get("nodes", []):
+                lines.append(f'- {node.get("type", "Block")}: {node.get("text", "")}')
+            lines.extend(("", "Connections:"))
+            for edge in data.get("edges", []):
+                source = nodes.get(edge.get("from"), {})
+                target = nodes.get(edge.get("to"), {})
+                lines.append(
+                    f'- {source.get("text", edge.get("from"))} '
+                    f'--[{edge.get("label", "Normal")}]--> '
+                    f'{target.get("text", edge.get("to"))}'
+                )
+            return "\\n".join(lines)
+
+        if not self.interactive_question.isHidden() and isinstance(data, dict):
+            kind = self.interactive_question.kind
+            if kind == "multi_select":
+                options, correct = data.get("options", []), data.get("correct", [])
+                return "Correct options:\\n" + "\\n".join(
+                    f'✓ {options[index]}'
+                    for index in correct
+                    if isinstance(index, int) and 0 <= index < len(options)
+                )
+            if kind == "ordering":
+                return "Correct order:\\n" + "\\n".join(
+                    f'{index + 1}. {value}'
+                    for index, value in enumerate(data.get("items", []))
+                )
+            if kind == "matching":
+                return "Correct matches:\\n" + "\\n".join(
+                    f'{pair.get("left", "")}  →  {pair.get("right", "")}'
+                    for pair in data.get("pairs", [])
+                )
+            if kind == "table_sort":
+                categories, cards = data.get("categories", []), data.get("cards", [])
+                return "Correct categories:\\n" + "\\n".join(
+                    f'{category}: ' + ", ".join(
+                        str(card.get("text", ""))
+                        for card in cards
+                        if str(card.get("category", "")) == str(category)
+                    )
+                    for category in categories
+                )
+
+        if isinstance(data, dict) and (
+            ("headers" in data and "rows" in data)
+            or isinstance(data.get("tables"), list)
+        ):
+            tables = data.get("tables", [data])
+            sections = []
+            for table_data in tables:
+                headers, rows = table_data.get("headers", []), table_data.get("rows", [])
+                if table_data.get("title"):
+                    sections.append(str(table_data["title"]))
+                sections.append(" | ".join(str(value) for value in headers))
+                sections.extend(
+                    " | ".join(str(value or "") for value in row) for row in rows
+                )
+                sections.append("")
+            return "\\n".join(sections).strip()
+
+        if self._batch_mode and isinstance(data, dict):
+            solution = data.get("solution", "")
+            output = data.get("expected_output", [])
+            output_text = "\\n".join(output) if isinstance(output, list) else str(output)
+            return f"Solution:\\n{solution}\\n\\nExpected output:\\n{output_text}".strip()
+
+        if self._csharp_practice_mode and isinstance(data, dict):
+            solution = self._format_code_body(data.get("solution", ""))
+            output = data.get("output", "")
+            return f"Solution:\\n{solution}\\n\\nConsole output:\\n{output}".strip()
+
+        if self._code_mode:
+            solution = data.get("solution", raw) if isinstance(data, dict) else raw
+            return self._format_code_body(solution)
+        if isinstance(data, dict) and "solution" in data:
+            return str(data["solution"])
+        return str(raw)
+
     def reveal_answer(self):
         if self.current is None or self._solved:
             return
-        self._record_first_attempt(self._input_text().strip(), False)
+        self._record_first_attempt(self._input_text(), False)
         self._solved = True
-        if not self.interactive_question.isHidden():
-            self.interactive_question.reveal_solution()
-            self.feedback.setText("Correct solution shown.")
-        elif self._pap_mode:
-            try:
-                self.pap_editor.load_config(json.loads(self.current["answer"]), show_solution=True)
-            except (json.JSONDecodeError, TypeError):
-                pass
-            self.feedback.setText("Correct flowchart shown.")
-        elif self._code_mode:
-            if self._batch_mode:
-                try:
-                    config = json.loads(self.current["answer"])
-                    self.code_editor.setPlainText(config.get("solution", ""))
-                    self.run_batch()
-                except (json.JSONDecodeError, TypeError):
-                    pass
-                self.feedback.setText("Correct solution shown in the code editor.")
-            elif self._csharp_practice_mode:
-                try:
-                    config = json.loads(self.current["answer"])
-                    self.code_editor.setPlainText(self._format_code_body(config.get("solution", "")))
-                except (json.JSONDecodeError, TypeError):
-                    pass
-                self.feedback.setText("Correct solution shown in the code editor.")
-            else:
-                self.code_editor.setPlainText(self._format_code_body(self.current["answer"]))
-                self.feedback.setText("Correct solution shown in the code editor.")
-        elif not self.calculation_table_container.isHidden():
-            try:
-                answer_data = json.loads(self.current["answer"])
-                if isinstance(answer_data, dict) and (
-                    ("headers" in answer_data and "rows" in answer_data)
-                    or isinstance(answer_data.get("tables"), list)
-                ):
-                    self._show_calculation_table(answer_data, show_answer=True)
-                    self.feedback.setText("Correct solution shown in the table.")
-                else:
-                    self.feedback.setText(f"Answer: {self.current['answer']}")
-            except (json.JSONDecodeError, TypeError):
-                self.feedback.setText(f"Answer: {self.current['answer']}")
-        else:
-            self.feedback.setText(f"Answer: {self.current['answer']}")
+        self.solution_content.setPlainText(self._format_solution_data())
+        self.solution_panel.show()
+        self.feedback.setText("Correct solution shown below your answer.")
         set_state(self.feedback, "bad")
         self.answer.setEnabled(False)
         self.code_editor.setEnabled(False)
