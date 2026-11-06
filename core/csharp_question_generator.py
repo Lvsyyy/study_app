@@ -251,8 +251,8 @@ def _variables():
     height_text = str(height).replace(".", ",").rstrip("0").rstrip(",")
     style = random.choice(("interpolation", "format"))
     declarations = (
-        f'string name = "{name}";\\n'
-        f"int alter = {age};\\n"
+        f'string name = "{name}";\n'
+        f"int alter = {age};\n"
         f"double groesse = {height:.2f};"
     )
     if style == "interpolation":
@@ -265,7 +265,7 @@ def _variables():
             f'Console.WriteLine("{{0}}", {variable});'
             for variable in ("name", "alter", "groesse")
         ]
-    body = "\\n".join((declarations, *output_lines, "Console.ReadLine();"))
+    body = "\n".join((declarations, *output_lines, "Console.ReadLine();"))
     return _program(
         "Erstelle die Variablen name, alter und groesse mit den vorgegebenen Werten "
         "und gib sie jeweils in einer neuen Zeile aus.",
@@ -280,8 +280,8 @@ def _formatting():
     age = random.randint(15, 25)
     style = random.choice(("interpolation", "format"))
     declarations = (
-        f'string vorname = "{first}";\\n'
-        f'string nachname = "{last}";\\n'
+        f'string vorname = "{first}";\n'
+        f'string nachname = "{last}";\n'
         f"int alter = {age};"
     )
     if style == "interpolation":
@@ -294,7 +294,7 @@ def _formatting():
             'Console.WriteLine("Name:\\t{0} {1}\\nAlter:\\t{2}", '
             'vorname, nachname, alter);'
         )
-    body = "\\n".join((declarations, output_line, "Console.ReadLine();"))
+    body = "\n".join((declarations, output_line, "Console.ReadLine();"))
     output = f"Name:\t{first} {last}\nAlter:\t{age}"
     return _program(
         "Erstelle vorname, nachname und alter. Formatiere die Ausgabe mit \\t und "
@@ -330,11 +330,11 @@ def _operators():
             lines = [declarations]
             for label, variable in labels:
                 if selected == "interpolation":
-                    lines.append(f'Console.WriteLine($"{{label}} = {{{variable}}}");')
+                    lines.append(f'Console.WriteLine($"{label} = {{{variable}}}");')
                 else:
                     lines.append(f'Console.WriteLine("{label} = {{0}}", {variable});')
             lines.append("Console.ReadLine();")
-            return "\\n".join(lines)
+            return "\n".join(lines)
     else:
         expressions = (
             (f"{a} == {b}", "zahl1 == zahl2", a == b),
