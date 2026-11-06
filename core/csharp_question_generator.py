@@ -57,24 +57,11 @@ def _output():
         (("Hallo Welt!", "Ich lerne C#."), ("Guten Morgen!", "C# macht Spaß."),
          ("Willkommen!", "Viel Erfolg beim Programmieren.")), 1
     )[0]
-    style = random.choice(("interpolation", "format"))
-    declarations = (
-        f'string name = "{name}";\\n'
-        f"int alter = {age};\\n"
-        f"double groesse = {height:.2f};"
+    body = (
+        f'Console.WriteLine("{first}");\n'
+        f'Console.WriteLine("{second}");\n'
+        "Console.ReadLine();"
     )
-    variables = ("name", "alter", "groesse")
-    if style == "interpolation":
-        output_lines = [
-            f'Console.WriteLine($"\\u007b{variable}\\u007d");'
-            for variable in variables
-        ]
-    else:
-        output_lines = [
-            f'Console.WriteLine("{{0}}", {variable});'
-            for variable in variables
-        ]
-    body = "\\n".join((declarations, *output_lines, "Console.ReadLine();"))
     return _program(
         "Gib beide Texte jeweils in einer neuen Zeile aus.",
         body, first + "\n" + second,
@@ -264,14 +251,43 @@ def _variables():
     height_text = str(height).replace(".", ",").rstrip("0").rstrip(",")
     style = random.choice(("interpolation", "format"))
     declarations = (
+        f'string name = "{name}";\\n'
+        f"int alter = {age};\\n"
+        f"double groesse = {height:.2f};"
+    )
+    if style == "interpolation":
+        output_lines = [
+            f'Console.WriteLine($"{{{variable}}}");'
+            for variable in ("name", "alter", "groesse")
+        ]
+    else:
+        output_lines = [
+            f'Console.WriteLine("{{0}}", {variable});'
+            for variable in ("name", "alter", "groesse")
+        ]
+    body = "\\n".join((declarations, *output_lines, "Console.ReadLine();"))
+    return _program(
+        "Erstelle die Variablen name, alter und groesse mit den vorgegebenen Werten "
+        "und gib sie jeweils in einer neuen Zeile aus.",
+        body, f"{name}\n{age}\n{height_text}",
+        "Verwende string, int und double für die drei Datentypen."
+    )
+
+
+def _formatting():
+    first = random.choice(NAMES)
+    last = random.choice(("Mustermann", "Schmidt", "Fischer", "Weber"))
+    age = random.randint(15, 25)
+    style = random.choice(("interpolation", "format"))
+    declarations = (
         f'string vorname = "{first}";\\n'
         f'string nachname = "{last}";\\n'
         f"int alter = {age};"
     )
     if style == "interpolation":
         output_line = (
-            'Console.WriteLine($"Name:\\t{vorname} {nachname}'
-            '\\nAlter:\\t{alter}");'
+            'Console.WriteLine($"Name:\\t{vorname} {nachname}\\n'
+            'Alter:\\t{alter}");'
         )
     else:
         output_line = (
@@ -314,7 +330,7 @@ def _operators():
             lines = [declarations]
             for label, variable in labels:
                 if selected == "interpolation":
-                    lines.append(f'Console.WriteLine($"\\u007b{label} = \\u007b{variable}\\u007d\\u007d");')
+                    lines.append(f'Console.WriteLine($"{{label}} = {{{variable}}}");')
                 else:
                     lines.append(f'Console.WriteLine("{label} = {{0}}", {variable});')
             lines.append("Console.ReadLine();")
