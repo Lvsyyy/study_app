@@ -75,6 +75,20 @@ def test_reveal_counts_as_wrong_once(window):
     assert [r[0] for r in rows] == [0]
 
 
+def test_reveal_preserves_answer_and_shows_separate_solution(window):
+    window.question_repository.add_question("CS", "T", "Question", "Correct answer")
+    window.show_page("CS")
+    page = window.question_page
+    page.answer.setText("My submitted answer")
+
+    page.reveal_answer()
+
+    assert page.answer.text() == "My submitted answer"
+    assert page.solution_panel.isVisible()
+    assert page.solution_content.toPlainText() == "Correct answer"
+    assert page.primary_button.text() == "Next  →"
+
+
 def test_saved_flow_and_theme_switch(window, app):
     qid = window.question_repository.add_question("Math", "T", "Q", "A")
     window.show_page("Math")
