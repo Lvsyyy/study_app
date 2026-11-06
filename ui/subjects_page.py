@@ -2,6 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
 from core.formatting import format_percent
+from core.i18n import tr
 from ui.widgets import (
     action_button,
     card,
@@ -44,12 +45,20 @@ class SubjectsPage(QWidget):
             attempts, correct = subject["attempts"], subject["correct"]
             accuracy = 100.0 * correct / attempts if attempts else None
             summary = (
-                "Random questions generated as you practise"
+                tr("Random questions generated as you practise")
                 if subject["name"] == "Math"
-                else f"{subject['questions']} question(s)  ·  {attempts} attempt(s)"
+                else tr(
+                    "{questions} question(s)  ·  {attempts} attempt(s)",
+                    questions=subject["questions"],
+                    attempts=attempts,
+                )
             )
             box.addWidget(muted_label(summary))
-            box.addWidget(muted_label(f"Accuracy: {format_percent(accuracy)}"))
+            box.addWidget(
+                muted_label(
+                    tr("Accuracy: {percent}", percent=format_percent(accuracy))
+                )
+            )
             box.addWidget(progress_bar(accuracy or 0))
             button = action_button("Practice", primary=True)
             button.setEnabled(subject["questions"] > 0 or subject["name"] == "Math")

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from core.i18n import tr
 from core.settings_store import SettingsStore
 from core.updater import start_update
 from ui.widgets import muted_label, section_title
@@ -15,7 +16,7 @@ class SettingsDialog(QDialog):
     def __init__(self, settings: SettingsStore, parent=None):
         super().__init__(parent)
         self.settings = settings
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(tr("Settings"))
         self.setMinimumWidth(340)
 
         layout = QVBoxLayout(self)
@@ -35,14 +36,20 @@ class SettingsDialog(QDialog):
         self.icons.setCurrentText(settings.icon_pack)
         layout.addWidget(self.icons)
 
-        self.update_button = QPushButton("Check for updates")
+        layout.addWidget(muted_label("Language"))
+        self.language = QComboBox()
+        self.language.addItems(SettingsStore.LANGUAGES)
+        self.language.setCurrentText(settings.language)
+        layout.addWidget(self.language)
+
+        self.update_button = QPushButton(tr("Check for updates"))
         self.update_button.clicked.connect(lambda: start_update(self))
         layout.addWidget(self.update_button)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
-        cancel = QPushButton("Cancel")
-        save = QPushButton("Save")
+        cancel = QPushButton(tr("Cancel"))
+        save = QPushButton(tr("Save"))
         save.setProperty("primary", True)
         cancel.clicked.connect(self.reject)
         save.clicked.connect(self.accept)
@@ -53,3 +60,4 @@ class SettingsDialog(QDialog):
     def save_values(self):
         self.settings.set_theme(self.theme.currentText())
         self.settings.set_icon_pack(self.icons.currentText())
+        self.settings.set_language(self.language.currentText())

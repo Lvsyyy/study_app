@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from core.formatting import format_duration, format_percent
+from core.i18n import tr
 from ui.widgets import (
     card,
     clear_layout,
@@ -71,7 +72,9 @@ class StatisticsPage(QWidget):
         avg = totals["avg_time"]
         self.numbers["avg"].setText(f"{avg:.1f}s" if avg is not None else "–")
         self.numbers["sessions"].setText(str(study["sessions"]))
-        self.numbers["longest"].setText(f"{self.statistics.longest_streak()} d")
+        self.numbers["longest"].setText(
+            tr("{days} d", days=self.statistics.longest_streak())
+        )
 
         clear_layout(self.subject_rows)
         rows = [s for s in self.statistics.subject_stats() if s["attempts"] > 0]
@@ -84,7 +87,13 @@ class StatisticsPage(QWidget):
             name.setMinimumWidth(80)
             line.addWidget(name)
             line.addWidget(progress_bar(accuracy), 1)
-            detail = muted_label(f"{format_percent(accuracy)}  ({subject['attempts']} attempts)")
+            detail = muted_label(
+                tr(
+                    "{percent}  ({attempts} attempts)",
+                    percent=format_percent(accuracy),
+                    attempts=subject["attempts"],
+                )
+            )
             detail.setMinimumWidth(130)
             line.addWidget(detail)
             self.subject_rows.addLayout(line)
@@ -97,5 +106,13 @@ class StatisticsPage(QWidget):
             line = QHBoxLayout()
             line.addWidget(QLabel(f"{item['subject_name']} · {item['topic_name']}"))
             line.addStretch()
-            line.addWidget(muted_label(f"{item['accuracy']}%  ({item['attempts']} attempts)"))
+            line.addWidget(
+                muted_label(
+                    tr(
+                        "{accuracy}%  ({attempts} attempts)",
+                        accuracy=item["accuracy"],
+                        attempts=item["attempts"],
+                    )
+                )
+            )
             self.weak_rows.addLayout(line)

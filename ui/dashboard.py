@@ -16,10 +16,9 @@ from PySide6.QtWidgets import (
 )
 
 from core.formatting import format_duration, format_percent
+from core.i18n import month_name, tr, weekday_long, weekday_short
 from core.theme_manager import ThemeManager
 from ui.widgets import card, clear_layout, muted_label, section_title, stat_card, title_label
-
-WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 
 class Dashboard(QWidget):
@@ -182,8 +181,10 @@ class Dashboard(QWidget):
     def _render_exams(self):
         clear_layout(self.exam_row)
         if self.exam_error:
-            self.exam_count.setText("Unavailable")
-            self.exam_row.addWidget(muted_label(f"Could not load exams: {self.exam_error}"))
+            self.exam_count.setText(tr("Unavailable"))
+            self.exam_row.addWidget(
+                muted_label(tr("Could not load exams: {error}", error=self.exam_error))
+            )
             return
         self.exam_count.setText(str(len(self.exams)))
         if not self.exams:
@@ -201,11 +202,11 @@ class Dashboard(QWidget):
             date_label.setStyleSheet(
                 f"font-size: 19px; font-weight: 700; color: {palette['text']};"
             )
-            weekday_label = muted_label(start.strftime("%A"))
+            weekday_label = muted_label(weekday_long(start.weekday()))
             countdown_text = (
-                "Today" if days_left == 0
-                else f"In {days_left} days" if days_left > 0
-                else f"{abs(days_left)} days ago"
+                tr("Today") if days_left == 0
+                else tr("In {days} days", days=days_left) if days_left > 0
+                else tr("{days} days ago", days=abs(days_left))
             )
             countdown = QLabel(countdown_text)
             countdown.setStyleSheet(f"color: {palette['muted']};")
@@ -251,7 +252,7 @@ class Dashboard(QWidget):
             top.addWidget(date_label)
             top.addStretch()
             if exam.get("is_new"):
-                new_label = QLabel("NEW")
+                new_label = QLabel(tr("NEW"))
                 new_label.setStyleSheet(
                     f"font-size: 10px; font-weight: 700; padding: 3px 6px; "
                     f"border-radius: 5px; background: {palette['accent']}; color: {palette['bg']};"
@@ -285,13 +286,18 @@ class Dashboard(QWidget):
     def _render_timetable(self):
         clear_layout(self.timetable_layout)
         if self.timetable_error:
-            self.timetable_count.setText("Unavailable")
+            self.timetable_count.setText(tr("Unavailable"))
             self.timetable_layout.addWidget(
-                muted_label(f"Could not load school schedule: {self.timetable_error}")
+                muted_label(
+                    tr(
+                        "Could not load school schedule: {error}",
+                        error=self.timetable_error,
+                    )
+                )
             )
             return
         entries = sorted(self.timetable, key=lambda item: item["start"])
-        self.timetable_count.setText(f"{len(entries)} entries")
+        self.timetable_count.setText(tr("{entries} entries", entries=len(entries)))
         if not entries:
             self.timetable_layout.addWidget(muted_label("No schedule entries found."))
             return
@@ -301,7 +307,15 @@ class Dashboard(QWidget):
             start = datetime.fromisoformat(entry["start"]).astimezone()
             grouped.setdefault(start.date(), []).append((entry, start))
         for day, day_entries in grouped.items():
-            day_title = QLabel(day.strftime("%A, %d %B %Y"))
+            day_title = QLabel(
+                tr(
+                    "{weekday}, {day} {month} {year}",
+                    weekday=weekday_long(day.weekday()),
+                    day=day.day,
+                    month=month_name(day.month),
+                    year=day.year,
+                )
+            )
             day_title.setStyleSheet(
                 f"font-weight: 700; color: {palette['text']}; padding: 8px 2px 2px;"
             )
@@ -313,7 +327,7 @@ class Dashboard(QWidget):
                 time_label = QLabel(start.strftime("%H:%M") + end_text)
                 time_label.setFixedWidth(112)
                 time_label.setStyleSheet(f"color: {palette['accent']}; font-weight: 700;")
-                subject_label = QLabel(entry.get("subject") or "Unspecified")
+                subject_label = QLabel(entry.get("subject") or tr("Unspecified"))
                 subject_label.setStyleSheet(f"color: {palette['text']}; font-weight: 600;")
                 details = [value for value in (
                     entry.get("room"), entry.get("teacher"), entry.get("description")
@@ -342,7 +356,13 @@ class Dashboard(QWidget):
         start = datetime.fromisoformat(exam["start"]).astimezone()
         details = [
             exam["subject"],
-            start.strftime("%A, %d %B %Y"),
+            tr(
+                "{weekday}, {day} {month} {year}",
+                weekday=weekday_long(start.weekday()),
+                day=start.day,
+                month=month_name(start.month),
+                year=start.year,
+            ),
             start.strftime("%H:%M") + (
                 "–" + datetime.fromisoformat(exam["end"]).astimezone().strftime("%H:%M")
                 if exam.get("end") else ""
@@ -351,14 +371,15 @@ class Dashboard(QWidget):
         if exam.get("description"):
             details.append(exam["description"])
         dialog = QDialog(self)
-        dialog.setWindowTitle("Exam details")
+        dialog.setWindowTitle(tr("Exam details"))
         layout = QVBoxLayout(dialog)
         layout.addWidget(QLabel("\n".join(details)))
         buttons = QDialogButtonBox()
         study_button = buttons.addButton(
-            "Study for exam", QDialogButtonBox.ButtonRole.ActionRole
+            tr("Study for exam"), QDialogButtonBox.ButtonRole.ActionRole
         )
         close_button = buttons.addButton(QDialogButtonBox.StandardButton.Close)
+        close_button.setText(tr("Close"))
         study_button.clicked.connect(
             lambda: (dialog.accept(), self.study_exam_requested.emit(
                 exam.get("subject_short") or exam["subject"]
@@ -386,16 +407,21 @@ class Dashboard(QWidget):
         totals = self.attempts.totals()
         study = self.statistics.study_totals()
         streak = self.statistics.current_streak()
-        self.stat_numbers["streak"].setText(f"{streak} day" + ("" if streak == 1 else "s"))
+        self.stat_numbers["streak"].setText(
+            tr("{streak} day", streak=streak) if streak == 1
+            else tr("{streak} days", streak=streak)
+        )
         for key in ("correct", "wrong", "total"):
             self.stat_numbers[key].setText(str(totals[key]))
         self.stat_numbers["time"].setText(format_duration(study["seconds"]))
         self.stat_details["correct"].setText(
-            f"{format_percent(totals['accuracy'])} accuracy" if totals["total"] else "No attempts yet"
+            tr("{percent} accuracy", percent=format_percent(totals["accuracy"]))
+            if totals["total"] else tr("No attempts yet")
         )
         average = totals["avg_time"]
         self.stat_details["total"].setText(
-            f"Avg {average:.1f}s per question" if average is not None else "All recorded attempts"
+            tr("Avg {seconds:.1f}s per question", seconds=average)
+            if average is not None else tr("All recorded attempts")
         )
         clear_layout(self.weak_rows)
         weak_points = self.attempts.weak_points()
@@ -406,7 +432,9 @@ class Dashboard(QWidget):
                 line = QHBoxLayout()
                 line.addWidget(QLabel(f"{item['subject_name']} · {item['topic_name']}"))
                 line.addStretch()
-                line.addWidget(muted_label(f"{item['accuracy']}% accuracy"))
+                line.addWidget(
+                    muted_label(tr("{accuracy}% accuracy", accuracy=item["accuracy"]))
+                )
                 self.weak_rows.addLayout(line)
         self._render_all()
 
@@ -431,7 +459,7 @@ class Dashboard(QWidget):
         month_index = today.month - 1 + self.month_offset
         year = today.year + month_index // 12
         month = month_index % 12 + 1
-        self.month_label.setText(f"{calendar.month_name[month]} {year}")
+        self.month_label.setText(f"{month_name(month)} {year}")
         palette = ThemeManager.palette(self.theme_name)
         activity = {
             date.fromisoformat(row["day"]): row
@@ -445,8 +473,8 @@ class Dashboard(QWidget):
 
         header = QHBoxLayout()
         header.setSpacing(5)
-        for weekday in WEEKDAYS:
-            label = muted_label(weekday)
+        for index in range(7):
+            label = muted_label(weekday_short(index))
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             header.addWidget(label, 1)
         self.heat_grid.addLayout(header)
@@ -480,7 +508,17 @@ class Dashboard(QWidget):
                     minutes = int((record["duration"] or 0) // 60) if record else 0
                     questions = int(record["questions"] or 0) if record else 0
                     cell.setToolTip(
-                        f"{day:%A, %d %B %Y}\nStudy time: {minutes} min\nQuestions: {questions}"
+                        tr(
+                            "{weekday}, {day} {month} {year}",
+                            weekday=weekday_long(day.weekday()),
+                            day=day.day,
+                            month=month_name(day.month),
+                            year=day.year,
+                        )
+                        + "\n"
+                        + tr("Study time: {minutes} min", minutes=minutes)
+                        + "\n"
+                        + tr("Questions: {questions}", questions=questions)
                     )
                 else:
                     cell.setStyleSheet("background: transparent; border: none;")

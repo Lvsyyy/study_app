@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
+from core.i18n import tr
 from ui.widgets import action_button, card, clear_layout, muted_label, section_title, title_label
 
 
@@ -44,8 +45,8 @@ class SubjectMenuPage(QWidget):
 
         self._add_mix_card(
             subject,
-            "Mixed practice",
-            "Questions from every topic in this subject",
+            tr("Mixed practice"),
+            tr("Questions from every topic in this subject"),
             None,
             exam_available=exam_available,
         )
@@ -62,7 +63,9 @@ class SubjectMenuPage(QWidget):
                     for topic in subgroup_topics
                 ]
                 grouped_topics.update(group_topics)
-                mix_button = action_button(f"Mixed {group_name} practice", primary=True)
+                mix_button = action_button(
+                    tr("Mixed {group} practice", group=group_name), primary=True
+                )
                 mix_button.setMinimumHeight(44)
                 mix_button.clicked.connect(
                     lambda _checked=False, name=subject, selected=tuple(group_topics):

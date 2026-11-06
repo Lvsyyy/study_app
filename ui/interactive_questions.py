@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.i18n import tr
 from core.theme_manager import ThemeManager
 
 
@@ -53,7 +54,7 @@ class _SortDropZone(QFrame):
         self.setAcceptDrops(True)
         self.setMinimumHeight(110)
         self.setStyleSheet("QFrame { border: 2px dashed palette(mid); border-radius: 8px; }")
-        self.label = QLabel("Hier ablegen")
+        self.label = QLabel(tr("Drop here"))
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label.setWordWrap(True)
         layout = QVBoxLayout(self)
@@ -111,7 +112,7 @@ class _TableSort(QWidget):
                 item.widget().deleteLater()
         if self.index >= len(self.cards):
             self.completed = True
-            self.feedback.setText("Alle Karten richtig zugeordnet.")
+            self.feedback.setText(tr("All cards placed correctly."))
             return
         self.card_layout.addWidget(_SortCard(str(self.cards[self.index].get("text", "")), self.index, self.palette))
 
@@ -123,12 +124,14 @@ class _TableSort(QWidget):
         if category == str(current.get("category", "")):
             zone = self.zones[category]
             existing = zone.label.text()
-            zone.label.setText(text if existing == "Hier ablegen" else existing + "\n" + text)
-            self.feedback.setText("Richtig")
+            zone.label.setText(
+                text if existing == tr("Drop here") else existing + "\n" + text
+            )
+            self.feedback.setText(tr("Right"))
             self.index += 1
             self._show_card()
         else:
-            self.feedback.setText("Falsch – versuche es erneut.")
+            self.feedback.setText(tr("Wrong – try again."))
 
     def get_answer(self):
         return json.dumps({"completed": self.completed, "placed": self.index}, ensure_ascii=False)
@@ -259,7 +262,7 @@ class InteractiveQuestion(QWidget):
                 self.multi_select_indices.append(original_index)
                 self.layout.addWidget(control)
         elif kind == "ordering":
-            self.layout.addWidget(QLabel("Drag the items into the correct order:"))
+            self.layout.addWidget(QLabel(tr("Drag the items into the correct order:")))
             self.order_list = QListWidget()
             self.order_list.setAlternatingRowColors(True)
             values = list(self.data.get("items", []))
@@ -304,7 +307,7 @@ class InteractiveQuestion(QWidget):
                 view.setWordWrap(True)
                 view.setTextElideMode(Qt.TextElideMode.ElideNone)
                 view.setMinimumWidth(440)
-                combo.addItem("Select a definition…", None)
+                combo.addItem(tr("Select a definition…"), None)
                 for definition_id, definition in self.match_definitions:
                     combo.addItem(definition, definition_id)
                 row_layout.addWidget(combo)
@@ -325,7 +328,7 @@ class InteractiveQuestion(QWidget):
             }
             combo.blockSignals(True)
             combo.clear()
-            combo.addItem("Select a definition…", None)
+            combo.addItem(tr("Select a definition…"), None)
             for definition_id, definition in self.match_definitions:
                 if definition_id not in unavailable:
                     combo.addItem(definition, definition_id)

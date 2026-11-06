@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 
+from core.i18n import tr
 from core.icons import icon
 
 NAV_ITEMS = ("Home", "Subjects", "Statistics", "Saved")
@@ -32,7 +33,7 @@ class Sidebar(QWidget):
             self.nav_buttons[name] = button
             self._icon_buttons[name] = (button, name)
 
-        caption = QLabel("SUBJECTS")
+        caption = QLabel(tr("SUBJECTS"))
         caption.setProperty("role", "caption")
         layout.addWidget(caption)
         self.subject_buttons = {}
@@ -63,7 +64,7 @@ class Sidebar(QWidget):
         self.icon_pack = pack
         self.brand.setText(f"{icon('brand', pack)}  STUDY")
         for key, (button, label) in self._icon_buttons.items():
-            button.setText(f"{icon(key, pack)}   {label}")
+            button.setText(f"{icon(key, pack)}   {tr(label)}")
         for subject, button in self.subject_buttons.items():
             button.setText(subject)
 

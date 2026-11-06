@@ -6,6 +6,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from core.i18n import tr
+
 
 def repolish(widget):
     widget.style().unpolish(widget)
@@ -22,7 +24,7 @@ def card(parent=None, padding=16):
 
 
 def _role_label(text, role):
-    label = QLabel(text)
+    label = QLabel(tr(text))
     label.setProperty("role", role)
     return label
 
@@ -36,13 +38,13 @@ def section_title(text):
 
 
 def muted_label(text=""):
-    label = QLabel(text)
+    label = QLabel(tr(text))
     label.setProperty("muted", True)
     return label
 
 
 def action_button(text, primary=False):
-    button = QPushButton(text)
+    button = QPushButton(tr(text))
     if primary:
         button.setProperty("primary", True)
     return button

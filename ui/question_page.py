@@ -15,6 +15,7 @@ from PySide6.QtGui import (
     QTextCursor,
 )
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 from core.answer_checker import is_correct
 from core.batch_simulator import BatchSimulationError, simulate_batch
 from core.formatting import format_duration
+from core.i18n import tr
 from ui.interactive_questions import InteractiveQuestion
 from ui.pap_editor import PapEditor
 from ui.widgets import action_button, card, muted_label, set_state, title_label
@@ -265,12 +267,12 @@ class QuestionPage(QWidget):
         self.root.addWidget(frame)
 
         self.answer = QLineEdit()
-        self.answer.setPlaceholderText("Type your answer…")
+        self.answer.setPlaceholderText(tr("Type your answer…"))
         self.answer.returnPressed.connect(self._primary_action)
         self.root.addWidget(self.answer)
 
         self.calculation_answer = QPlainTextEdit()
-        self.calculation_answer.setPlaceholderText("Complete the calculation…")
+        self.calculation_answer.setPlaceholderText(tr("Complete the calculation…"))
         self.calculation_answer.setMinimumHeight(150)
         self.calculation_answer.setMaximumHeight(230)
         self.calculation_answer.hide()
@@ -299,7 +301,7 @@ class QuestionPage(QWidget):
         solution_layout = QVBoxLayout(self.solution_panel)
         solution_layout.setContentsMargins(16, 14, 16, 14)
         solution_layout.setSpacing(8)
-        self.solution_title = QLabel("Correct solution")
+        self.solution_title = QLabel(tr("Correct solution"))
         self.solution_title.setProperty("role", "question")
         solution_layout.addWidget(self.solution_title)
         self.solution_content = QPlainTextEdit()
@@ -310,6 +312,13 @@ class QuestionPage(QWidget):
         self.solution_content.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.solution_highlighter = CSharpHighlighter(self.solution_content.document())
         solution_layout.addWidget(self.solution_content)
+        self.solution_tables_container = QWidget()
+        self.solution_tables_layout = QVBoxLayout(self.solution_tables_container)
+        self.solution_tables_layout.setContentsMargins(0, 0, 0, 0)
+        self.solution_tables_layout.setSpacing(12)
+        self.solution_tables = []
+        self.solution_tables_container.hide()
+        solution_layout.addWidget(self.solution_tables_container)
         self.solution_pap_editor = PapEditor()
         self.solution_pap_editor.hide()
         solution_layout.addWidget(self.solution_pap_editor)
@@ -341,7 +350,7 @@ class QuestionPage(QWidget):
         buttons.addWidget(self.primary_button)
         self.root.addLayout(buttons)
         self.root.addStretch()
-        self._show_empty("Choose a subject from the sidebar to start practising.")
+        self._show_empty(tr("Choose a subject from the sidebar to start practising."))
 
     def apply_theme(self, theme):
         self.interactive_question.apply_theme(theme)
@@ -376,7 +385,7 @@ class QuestionPage(QWidget):
         if self.queue:
             self._load_current()
         else:
-            self._show_empty(f"No questions for {heading} yet.")
+            self._show_empty(tr("No questions for {heading} yet.", heading=heading))
 
     def _controls_enabled(self, enabled):
         for widget in (
@@ -406,11 +415,13 @@ class QuestionPage(QWidget):
             widget.setEnabled(False)
         self.interactive_question.set_answer_locked(True)
         self.pap_editor.set_editing_enabled(False)
-        self.primary_button.setText("Next  →")
+        self.primary_button.setText(tr("Next  →"))
 
     def _reset_solution_panel(self):
         self.solution_panel.hide()
         self.solution_content.clear()
+        self._clear_solution_tables()
+        self.solution_tables_container.hide()
         self.solution_pap_editor.hide()
         self.solution_pap_editor.reset()
 
@@ -443,17 +454,21 @@ class QuestionPage(QWidget):
         self.answer.show()
         self._controls_enabled(False)
         self.primary_button.setEnabled(False)
-        self.primary_button.setText("Check answer")
+        self.primary_button.setText(tr("Check answer"))
 
     def _show_finished(self):
-        self._show_empty("Round complete")
+        self._show_empty(tr("Round complete"))
         self.topic.setText(self.heading)
         self.feedback.setText(
-            f"You answered {self._round_answered} question(s): {self._round_correct} correct."
+            tr(
+                "You answered {answered} question(s): {correct} correct.",
+                answered=self._round_answered,
+                correct=self._round_correct,
+            )
         )
         set_state(self.feedback, None)
         self.primary_button.setEnabled(True)
-        self.primary_button.setText("Practice again")
+        self.primary_button.setText(tr("Practice again"))
         self._finished = True
 
     def _load_current(self):
@@ -482,7 +497,7 @@ class QuestionPage(QWidget):
         self._started = time.monotonic()
         self._controls_enabled(True)
         self.primary_button.setEnabled(True)
-        self.primary_button.setText("Check answer")
+        self.primary_button.setText(tr("Check answer"))
         self.hint_text.clear()
         self.feedback.clear()
         set_state(self.feedback, None)
@@ -611,17 +626,25 @@ class QuestionPage(QWidget):
         difficulty = question["difficulty"]
         self.topic.setText(
             f"{question['subject_name']} / {question['topic_name']} · "
-            f"difficulty {'●' * difficulty}{'○' * (5 - difficulty)}"
+            f"{tr('difficulty')} {'●' * difficulty}{'○' * (5 - difficulty)}"
         )
         self.number_label.setText(
-            f"Question {self.index + 1}" if self._generator is not None
-            else f"Question {self.index + 1} of {len(self.queue)}"
+            tr("Question {number}", number=self.index + 1)
+            if self._generator is not None
+            else tr(
+                "Question {number} of {total}",
+                number=self.index + 1,
+                total=len(self.queue),
+            )
         )
         self._set_saved_button(bool(question["is_saved"]))
         self.accuracy_label.setText(
-            f"Topic accuracy: {question['topic_accuracy']}% over "
-            f"{question['topic_attempts']} attempts"
-            if question["topic_attempts"] else "No attempts in this topic yet"
+            tr(
+                "Topic accuracy: {accuracy}% over {attempts} attempts",
+                accuracy=question["topic_accuracy"],
+                attempts=question["topic_attempts"],
+            )
+            if question["topic_attempts"] else tr("No attempts in this topic yet")
         )
         self._load_image(question["question_image"])
 
@@ -717,8 +740,47 @@ class QuestionPage(QWidget):
                 self.image_label.show()
                 return
         if path:
-            self.feedback.setText("The question image could not be loaded.")
+            self.feedback.setText(tr("The question image could not be loaded."))
         self.image_label.hide()
+
+    def _clear_solution_tables(self):
+        while self.solution_tables_layout.count():
+            item = self.solution_tables_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.solution_tables = []
+
+    def _show_solution_tables(self, data):
+        """Render a table answer as real table widgets, not ASCII art."""
+        self._clear_solution_tables()
+        tables = data.get("tables") if isinstance(data, dict) else None
+        entries = tables if isinstance(tables, list) else [data]
+        for entry in entries:
+            if entry.get("title"):
+                heading = QLabel(str(entry["title"]))
+                heading.setWordWrap(True)
+                heading.setProperty("role", "question")
+                self.solution_tables_layout.addWidget(heading)
+            table = QTableWidget()
+            self._populate_calculation_table(table, entry, show_answer=True)
+            table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+            table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+            self.solution_tables.append(table)
+            self.solution_tables_layout.addWidget(table)
+
+    @staticmethod
+    def _has_tables(data):
+        return isinstance(data, dict) and (
+            ("headers" in data and "rows" in data)
+            or isinstance(data.get("tables"), list)
+        )
+
+    def _answer_data(self):
+        try:
+            return json.loads(self.current["answer"])
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     def _clear_calculation_tables(self):
         while self.calculation_tables_layout.count():
@@ -892,7 +954,7 @@ class QuestionPage(QWidget):
         # first line differ from later auto-indented lines during comparison.
         entered = raw_entered if self._code_mode else raw_entered.strip()
         if not entered.strip():
-            self.feedback.setText("Enter an answer first.")
+            self.feedback.setText(tr("Enter an answer first."))
             set_state(self.feedback, None)
             return
         alternatives = self.questions.alternatives(self.current)
@@ -920,12 +982,17 @@ class QuestionPage(QWidget):
         if correct:
             self._solved = True
             took = f" · {format_duration(round(elapsed))}" if first and elapsed is not None else ""
-            self.feedback.setText(f"Correct ✓{took}" if first else "Correct ✓ (first try counted)")
+            self.feedback.setText(
+                tr("Correct ✓{took}", took=took) if first
+                else tr("Correct ✓ (first try counted)")
+            )
             set_state(self.feedback, "good")
             self._lock_controls()
         else:
-            note = "Only your first attempt counts. " if first else ""
-            self.feedback.setText(f"Incorrect. {note}Try again or show the answer.")
+            note = tr("Only your first attempt counts. ") if first else ""
+            self.feedback.setText(
+                tr("Incorrect. {note}Try again or show the answer.", note=note)
+            )
             set_state(self.feedback, "bad")
             if not self._code_mode and not self.calculation_answer.isHidden():
                 self.calculation_answer.selectAll()
@@ -979,10 +1046,10 @@ class QuestionPage(QWidget):
 
         if self._pap_mode and isinstance(data, dict):
             nodes = {node.get("id"): node for node in data.get("nodes", [])}
-            lines = ["Flowchart blocks:"]
+            lines = [tr("Flowchart blocks:")]
             for node in data.get("nodes", []):
                 lines.append(f'- {node.get("type", "Block")}: {node.get("text", "")}')
-            lines.extend(("", "Connections:"))
+            lines.extend(("", tr("Connections:")))
             for edge in data.get("edges", []):
                 source = nodes.get(edge.get("from"), {})
                 target = nodes.get(edge.get("to"), {})
@@ -997,24 +1064,24 @@ class QuestionPage(QWidget):
             kind = self.interactive_question.kind
             if kind == "multi_select":
                 options, correct = data.get("options", []), data.get("correct", [])
-                return "Correct options:\n" + "\n".join(
+                return tr("Correct options:") + "\n" + "\n".join(
                     f'✓ {options[index]}'
                     for index in correct
                     if isinstance(index, int) and 0 <= index < len(options)
                 )
             if kind == "ordering":
-                return "Correct order:\n" + "\n".join(
+                return tr("Correct order:") + "\n" + "\n".join(
                     f'{index + 1}. {value}'
                     for index, value in enumerate(data.get("items", []))
                 )
             if kind == "matching":
-                return "Correct matches:\n" + "\n".join(
+                return tr("Correct matches:") + "\n" + "\n".join(
                     f'{pair.get("left", "")}  →  {pair.get("right", "")}'
                     for pair in data.get("pairs", [])
                 )
             if kind == "table_sort":
                 categories, cards = data.get("categories", []), data.get("cards", [])
-                return "Correct categories:\n" + "\n".join(
+                return tr("Correct categories:") + "\n" + "\n".join(
                     f'{category}: ' + ", ".join(
                         str(card.get("text", ""))
                         for card in cards
@@ -1023,33 +1090,21 @@ class QuestionPage(QWidget):
                     for category in categories
                 )
 
-        if isinstance(data, dict) and (
-            ("headers" in data and "rows" in data)
-            or isinstance(data.get("tables"), list)
-        ):
-            tables = data.get("tables", [data])
-            sections = []
-            for table_data in tables:
-                headers, rows = table_data.get("headers", []), table_data.get("rows", [])
-                if table_data.get("title"):
-                    sections.append(str(table_data["title"]))
-                sections.append(" | ".join(str(value) for value in headers))
-                sections.extend(
-                    " | ".join(str(value or "") for value in row) for row in rows
-                )
-                sections.append("")
-            return "\n".join(sections).strip()
-
         if self._batch_mode and isinstance(data, dict):
             solution = data.get("solution", "")
             output = data.get("expected_output", [])
             output_text = "\n".join(output) if isinstance(output, list) else str(output)
-            return f"Solution:\n{solution}\n\nExpected output:\n{output_text}".strip()
+            return (
+                f"{tr('Solution:')}\n{solution}\n\n"
+                f"{tr('Expected output:')}\n{output_text}"
+            ).strip()
 
         if self._csharp_practice_mode and isinstance(data, dict):
             solution = self._format_code_body(data.get("solution", ""))
             output = data.get("output", "")
-            return f"Solution:\n{solution}\n\nConsole output:\n{output}".strip()
+            return (
+                f"{tr('Solution:')}\n{solution}\n\n{tr('Console output:')}\n{output}"
+            ).strip()
 
         if self._code_mode:
             solution = data.get("solution", raw) if isinstance(data, dict) else raw
@@ -1063,23 +1118,32 @@ class QuestionPage(QWidget):
             return
         self._record_first_attempt(self._input_text(), False)
         self._solved = True
+        data = self._answer_data()
         if self._pap_mode:
             try:
-                self.solution_pap_editor.load_config(
-                    json.loads(self.current["answer"]), show_solution=True
-                )
+                self.solution_pap_editor.load_config(data or {}, show_solution=True)
                 self.solution_pap_editor.set_editing_enabled(False)
                 self.solution_pap_editor.show()
                 self.solution_content.hide()
-            except (json.JSONDecodeError, TypeError):
-                self.solution_content.setPlainText("The flowchart solution could not be loaded.")
+            except (AttributeError, TypeError, ValueError):
+                self.solution_content.setPlainText(
+                    tr("The flowchart solution could not be loaded.")
+                )
                 self.solution_content.show()
+        elif self._has_tables(data):
+            # Math solutions are shown as real tables instead of ASCII text.
+            self.solution_pap_editor.hide()
+            self.solution_content.clear()
+            self.solution_content.hide()
+            self._show_solution_tables(data)
+            self.solution_tables_container.show()
         else:
+            self.solution_tables_container.hide()
             self.solution_pap_editor.hide()
             self.solution_content.setPlainText(self._format_solution_data())
             self.solution_content.show()
         self.solution_panel.show()
-        self.feedback.setText("Correct solution shown below your answer.")
+        self.feedback.setText(tr("Correct solution shown below your answer."))
         set_state(self.feedback, "bad")
         self._lock_controls()
 
@@ -1091,7 +1155,7 @@ class QuestionPage(QWidget):
 
     def show_hint(self):
         if self.current is not None and self.current["hint"]:
-            self.hint_text.setText(f"Hint: {self.current['hint']}")
+            self.hint_text.setText(tr("Hint: {hint}", hint=self.current["hint"]))
 
     def toggle_saved(self):
         if self.current is None:
@@ -1101,4 +1165,4 @@ class QuestionPage(QWidget):
         self._set_saved_button(saved)
 
     def _set_saved_button(self, saved):
-        self.save_button.setText("★  Saved" if saved else "☆  Save")
+        self.save_button.setText(tr("★  Saved") if saved else tr("☆  Save"))

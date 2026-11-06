@@ -1,11 +1,19 @@
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QMainWindow,
+    QMessageBox,
+    QStackedWidget,
+    QWidget,
+)
 
 from core.csharp_question_generator import CSharpQuestionGenerator
+from core.i18n import tr
 from core.math_question_generator import MathQuestionGenerator
 from core.session_tracker import SessionTracker
 from core.settings_store import SettingsStore
 from core.theme_manager import ThemeManager
+from core.updater import UpdateChecker, prompt_install
 from core.webuntis import WebUntisExamManager
 from database.attempt_repository import AttemptRepository
 from database.database import Database
@@ -103,6 +111,10 @@ class MainWindow(QMainWindow):
         self.session = SessionTracker(SessionRepository(self.db), self)
         self._return_page = "Home"
         self._active_subject = None
+        self._update_prompted = set()
+        self.update_worker = None
+        self.updater = UpdateChecker(self)
+        self.updater.update_available.connect(self._offer_update)
 
         self.setWindowTitle("Study App")
         self.resize(1380, 860)
@@ -172,6 +184,7 @@ class MainWindow(QMainWindow):
         self.session.start()
         self.show_page("Home")
         self.webuntis.check()
+        self.updater.start()
 
     def show_page(self, name):
         if name in ("Math", "MathMenu"):
@@ -188,6 +201,13 @@ class MainWindow(QMainWindow):
             self.show_subject_menu(name)
         else:
             self.show_page("Home")
+
+    def _offer_update(self, commit):
+        """Prompt once per new commit; "Later" silences that commit."""
+        if commit in self._update_prompted:
+            return
+        if not prompt_install(self, commit):
+            self._update_prompted.add(commit)
 
     def _refresh_page(self, name):
         if name == "Statistics":
@@ -278,7 +298,9 @@ class MainWindow(QMainWindow):
             def rebuild():
                 return self.question_repository.get_study_queue(code)
 
-        self.question_page.set_queue(f"{code} · Exam practice", rebuild(), rebuild=rebuild)
+        self.question_page.set_queue(
+            f"{code} · {tr('Exam practice')}", rebuild(), rebuild=rebuild
+        )
         self._enter_practice(code)
 
     def start_subject_practice(self, subject, topic):
@@ -297,7 +319,7 @@ class MainWindow(QMainWindow):
         if topic is None:
             def rebuild():
                 return self.question_repository.get_study_queue(subject)
-            heading = f"{subject} · Mixed practice"
+            heading = f"{subject} · {tr('Mixed practice')}"
         elif isinstance(topic, (tuple, list)):
             selected_topics = tuple(topic)
 
@@ -305,7 +327,7 @@ class MainWindow(QMainWindow):
                 return self.question_repository.get_topics_study_queue(
                     subject, selected_topics
                 )
-            heading = f"{subject} · Mixed practice"
+            heading = f"{subject} · {tr('Mixed practice')}"
         else:
             def rebuild():
                 return self.question_repository.get_topic_study_queue(subject, topic)
@@ -322,19 +344,27 @@ class MainWindow(QMainWindow):
         self._enter_practice("Math", return_page="MathMenu")
 
     def practice_saved(self, ids):
-        self.question_page.set_queue("Saved questions", ids)
+        self.question_page.set_queue(tr("Saved questions"), ids)
         self._enter_practice("Saved", return_page="Saved")
 
     def open_settings(self):
         dialog = SettingsDialog(self.settings, self)
         if dialog.exec():
+            previous_language = self.settings.language
             dialog.save_values()
+            if self.settings.language != previous_language:
+                QMessageBox.information(
+                    self,
+                    tr("Language changed"),
+                    tr("Restart Study App to apply the new language."),
+                )
             ThemeManager.apply(self.app, self.settings.theme)
             self.sidebar.set_icon_pack(self.settings.icon_pack)
             self.dashboard.apply_theme(self.settings.theme)
             self.question_page.apply_theme(self.settings.theme)
 
     def closeEvent(self, event):
+        self.updater.stop()
         self.webuntis.shutdown()
         self.session.stop()
         self.settings.set_window_geometry(self.saveGeometry())
