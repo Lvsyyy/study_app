@@ -1,9 +1,21 @@
-SCHEMA_VERSION = 24
+SCHEMA_VERSION = 25
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    25: """
+    -- Keep only the firewall-port text question in NT. Cascading foreign keys
+    -- also remove attempts and bookmarks for the retired text questions.
+    DELETE FROM questions
+    WHERE question_type = 'text'
+      AND question_text <> 'Firewall-Eingänge. Wie heißen diese in der Fachsprache?'
+      AND topic_id IN (
+          SELECT t.id FROM topics t JOIN subjects s ON s.id = t.subject_id
+          WHERE s.name = 'NT'
+      );
+    """,
+
     24: """
     CREATE TABLE IF NOT EXISTS infos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
