@@ -6,12 +6,12 @@ text colour and render consistently. They need no image assets.
 
 ICON_PACKS = {
     "Lucide Icons": {
-        "Home": "⌂", "Subjects": "▦", "Statistics": "▤", "Saved": "◇",
-        "Settings": "⚙", "brand": "◈",
+        "Home": "⌂", "Subjects": "▦", "Statistics": "▤", "Information": "ⓘ",
+        "Saved": "◇", "Settings": "⚙", "brand": "◈",
     },
     "Catppuccin Icons": {
-        "Home": "◉", "Subjects": "▣", "Statistics": "▟", "Saved": "★",
-        "Settings": "⚙", "brand": "❖",
+        "Home": "◉", "Subjects": "▣", "Statistics": "▟", "Information": "ⓘ",
+        "Saved": "★", "Settings": "⚙", "brand": "❖",
     },
 }
 

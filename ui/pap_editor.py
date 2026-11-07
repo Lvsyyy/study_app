@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.i18n import tr
+
 
 def _node_key(node):
     """Node identity for grading: type plus normalized text, ignoring position."""
@@ -77,7 +79,7 @@ class ConnectionLine(QGraphicsLineItem):
         choices = ["Normal", "Ja", "Nein"]
         current = self.edge.get("label", "Normal")
         selected, ok = QInputDialog.getItem(
-            self.editor, "Verbindung bearbeiten", "Linientyp:", choices,
+            self.editor, tr("Edit connection"), tr("Line type:"), choices,
             choices.index(current) if current in choices else 0, False,
         )
         if ok:
@@ -167,7 +169,7 @@ class FlowNode(QGraphicsObject):
 
     def mouseDoubleClickEvent(self, event):
         text, ok = QInputDialog.getText(
-            self.editor, "PAP-Block bearbeiten", "Blocktext:", text=self.label
+            self.editor, tr("Edit flowchart block"), tr("Block text:"), text=self.label
         )
         if ok and text.strip():
             self.label = text.strip()
@@ -252,10 +254,10 @@ class PapEditor(QWidget):
         self.add_button = None
         self.delete_button = None
         tools.addWidget(self.type_box)
-        add = QPushButton("Block hinzufügen")
+        add = QPushButton(tr("Add block"))
         add.clicked.connect(self.add_node)
         tools.addWidget(add)
-        delete = QPushButton("Ausgewählten Block löschen")
+        delete = QPushButton(tr("Delete selected block"))
         delete.clicked.connect(self.delete_selected)
         tools.addWidget(delete)
         self.add_button = add
@@ -263,7 +265,10 @@ class PapEditor(QWidget):
         tools.addStretch()
         root.addLayout(tools)
         self.status = QLabel(
-            "Blöcke ziehen · Mausrad: Zoom · Mittlere/rechte Maustaste: Arbeitsfläche bewegen · Verbindung: Kreis ziehen"
+            tr(
+                "Drag blocks · Mouse wheel: zoom · Middle/right mouse button: move "
+                "canvas · Connection: drag a circle"
+            )
         )
         root.addWidget(self.status)
         self.scene = QGraphicsScene(self)
@@ -422,7 +427,7 @@ class PapEditor(QWidget):
         self.refresh()
 
     def add_node(self):
-        text, ok = QInputDialog.getText(self, "PAP-Block hinzufügen", "Blocktext:")
+        text, ok = QInputDialog.getText(self, tr("Add flowchart block"), tr("Block text:"))
         if not ok or not text.strip():
             return
         center = self.view.mapToScene(self.view.viewport().rect().center())
@@ -448,7 +453,7 @@ class PapEditor(QWidget):
         self._preview_line.setPen(QPen(QColor(110, 190, 255, 145), 3, Qt.PenStyle.DashLine))
         self._preview_line.setZValue(8)
         self.scene.addItem(self._preview_line)
-        self.status.setText("Verbindung ziehen und auf einem anderen Kreis loslassen.")
+        self.status.setText(tr("Drag a connection and release it on another circle."))
 
     def move_connection(self, pos):
         if self._preview_line:
@@ -474,7 +479,7 @@ class PapEditor(QWidget):
             self._preview_line = None
         self._connection_source = None
         if not source or not target or source[0] == target[0]:
-            self.status.setText("Keine Verbindung erstellt.")
+            self.status.setText(tr("No connection created."))
             return
         edge = {
             "from": source[0], "from_port": source[1],
@@ -488,7 +493,7 @@ class PapEditor(QWidget):
         ]
         self.edges.append(edge)
         self.refresh()
-        self.status.setText("Verbindung erstellt.")
+        self.status.setText(tr("Connection created."))
 
     def update_connections(self):
         for edge in self.edges:

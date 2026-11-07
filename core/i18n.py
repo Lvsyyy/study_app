@@ -38,6 +38,7 @@ GERMAN = {
     "Home": "Start",
     "Subjects": "Fächer",
     "Statistics": "Statistik",
+    "Information": "Informationen",
     "Saved": "Gespeichert",
     "Settings": "Einstellungen",
     "SUBJECTS": "FÄCHER",
@@ -148,6 +149,89 @@ GERMAN = {
         "Noch nichts gespeichert. Drücke bei einer Frage auf „☆ Speichern“."
     ),
     "Remove": "Entfernen",
+    # Information page
+    "Pick a subject to read": "Wähle ein Fach zum Lesen",
+    "Show all information": "Alle Informationen anzeigen",
+    "All information in this subject": "Alle Informationen dieses Fachs",
+    "All info": "Alle Infos",
+    "Every subject and topic in one document": (
+        "Alle Fächer und Themen in einem Dokument"
+    ),
+    "Contents": "Inhalt",
+    "Open": "Öffnen",
+    "No information for this subject yet.": (
+        "Noch keine Informationen für dieses Fach."
+    ),
+    "No information for this topic yet.": (
+        "Noch keine Informationen für dieses Thema."
+    ),
+    "{count} section(s)": "{count} Abschnitt(e)",
+    "{topic}  ·  {count} section(s)": "{topic}  ·  {count} Abschnitt(e)",
+    "{topic}  ·  empty": "{topic}  ·  leer",
+    # Subnetting page
+    "Network address": "Netzwerkadresse",
+    "Broadcast address": "Broadcastadresse",
+    "Enter an IPv4 address": "IPv4-Adresse eingeben",
+    "Decimal": "Dezimal",
+    "Binary": "Binär",
+    "IP address": "IP-Adresse",
+    "Subnet mask": "Subnetzmaske",
+    "Choose one of the pre-split rooms and split it further. {count} split(s) left.": (
+        "Wähle einen der vorgeteilten Räume und teile ihn weiter. "
+        "Noch {count} Teilung(en)."
+    ),
+    "Split the selected room. {count} split(s) left.": (
+        "Teile den markierten Raum. Noch {count} Teilung(en)."
+    ),
+    "Calculate and label the network. {detail}": (
+        "Berechne und beschrifte das Netzwerk. {detail}"
+    ),
+    "Calculate and label the network. Enter the network and broadcast addresses of all subnets into the fields in the square.": (
+        "Berechne und beschrifte das Netzwerk. Trage die Netzwerk- und "
+        "Broadcastadressen aller Teilnetze in die Felder im Quadrat ein."
+    ),
+    "Hint: Calculate the network address first from the IP address and subnet mask. Each split increases the prefix by 1.": (
+        "Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und "
+        "Subnetzmaske. Jede Teilung erhöht den Präfix um 1."
+    ),
+    "Solutions have been filled in.": "Lösungen wurden eingetragen.",
+    "Finish the split first.": "Schließe zuerst die Aufteilung ab.",
+    "All network and broadcast addresses are correct.": (
+        "Alle Netzwerk- und Broadcastadressen sind korrekt."
+    ),
+    "Some addresses are wrong or missing. Check the marked fields.": (
+        "Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder."
+    ),
+    # Flowchart editor
+    "Edit connection": "Verbindung bearbeiten",
+    "Line type:": "Linientyp:",
+    "Edit flowchart block": "PAP-Block bearbeiten",
+    "Block text:": "Blocktext:",
+    "Add flowchart block": "PAP-Block hinzufügen",
+    "Add block": "Block hinzufügen",
+    "Delete selected block": "Ausgewählten Block löschen",
+    "Drag blocks · Mouse wheel: zoom · Middle/right mouse button: move canvas · Connection: drag a circle": (
+        "Blöcke ziehen · Mausrad: Zoom · Mittlere/rechte Maustaste: "
+        "Arbeitsfläche bewegen · Verbindung: Kreis ziehen"
+    ),
+    "Drag a connection and release it on another circle.": (
+        "Verbindung ziehen und auf einem anderen Kreis loslassen."
+    ),
+    "No connection created.": "Keine Verbindung erstellt.",
+    "Connection created.": "Verbindung erstellt.",
+    # Code editors and batch console
+    "Run": "Ausführen",
+    "// Write your code here": "// Schreibe deinen Code hier",
+    "Command prompt": "Eingabeaufforderung",
+    "Expected output": "Vorgegebene Ausgabe",
+    "C:\\Users\\ExampleUser>": "C:\\Users\\Supercoolerbenutzer>",
+    "Output matches the expected output.": (
+        "Ausgabe stimmt mit der Vorgabe überein."
+    ),
+    "The output does not match the expected output yet.": (
+        "Die Ausgabe stimmt noch nicht mit der Vorgabe überein."
+    ),
+    "Batch error: {error}": "Batch-Fehler: {error}",
     # Math menu
     "Choose which type of question to practise.": (
         "Wähle den Aufgabentyp, den du üben möchtest."

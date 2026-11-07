@@ -546,13 +546,13 @@ class QuestionPage(QWidget):
             )
             matches = self._batch_output_matches()
             self.feedback.setText(
-                "Ausgabe stimmt mit der Vorgabe überein." if matches
-                else "Die Ausgabe stimmt noch nicht mit der Vorgabe überein."
+                tr("Output matches the expected output.") if matches
+                else tr("The output does not match the expected output yet.")
             )
             set_state(self.feedback, "good" if matches else None)
         except (BatchSimulationError, TypeError, ValueError, SyntaxError) as exc:
             self._batch_result = None
-            self.feedback.setText(f"Batch-Fehler: {exc}")
+            self.feedback.setText(tr("Batch error: {error}", error=exc))
             set_state(self.feedback, "bad")
 
     def _batch_output_matches(self):

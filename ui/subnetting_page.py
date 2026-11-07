@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.i18n import tr
 from ui.widgets import action_button, card, muted_label, title_label
 
 
@@ -73,13 +74,13 @@ class SubnetCanvas(QWidget):
     def _create_inputs(self, room):
         network = QLineEdit(self)
         broadcast = QLineEdit(self)
-        network.setPlaceholderText("Netzwerkadresse")
-        broadcast.setPlaceholderText("Broadcastadresse")
+        network.setPlaceholderText(tr("Network address"))
+        broadcast.setPlaceholderText(tr("Broadcast address"))
         network.setAlignment(Qt.AlignmentFlag.AlignLeft)
         broadcast.setAlignment(Qt.AlignmentFlag.AlignRight)
         for edit in (network, broadcast):
             edit.setMaxLength(15)
-            edit.setToolTip("IPv4-Adresse eingeben")
+            edit.setToolTip(tr("Enter an IPv4 address"))
             edit.setProperty("answerState", "")
             edit.setFrame(False)
             edit.setStyleSheet(
@@ -283,7 +284,7 @@ class SubnettingPage(QWidget):
 
         frame, table_layout = card(padding=12)
         self.info_table = QTableWidget(4, 3)
-        self.info_table.setHorizontalHeaderLabels(["", "Decimal", "Binary"])
+        self.info_table.setHorizontalHeaderLabels(["", tr("Decimal"), tr("Binary")])
         self.info_table.verticalHeader().setVisible(False)
         self.info_table.setAlternatingRowColors(True)
         self.info_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -334,7 +335,7 @@ class SubnettingPage(QWidget):
 
     def toggle_saved(self):
         self._saved = not self._saved
-        self.save_button.setText("★  Saved" if self._saved else "☆  Save")
+        self.save_button.setText(tr("★  Saved") if self._saved else tr("☆  Save"))
 
     def _primary_action(self):
         if self._completed:
@@ -346,16 +347,18 @@ class SubnettingPage(QWidget):
         self.canvas.reset_exercise()
         self._saved = False
         self._completed = False
-        self.save_button.setText("☆  Save")
-        self.primary_button.setText("Check answer")
+        self.save_button.setText(tr("☆  Save"))
+        self.primary_button.setText(tr("Check answer"))
         self.feedback.setText("")
         self.info_table.clearContents()
         self.refresh_text()
 
     def show_hint(self):
         self.feedback.setText(
-            "Tipp: Berechne zuerst die Netzwerkadresse mit der IP-Adresse und "
-            "Subnetzmaske. Jede Teilung erhöht den Präfix um 1."
+            tr(
+                "Hint: Calculate the network address first from the IP address and "
+                "subnet mask. Each split increases the prefix by 1."
+            )
         )
 
     @staticmethod
@@ -378,16 +381,16 @@ class SubnettingPage(QWidget):
 
     def reveal_answer(self):
         self._completed = True
-        self.primary_button.setText("Next  →")
+        self.primary_button.setText(tr("Next  →"))
         self.canvas.reveal_answers()
         for row, (decimal_value, binary_value) in self._expected_values().items():
             self.info_table.item(row, 1).setText(decimal_value)
             self.info_table.item(row, 2).setText(binary_value)
-        self.feedback.setText("Lösungen wurden eingetragen.")
+        self.feedback.setText(tr("Solutions have been filled in."))
 
     def check_answers(self):
         if self.canvas.phase != "done":
-            self.feedback.setText("Schließe zuerst die Aufteilung ab.")
+            self.feedback.setText(tr("Finish the split first."))
             return
         table_ok = True
         for row, (decimal_value, binary_value) in self._expected_values().items():
@@ -408,32 +411,44 @@ class SubnettingPage(QWidget):
         rooms_ok = self.canvas.check_answers()
         if table_ok and rooms_ok:
             self._completed = True
-            self.primary_button.setText("Next  →")
-            self.feedback.setText("Alle Netzwerk- und Broadcastadressen sind korrekt.")
+            self.primary_button.setText(tr("Next  →"))
+            self.feedback.setText(tr("All network and broadcast addresses are correct."))
         else:
-            self.feedback.setText("Einige Adressen sind falsch oder fehlen. Prüfe die markierten Felder.")
+            self.feedback.setText(
+                tr("Some addresses are wrong or missing. Check the marked fields.")
+            )
 
     def refresh_text(self):
         canvas = self.canvas
         if canvas.phase == "extra":
+            remaining = canvas.extra_splits - canvas.extra_splits_done
             detail = (
-                f"Wähle einen der vorgeteilten Räume und teile ihn weiter. "
-                f"Noch {canvas.extra_splits - canvas.extra_splits_done} Teilung(en)."
-                if canvas.selected_id is None else
-                f"Teile den markierten Raum. Noch {canvas.extra_splits - canvas.extra_splits_done} Teilung(en)."
+                tr(
+                    "Choose one of the pre-split rooms and split it further. "
+                    "{count} split(s) left.",
+                    count=remaining,
+                )
+                if canvas.selected_id is None
+                else tr("Split the selected room. {count} split(s) left.", count=remaining)
             )
-            self.instructions.setText(f"Berechne und beschrifte das Netzwerk. {detail}")
+            self.instructions.setText(
+                tr("Calculate and label the network. {detail}", detail=detail)
+            )
         else:
             self.instructions.setText(
-                "Berechne und beschrifte das Netzwerk. Trage die Netzwerk- und "
-                "Broadcastadressen aller Teilnetze in die Felder im Quadrat ein."
+                tr(
+                    "Calculate and label the network. Enter the network and "
+                    "broadcast addresses of all subnets into the fields in the square."
+                )
             )
 
         ip_item = QTableWidgetItem(f"{canvas._ip(canvas.ip)}/{canvas.prefix}")
         ip_item.setFlags(ip_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         ip_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_table.setItem(0, 1, ip_item)
-        for row, label in enumerate(("IP Adresse", "Subnetzmaske", "Netzwerkadresse", "Broadcastadresse")):
+        for row, label in enumerate(
+            (tr("IP address"), tr("Subnet mask"), tr("Network address"), tr("Broadcast address"))
+        ):
             label_item = QTableWidgetItem(label)
             label_item.setFlags(label_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             label_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)

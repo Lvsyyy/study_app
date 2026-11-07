@@ -18,10 +18,12 @@ from core.updater import UpdateChecker, prompt_install
 from core.webuntis import WebUntisExamManager
 from database.attempt_repository import AttemptRepository
 from database.database import Database
+from database.info_repository import InfoRepository
 from database.question_repository import QuestionRepository
 from database.session_repository import SessionRepository
 from database.statistics_repository import StatisticsRepository
 from ui.dashboard import Dashboard
+from ui.info_page import InfoPage
 from ui.math_menu_page import MathMenuPage
 from ui.question_page import QuestionPage
 from ui.saved_page import SavedPage
@@ -109,6 +111,7 @@ class MainWindow(QMainWindow):
         self.csharp_question_generator = CSharpQuestionGenerator(self.question_repository)
         self.attempt_repository = AttemptRepository(self.db)
         self.statistics_repository = StatisticsRepository(self.db)
+        self.info_repository = InfoRepository(self.db)
         self.session = SessionTracker(SessionRepository(self.db), self)
         self._return_page = "Home"
         self._active_subject = None
@@ -149,6 +152,7 @@ class MainWindow(QMainWindow):
             self.statistics_repository, self.attempt_repository
         )
         self.saved_page = SavedPage(self.question_repository)
+        self.info_page = InfoPage(self.info_repository)
         self.question_page = QuestionPage(
             self.question_repository, self.attempt_repository
         )
@@ -159,6 +163,7 @@ class MainWindow(QMainWindow):
             "Home": self.dashboard,
             "Subjects": self.subjects_page,
             "Statistics": self.statistics_page,
+            "Information": self.info_page,
             "Saved": self.saved_page,
             "Question": self.question_page,
             "MathMenu": self.math_menu_page,
@@ -217,6 +222,8 @@ class MainWindow(QMainWindow):
             self.saved_page.refresh()
         elif name == "Subjects":
             self.subjects_page.refresh()
+        elif name == "Information":
+            self.info_page.show_subjects()
 
     def show_math_menu(self):
         self._return_page = "Subjects"

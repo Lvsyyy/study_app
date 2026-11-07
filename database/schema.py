@@ -1,9 +1,33 @@
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 24
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    24: """
+    CREATE TABLE IF NOT EXISTS infos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+        heading TEXT NOT NULL,
+        body TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_infos_topic ON infos(topic_id);
+    """,
+
+    23: """
+    -- The NT question bank moved into database/nt_bank.py. Drop the old, partly
+    -- duplicated pool so the curated one replaces it, but keep every question
+    -- that already carries an attempt or a bookmark.
+    DELETE FROM questions
+    WHERE topic_id IN (
+        SELECT t.id FROM topics t JOIN subjects s ON s.id = t.subject_id
+        WHERE s.name = 'NT'
+    )
+      AND NOT EXISTS (SELECT 1 FROM attempts a WHERE a.question_id = questions.id)
+      AND NOT EXISTS (SELECT 1 FROM saved_questions sq WHERE sq.question_id = questions.id);
+    """,
+
     22: """
     UPDATE questions
     SET question_type = 'multi_select',

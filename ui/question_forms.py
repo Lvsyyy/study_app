@@ -131,7 +131,7 @@ class CodeAnswer(QWidget):
         self.editor = AutoIndentCodeEditor()
         self.editor.auto_indent = True
         self.editor.setObjectName("CodeEditor")
-        self.editor.setPlaceholderText("// Write your code here")
+        self.editor.setPlaceholderText(tr("// Write your code here"))
         self.editor.setMinimumHeight(210)
         self.editor.setMaximumHeight(340)
         self.editor.setFont(font)
@@ -166,7 +166,7 @@ class CodeAnswer(QWidget):
         console_layout.setContentsMargins(0, 0, 0, 0)
         console_layout.setSpacing(0)
         console_header = QHBoxLayout()
-        self.console_title = QLabel("  CMD   |   Vorgegebene Ausgabe")
+        self.console_title = QLabel(f"  {tr('CMD')}   |   {tr('Expected output')}")
         self.console_title.setObjectName("BatchConsoleHeader")
         self.console_title.setFixedHeight(34)
         console_header.addWidget(self.console_title, 1)
@@ -209,9 +209,9 @@ class CodeAnswer(QWidget):
         self.run_button.setVisible(mode == BATCH)
 
         if mode == BATCH:
-            self.header.setText("  Batch   |   Eingabeaufforderung")
+            self.header.setText(f"  {tr('Batch')}   |   {tr('Command prompt')}")
             self.editor.auto_indent = False
-            self.prefix.setText(r"C:\Users\Supercoolerbenutzer>")
+            self.prefix.setText(tr("C:\\Users\\ExampleUser>"))
             self.suffix.clear()
             self.editor.setPlainText("")
             self.output.setPlainText(self._expected_output(data))
@@ -222,7 +222,7 @@ class CodeAnswer(QWidget):
             self.editor.auto_indent = True
             self.prefix.setText(prefix)
             self.suffix.setText(suffix)
-            self.console_title.setText("  CONSOLE   |   Vorgegebene Ausgabe")
+            self.console_title.setText(f"  {tr('CONSOLE')}   |   {tr('Expected output')}")
             if mode == CSHARP:
                 # Match the eight-space method-body indentation of the solution.
                 body = format_code_body(body) or "        "

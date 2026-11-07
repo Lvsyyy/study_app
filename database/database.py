@@ -4,6 +4,8 @@ from pathlib import Path
 
 from core.paths import default_database_path
 
+from .info_bank import seed_infos
+from .nt_bank import seed_nt_questions
 from .schema import DEFAULT_SUBJECTS, MIGRATIONS, SCHEMA, SCHEMA_VERSION
 
 
@@ -62,6 +64,10 @@ class Database:
                 if self.connection.in_transaction:
                     self.connection.rollback()
                 raise
+
+        with self.connection:
+            seed_nt_questions(self.connection)
+            seed_infos(self.connection)
 
     def execute(self, sql, params=()):
         return self.connection.execute(sql, params)

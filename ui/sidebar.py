@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QSpacerItem, QVB
 from core.i18n import tr
 from core.icons import icon
 
-NAV_ITEMS = ("Home", "Subjects", "Statistics", "Saved")
+NAV_ITEMS = ("Home", "Subjects", "Statistics", "Information", "Saved")
 
 
 class Sidebar(QWidget):
