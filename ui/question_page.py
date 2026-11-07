@@ -1,6 +1,5 @@
 import random
 import time
-from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -18,6 +17,7 @@ from core.answer_checker import is_correct
 from core.batch_simulator import BatchSimulationError, simulate_batch
 from core.formatting import format_duration
 from core.i18n import tr
+from core.paths import resolve_question_image_path
 from ui.interactive_questions import InteractiveQuestion
 from ui.pap_editor import PapEditor
 from ui.question_content import (
@@ -422,8 +422,9 @@ class QuestionPage(QWidget):
 
     def _load_image(self, path):
         self.image_label.clear()
-        if path and Path(path).is_file():
-            pixmap = QPixmap(path)
+        image_path = resolve_question_image_path(path)
+        if image_path is not None and image_path.is_file():
+            pixmap = QPixmap(str(image_path))
             if not pixmap.isNull():
                 self.image_label.setPixmap(
                     pixmap.scaled(
