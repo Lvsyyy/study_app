@@ -316,16 +316,7 @@ BANK = (
         ((IAAS, IAAS_DESC), (PAAS, PAAS_DESC), (SAAS, SAAS_DESC)),
         "IaaS liefert Infrastruktur, PaaS die Plattform, SaaS die fertige Software.", 2,
     ),
-    _answer(ARCH, "Was umfasst IaaS?", IAAS_DESC, "IaaS stellt Infrastrukturkomponenten bereit.", 2),
-    _answer(ARCH, "Was umfasst PaaS?", PAAS_DESC, "PaaS stellt Laufzeit- und Entwicklungsplattformen bereit.", 2),
-    _answer(ARCH, "Was umfasst SaaS?", SAAS_DESC, "SaaS stellt Software für Geschäftsprozesse bereit.", 2),
-    _answer(
-        ARCH, "Welche Cloud-Arten gibt es?",
-        "Public Cloud; Private Cloud",
-        "Es sind zwei Arten.", 2,
-        ("Public Cloud, Private Cloud", "Public Cloud und Private Cloud", "Private Cloud; Public Cloud"),
-    ),
-    _choice(
+                    _choice(
         ARCH, "Welche Architekturtypen werden in diesem Thema behandelt? Wähle alle passenden Antworten.",
         [P2P, CS, "Monolithische Anwendungssysteme", CLOUD, "Bus", "Stern"],
         [0, 1, 2, 3],
@@ -413,11 +404,7 @@ BANK = (
         BUS_CON, [STERN_CON, RING_CON],
         "Es gibt nur ein Medium, und es ist begrenzt.", 2,
     ),
-    _answer(TOPO, "Was bedeutet Shared Medium?", "Wenn Knoten sich ein Übertragungsmedium teilen",
-            "Mehrere Knoten nutzen dasselbe Medium.", 1),
-    _answer(TOPO, "Was bedeutet Single Point of Failure?", "Die Stelle im Netz die den Netzverkehr steuert",
-            "Fällt diese Stelle aus, steht das Netz.", 2),
-    _pairs(
+            _pairs(
         TOPO, "Ordne jeder Mischform ihren Aufbau zu.",
         ((STERN_STERN_AUFBAU, "Stern-Stern"), (BAUM_AUFBAU, "Baum-Topologie"), (MASCHEN_AUFBAU, "Maschennetz")),
         "Glasfaser, Wurzel und redundante Verbindungen sind die Hinweise.", 2,
@@ -480,13 +467,7 @@ BANK = (
         ((BANDWIDTH_DESC, "Bandbreite"), (THROUGHPUT_DESC, "Durchsatz"), (GOODPUT_DESC, "Goodput")),
         "Kapazität, tatsächliche Menge und Nutzdaten sind drei verschiedene Dinge.", 2,
     ),
-    _answer(BASE, "Was beschreibt die Bandbreite?", BANDWIDTH_DESC,
-            "Die Einheit ist Bit pro Sekunde.", 1),
-    _answer(BASE, "Was beschreibt der Durchsatz?", THROUGHPUT_DESC,
-            "Vergleiche den Durchsatz mit der Bandbreite.", 2),
-    _answer(BASE, "Was beschreibt der Goodput?", GOODPUT_DESC,
-            "Es zählt nur der Inhalt ohne Protokolloverhead.", 2),
-    _single(
+                _single(
         BASE,
         "Welche Kenngröße bezeichnet die echte transportierte Datenmenge und kann die Bandbreite nicht überschreiten?",
         THROUGHPUT_DESC, [BANDWIDTH_DESC, GOODPUT_DESC],
@@ -572,9 +553,7 @@ BANK = (
         (("80", "80 für Datenpakete (HTTP)"), ("25", "25 für E-Mails (SMTP)")),
         "HTTP läuft über 80, SMTP über 25.", 2,
     ),
-    _answer(KOMM, "Was passiert mit Datenpaketen, die nicht ankommen?", "Ein Ersatzpaket wird geschickt",
-            "Sie werden erneut gesendet.", 2),
-
+    
     # =====================================================================
     # Ausdehnungen
     # =====================================================================
@@ -648,15 +627,7 @@ BANK = (
         ),
         "Drei private Bereiche stehen in den Notizen.", 2,
     ),
-    _answer(
-        ADDR, "Welche drei Adressbereiche sind für private Netzwerke reserviert?",
-        f"{PRIVATE_RANGE}; {PRIVATE_RANGE_172}; {PRIVATE_RANGE_192}",
-        "Beginne mit 10., dann 172.16., dann 192.168.", 2,
-        (f"{PRIVATE_RANGE_172}; {PRIVATE_RANGE_192}; {PRIVATE_RANGE}",
-         f"{PRIVATE_RANGE_192}; {PRIVATE_RANGE}; {PRIVATE_RANGE_172}",
-         f"{PRIVATE_RANGE}; {PRIVATE_RANGE_192}; {PRIVATE_RANGE_172}"),
-    ),
-    _choice(
+        _choice(
         ADDR, "Welche dieser Adressbereiche sind für private Netzwerke reserviert? Wähle alle passenden Antworten.",
         [PRIVATE_RANGE, PRIVATE_RANGE_172, PRIVATE_RANGE_192, LOOPBACK_RANGE, LINK_LOCAL_RANGE],
         [0, 1, 2],
@@ -678,9 +649,7 @@ BANK = (
          "wenn die Loopback-Adresse bereits belegt ist"],
         "Ohne DHCP bleibt dem Rechner nur dieser Weg.", 2,
     ),
-    _answer(ADDR, "Was ist im Zusammenhang mit Netzklassen noch relevant?", "Class-full Routing",
-            "Die Netzklassen A-E selbst sind es nicht mehr.", 2),
-    _single(
+        _single(
         ADDR, "Welche Bedeutung haben die Netzklassen A-E heute?",
         "nicht mehr relevant",
         ["Standard im Internet", "Nur für private Netzwerke", "Pflicht für Loopback-Adressen"],
