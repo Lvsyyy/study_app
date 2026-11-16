@@ -57,7 +57,7 @@ AE_GROUPS = {
 
 # Topics seeded once per subject so a fresh install is not empty.
 SUBJECT_TOPIC_SEEDS = {
-    "PuG": ("Arbeitsvertrag",),
+    "PuG": ("Arbeitsvertrag", "Arbeitszeitgesetz"),
     "BS": (
         "Bootvorgang",
         "BIOS update",

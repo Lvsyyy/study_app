@@ -1,9 +1,19 @@
-SCHEMA_VERSION = 25
+SCHEMA_VERSION = 26
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    26: """
+    -- The PuG question bank adds its two topics here, so the questions below
+    -- can be seeded even before the subject menu was opened once.
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT s.id, 'Arbeitsvertrag' FROM subjects s WHERE s.name = 'PuG';
+
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT s.id, 'Arbeitszeitgesetz' FROM subjects s WHERE s.name = 'PuG';
+    """,
+
     25: """
     -- Keep only the firewall-port text question in NT. Cascading foreign keys
     -- also remove attempts and bookmarks for the retired text questions.
