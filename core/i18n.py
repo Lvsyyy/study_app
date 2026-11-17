@@ -331,6 +331,10 @@ GERMAN = {
     "Could not start the updater:\n{error}": (
         "Der Updater konnte nicht gestartet werden:\n{error}"
     ),
+    "GitHub is limiting update checks right now. Please try again after {time}.": (
+        "GitHub begrenzt die Update-Prüfungen gerade. "
+        "Bitte versuche es nach {time} Uhr erneut."
+    ),
     "Update ready": "Update bereit",
     "The app will close, update, and restart.": (
         "Die App wird geschlossen, aktualisiert und neu gestartet."

@@ -5,8 +5,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from xml.etree import ElementTree
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -15,10 +18,27 @@ from core.i18n import tr
 from core.net import ssl_context
 from core.paths import app_data_dir
 
-API_URL = "https://api.github.com/repos/Lvsyyy/study_app/commits/main"
+# The commit feed is a normal GitHub page, so checking for updates no longer
+# spends the 60 requests per hour that the REST API allows each address. The
+# API limit was shared by every copy behind the same router and produced 403s.
+FEED_URL = "https://github.com/Lvsyyy/study_app/commits/main.atom"
 ARCHIVE_URL = "https://github.com/Lvsyyy/study_app/archive/{commit}.zip"
 CHECK_INTERVAL_MS = 30 * 60 * 1000
-HEADERS = {"User-Agent": "Study-App-Updater"}
+FEED_HEADERS = {
+    "User-Agent": "Study-App-Updater",
+    "Accept": "application/atom+xml",
+}
+DOWNLOAD_HEADERS = {"User-Agent": "Study-App-Updater"}
+
+COMMIT_ID_PREFIX = "Grit::Commit/"
+
+
+class UpdateRateLimited(Exception):
+    """GitHub asked for a pause before the next update check."""
+
+    def __init__(self, retry_at):
+        super().__init__("Update checks are rate limited.")
+        self.retry_at = retry_at
 
 
 def _open_url(request, timeout):
@@ -102,31 +122,96 @@ def local_commit():
     return result.stdout.strip() or None
 
 
-def fetch_remote_commit(timeout=20):
-    request = Request(API_URL, headers=HEADERS)
-    with _open_url(request, timeout=timeout) as response:
-        return json.loads(response.read())["sha"]
+def _parse_feed_commit(payload):
+    """Read the newest commit hash from the Atom feed."""
+    namespace = "{http://www.w3.org/2005/Atom}"
+    root = ElementTree.fromstring(payload)
+    for entry in root.findall(f"{namespace}entry"):
+        identifier = entry.findtext(f"{namespace}id", default="")
+        if COMMIT_ID_PREFIX in identifier:
+            return identifier.rsplit(COMMIT_ID_PREFIX, 1)[1].strip()
+    raise ValueError("The update feed did not name a commit.")
 
 
 def _state_path() -> Path:
     return app_data_dir() / "update_state.json"
 
 
-def _known_commit():
+def _load_state():
     try:
         data = json.loads(_state_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None
-    return data.get("known_commit") if isinstance(data, dict) else None
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_state(**changes):
+    state = _load_state()
+    state.update(changes)
+    try:
+        _state_path().write_text(json.dumps(state), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _known_commit():
+    return _load_state().get("known_commit")
 
 
 def _remember_commit(commit):
+    _save_state(known_commit=commit)
+
+
+def _retry_at_time():
+    """Unix timestamp before which no update check should run."""
     try:
-        _state_path().write_text(
-            json.dumps({"known_commit": commit}), encoding="utf-8"
-        )
-    except OSError:
-        pass
+        return float(_load_state().get("retry_after") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _retry_at_from_headers(headers, default_seconds=900):
+    """Honour Retry-After, then the REST API reset, else back off 15 minutes."""
+    retry_after = headers.get("Retry-After") if headers else None
+    if retry_after:
+        try:
+            return time.time() + max(0, int(retry_after))
+        except ValueError:
+            pass
+    reset = headers.get("X-RateLimit-Reset") if headers else None
+    if reset:
+        try:
+            return max(time.time(), float(reset))
+        except ValueError:
+            pass
+    return time.time() + default_seconds
+
+
+def _rate_limit_message(error):
+    moment = time.strftime("%H:%M", time.localtime(error.retry_at))
+    return tr(
+        "GitHub is limiting update checks right now. Please try again after {time}.",
+        time=moment,
+    )
+
+
+def fetch_remote_commit(timeout=20):
+    """Return the newest commit, raising UpdateRateLimited while cooling down."""
+    retry_at = _retry_at_time()
+    if retry_at > time.time():
+        raise UpdateRateLimited(retry_at)
+
+    request = Request(FEED_URL, headers=FEED_HEADERS)
+    try:
+        with _open_url(request, timeout=timeout) as response:
+            payload = response.read().decode("utf-8", "replace")
+    except HTTPError as error:
+        if error.code in (403, 429):
+            retry_at = _retry_at_from_headers(error.headers)
+            _save_state(retry_after=retry_at)
+            raise UpdateRateLimited(retry_at) from error
+        raise
+    return _parse_feed_commit(payload)
 
 
 class UpdateWorker(QThread):
@@ -147,10 +232,14 @@ class UpdateWorker(QThread):
 
             folder = Path(tempfile.mkdtemp(prefix="study-app-update-"))
             archive = folder / "update.zip"
-            request = Request(ARCHIVE_URL.format(commit=commit), headers=HEADERS)
+            request = Request(
+                ARCHIVE_URL.format(commit=commit), headers=DOWNLOAD_HEADERS
+            )
             with _open_url(request, timeout=60) as response, archive.open("wb") as output:
                 shutil.copyfileobj(response, output)
             self.completed.emit(str(archive), commit, "")
+        except UpdateRateLimited as error:
+            self.completed.emit("", "", _rate_limit_message(error))
         except Exception as error:
             self.completed.emit("", "", str(error))
 
@@ -161,6 +250,10 @@ class _CheckWorker(QThread):
     def run(self):
         try:
             self.checked.emit(fetch_remote_commit(), "")
+        except UpdateRateLimited:
+            # A background check must not nag: the cooldown was stored by
+            # fetch_remote_commit and the next timer tick waits it out.
+            self.checked.emit("", "")
         except Exception as error:
             self.checked.emit("", str(error))
 
@@ -189,6 +282,8 @@ class UpdateChecker(QObject):
             worker.wait(5000)
 
     def check_now(self):
+        if time.time() < _retry_at_time():
+            return
         if self._worker is not None and self._worker.isRunning():
             return
         self._worker = _CheckWorker(self)
