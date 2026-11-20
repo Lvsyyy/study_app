@@ -4,6 +4,7 @@ The German text is the NT course notes, only split into headings and bullet
 lists. It is the same wording the NT question bank is built from, so a fact can
 never appear in a question and differently in the information view.
 """
+from .bs_bank import BS_INFOS
 from .nt_bank import (
     ADDR,
     ANYCAST,
@@ -275,7 +276,7 @@ INFO_BANK = (
         "",
         "Relevant ist noch: Class-full Routing",
     ))),
-)
+) + BS_INFOS
 
 
 def seed_infos(connection):

@@ -1,9 +1,83 @@
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 27
 
 DEFAULT_SUBJECTS = ("NT", "AE", "Math", "CS_P", "CS", "English", "BS", "PuG", "Ethik")
 
 # Version 1 is the base schema. Migrations are applied in ascending order.
 MIGRATIONS = {
+    27: """
+    -- The BS question bank moved into database/bs_bank.py. Its topics are
+    -- created here so the questions below can be seeded before the subject
+    -- menu was opened once. The Batch exercises and the Bootvorgang PAP are
+    -- kept, every other older BS question is retired.
+    UPDATE topics SET name = 'BIOS-Update'
+    WHERE name = 'BIOS update'
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      AND NOT EXISTS (
+          SELECT 1 FROM topics t2
+          WHERE t2.name = 'BIOS-Update'
+            AND t2.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      );
+
+    UPDATE topics SET name = 'Dateisysteme'
+    WHERE name = 'Windows Dateisysteme'
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      AND NOT EXISTS (
+          SELECT 1 FROM topics t2
+          WHERE t2.name = 'Dateisysteme'
+            AND t2.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      );
+
+    UPDATE topics SET name = 'Virtualisierung'
+    WHERE name = 'Virtuelle PCs'
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      AND NOT EXISTS (
+          SELECT 1 FROM topics t2
+          WHERE t2.name = 'Virtualisierung'
+            AND t2.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      );
+
+    UPDATE topics SET name = 'Benutzerkonten und Benutzergruppen'
+    WHERE name = 'Benutzer'
+      AND subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      AND NOT EXISTS (
+          SELECT 1 FROM topics t2
+          WHERE t2.name = 'Benutzerkonten und Benutzergruppen'
+            AND t2.subject_id = (SELECT id FROM subjects WHERE name = 'BS')
+      );
+
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Bootvorgang' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'BIOS und UEFI' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'BIOS-Update' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Dateisysteme' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'NTFS-Struktur' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Festplatten' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Partitionierung' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Virtualisierung' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Benutzerkonten und Benutzergruppen' FROM subjects WHERE name = 'BS';
+    INSERT OR IGNORE INTO topics(subject_id, name)
+    SELECT id, 'Benutzerprofile' FROM subjects WHERE name = 'BS';
+
+    DELETE FROM questions
+    WHERE question_type <> 'pap'
+      AND topic_id IN (
+          SELECT t.id FROM topics t JOIN subjects s ON s.id = t.subject_id
+          WHERE s.name = 'BS'
+      )
+      AND topic_id NOT IN (
+          SELECT t.id FROM topics t JOIN subjects s ON s.id = t.subject_id
+          WHERE s.name = 'BS' AND t.name = 'Batch'
+      );
+    """,
+
     26: """
     -- The PuG question bank adds its two topics here, so the questions below
     -- can be seeded even before the subject menu was opened once.

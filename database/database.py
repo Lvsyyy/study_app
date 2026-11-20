@@ -4,6 +4,7 @@ from pathlib import Path
 
 from core.paths import default_database_path
 
+from .bs_bank import seed_bs_questions
 from .info_bank import seed_infos
 from .nt_bank import seed_nt_questions
 from .pug_bank import seed_pug_questions
@@ -69,6 +70,7 @@ class Database:
         with self.connection:
             seed_nt_questions(self.connection)
             seed_pug_questions(self.connection)
+            seed_bs_questions(self.connection)
             seed_infos(self.connection)
 
     def execute(self, sql, params=()):
